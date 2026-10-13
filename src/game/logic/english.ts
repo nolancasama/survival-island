@@ -1,0 +1,111 @@
+/**
+ * Every English sentence the student says or chooses, with the key words the
+ * speech judge listens for. Display text is exactly what a child reads; the
+ * keys are what must be heard (each group = any one of its words).
+ *
+ * Variant lists hold synonyms a teacher would accept (take/grab for get, rock
+ * for stone) and common mishearings of Japanese-accented English by browser
+ * recognisers (would -> wood, it -> eat, angry -> hungry, know -> no). Two-word
+ * forms are written joined ("campfire"); the judge also joins adjacent words.
+ */
+
+const W = {
+  get: ["get", "gets", "got", "getting", "gate", "git", "getto", "geto", "take", "takes", "grab", "pick", "picks", "collect", "gather"],
+  wood: ["wood", "woods", "would", "wooden", "word", "woody", "wud"],
+  stone: ["stone", "stones", "stoned", "stony", "stoner", "rock", "rocks"],
+  coconut: ["coconut", "coconuts", "coconut's", "coco", "cocoa", "cocanut", "cocoanut", "kokonut", "coconuts'"],
+  eat: ["eat", "eats", "eating", "ate", "it", "eat's", "eet", "eats'"],
+  open: ["open", "opens", "opened", "opening", "oben"],
+  box: ["box", "boxes", "bucks", "bocks", "boks", "box's", "crate", "chest"],
+  make: ["make", "makes", "made", "making", "mate", "maker", "meik"],
+  fire: ["fire", "fires", "fired", "fyre", "fier", "fair", "far", "fiya", "fiyah", "campfire", "bonfire", "fireplace"],
+  campfire: ["campfire", "campfires", "campfire's", "camp", "fire", "fires", "bonfire"],
+  want: ["want", "wants", "wanna", "wanted", "won't", "wont", "won", "wand"],
+  need: ["need", "needs", "needed", "neat", "knead", "kneed", "knee", "niid", "nead"],
+  hungry: ["hungry", "hungary", "hungrier", "angry", "hangry", "hunger", "hungy"],
+  water: ["water", "waters", "wata", "watah", "waiter", "walter", "warter", "wauter"],
+  food: ["food", "foods", "foot", "fruit", "fruits", "fuud", "fude"],
+  yes: ["yes", "yeah", "yep", "yup", "ya", "yah", "yess", "yea", "can", "sure", "ok", "okay"],
+  no: ["no", "nope", "know", "nah", "can't", "cant", "cannot", "not", "don't", "dont"]
+} as const;
+
+export type PhraseId =
+  | "getWood"
+  | "getStone"
+  | "getCoconut"
+  | "eatCoconut"
+  | "openBox"
+  | "makeFire"
+  | "craftCampfire"
+  | "craftAxe"
+  | "craftTorch"
+  | "craftRod"
+  | "craftContainer"
+  | "craftShelter"
+  | "craftSignalFire"
+  | "hungry"
+  | "needWood"
+  | "needStone"
+  | "needWater"
+  | "needFood"
+  | "yesICan"
+  | "noICant";
+
+export interface Phrase {
+  id: PhraseId;
+  en: string;
+  /** All groups must be heard; each group is satisfied by any one of its words. */
+  keys: ReadonlyArray<readonly string[]>;
+  /** If any of these is heard, the phrase does not match ("No, I can't" is never "yes"). */
+  forbid?: readonly string[];
+  /** Wrong-but-plausible sentences offered beside this one in mic-free mode. */
+  distractors?: PhraseId[];
+}
+
+export const PHRASES: Record<PhraseId, Phrase> = {
+  getWood: { id: "getWood", en: "Get the wood.", keys: [W.get, W.wood], distractors: ["getStone", "eatCoconut"] },
+  getStone: { id: "getStone", en: "Get the stone.", keys: [W.get, W.stone], distractors: ["getWood", "openBox"] },
+  getCoconut: { id: "getCoconut", en: "Get the coconut.", keys: [W.get, W.coconut], distractors: ["getStone", "makeFire"] },
+  eatCoconut: { id: "eatCoconut", en: "Eat the coconut.", keys: [W.eat, W.coconut], distractors: ["getWood", "openBox"] },
+  openBox: { id: "openBox", en: "Open the box.", keys: [W.open, W.box], distractors: ["getStone", "eatCoconut"] },
+  makeFire: { id: "makeFire", en: "Make a fire.", keys: [W.make, W.fire], distractors: ["getWood", "eatCoconut"] },
+  craftCampfire: {
+    id: "craftCampfire",
+    en: "I want to make a campfire.",
+    keys: [[...W.want, ...W.make], W.campfire],
+    distractors: ["craftAxe", "craftTorch"]
+  },
+  craftAxe: { id: "craftAxe", en: "I want to make a stone axe.", keys: [[...W.want, ...W.make], ["axe", "axes", "ax", "acts", "ox"]] },
+  craftTorch: { id: "craftTorch", en: "I want to make a torch.", keys: [[...W.want, ...W.make], ["torch", "torches", "touch", "torch's"]] },
+  craftRod: {
+    id: "craftRod",
+    en: "I want to make a fishing rod.",
+    keys: [[...W.want, ...W.make], ["rod", "rods", "fishingrod", "fishing", "road", "rad"]]
+  },
+  craftContainer: {
+    id: "craftContainer",
+    en: "I want to make a water container.",
+    keys: [[...W.want, ...W.make], ["container", "containers", "contain", "contena", "watercontainer"]]
+  },
+  craftShelter: {
+    id: "craftShelter",
+    en: "I want to make a shelter.",
+    keys: [[...W.want, ...W.make], ["shelter", "shelters", "sheltar", "shelta", "shoulder", "helter"]]
+  },
+  craftSignalFire: {
+    id: "craftSignalFire",
+    en: "I want to make a signal fire.",
+    keys: [[...W.want, ...W.make], ["signal", "signals", "signalfire", "single", "signo"]]
+  },
+  hungry: { id: "hungry", en: "I'm hungry.", keys: [W.hungry], distractors: ["needWood", "needStone"] },
+  needWood: { id: "needWood", en: "I need wood.", keys: [W.need, W.wood] },
+  needStone: { id: "needStone", en: "I need stones.", keys: [W.need, W.stone] },
+  needWater: { id: "needWater", en: "I need water.", keys: [W.need, W.water] },
+  needFood: { id: "needFood", en: "I need food.", keys: [W.need, W.food] },
+  yesICan: { id: "yesICan", en: "Yes, I can.", keys: [W.yes], forbid: W.no },
+  noICant: { id: "noICant", en: "No, I can't.", keys: [W.no] }
+};
+
+export function phrase(id: PhraseId): Phrase {
+  return PHRASES[id];
+}
