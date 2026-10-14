@@ -1,14 +1,14 @@
 # Current State
 
 ## Status
-Phase 1 (beach, Day 1) is done and committed (`125a6e3`, pushed to
-`origin/main`, which is private). **Phase 2 (Exploration): the world, the
-logic and story slice A (Days 1–2 with day/night and sleeping) are done and
-uncommitted.** Story slice B (Day 3) is next. The design is in
+Phase 1 (beach, Day 1) is on `main` (`125a6e3`; the repo is private).
+**Phase 2 so far (the world, the logic and story slice A: Days 1–2 with
+day/night and sleeping) is committed on branch `phase-2-days-1-2` (`3a1953e`,
+pushed); `main` is not updated yet.** Story slice B (Day 3) is next. The design is in
 DESIGN_DECISIONS.md under "2026-10-13 — Phase 2 (Exploration) design" plus
 "2026-10-14 — Phase 2 decisions made while building". Read those first.
 
-## Phase 2: done (uncommitted, reviewed)
+## Phase 2: done (committed on the branch, reviewed)
 - **World slice (accepted visually):** forest, stream, broken/built bridge,
   pond with dock and fish spots, cave mouth, cliff path rockfall, signs,
   regions and gates (`pathCleared` / `bridgeBuilt`), forest nodes, shelter
@@ -64,7 +64,8 @@ DESIGN_DECISIONS.md under "2026-10-13 — Phase 2 (Exploration) design" plus
 2. Acceptance after slice B: `npm run e2e`, `npm run shots`, `npm run
    shots:world` (shots need `npx vite preview --port 5287`; it binds to
    `localhost`, so pass `http://localhost:5287/` to the script).
-3. Commit Phase 2 when the user asks.
+3. Merge `phase-2-days-1-2` into `main` when the user wants (a
+   fast-forward), and commit slice B when the user asks.
 
 ## Known Issues / Unverified
 - Real speech recognition, sound and Chromebook GPU are untested (as in
