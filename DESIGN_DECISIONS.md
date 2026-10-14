@@ -429,3 +429,9 @@ and the signal fire wait for Phase 3.
   eaten (Day 3).
 - **Kai's repeatable "What do you need?" offers leaves instead of food** once
   leaves matter (the forest is open or the shelter recipe is known).
+- **The line-of-sight fade is a cone, not a cylinder.** It is narrow near the
+  camera (a fifth of the width) and full width at the player, with a soft
+  edge. The 1.55 m cylinder cut a wide tunnel with a speckled rim through
+  every canopy between the camera and the player, which read in the forest
+  as a strange transparent aura around the player. The cone keeps the
+  opening on screen about the player's size.

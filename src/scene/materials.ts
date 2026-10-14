@@ -43,7 +43,12 @@ if (uLosRadius > 0.0) {
   float losDistance = length(losPoint - losNearest);
   float visibility = smoothstep(2.9, 3.2, cameraDistance);
   if (losAlong > -0.04 && losAlong < 1.04) {
-    float capsuleVisibility = smoothstep(uLosRadius * 0.82, uLosRadius, losDistance);
+    // A cone, not a cylinder: narrow near the camera, full width at the player,
+    // so the opening on screen stays about the player's size instead of a
+    // large ring cut through every canopy along the way. The soft edge keeps
+    // it from reading as a hard-edged bubble.
+    float losRadius = uLosRadius * mix(0.2, 1.0, clamp(losAlong, 0.0, 1.0));
+    float capsuleVisibility = smoothstep(losRadius * 0.5, losRadius, losDistance);
     visibility = min(visibility, capsuleVisibility);
   }
   if (visibility <= 0.0) discard;
@@ -54,7 +59,7 @@ if (uLosRadius > 0.0) {
 }`
     );
 };
-occluderMat.customProgramCacheKey = () => "line-of-sight-screen-door-v2";
+occluderMat.customProgramCacheKey = () => "line-of-sight-screen-door-v3";
 
 /** Update the shared line-of-sight capsule after the follow camera has moved. */
 export function updateOccluderFade(camera: THREE.Camera, target: THREE.Vector3, enabled: boolean): void {
