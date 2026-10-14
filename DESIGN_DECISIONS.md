@@ -435,3 +435,31 @@ and the signal fire wait for Phase 3.
   every canopy between the camera and the player, which read in the forest
   as a strange transparent aura around the player. The cone keeps the
   opening on screen about the player's size.
+
+## 2026-10-15 — Phase 2 story slice B decisions
+
+- **Fishing has no reaction test.** Saying or tapping “Catch a fish.” starts
+  a cast, a short wait, a dipping bobber and a jumping fish automatically.
+  Each spot then rests for 15 seconds of live play. Its remaining rest time
+  uses the existing saved resource timer map, so resuming does not refresh
+  a spot early. An active cast is transient; fish enter the saved bag only
+  when the catch completes.
+- **The bobber lands where the player is looking, not at the spot.** The
+  cast goes from wherever the player stands, straight toward the middle of
+  the pond, and lands 2.4 m from the middle, past the end of the dock. The
+  player turns to face it. The first version cast a fixed 2.1 m from the
+  spot toward the middle, which put the bobber on the dock's planks, with
+  the line running across the player's head.
+- **Water can be drunk even with a full Food meter.** It also restores
+  stamina, and a full stomach must not block the first drinking objective.
+  F follows hotbar food order; tapping the water always selects drinking.
+- **The fish-first morning keeps both bridge and unopened crate beacons.**
+  The final bridge instruction must not erase the earlier rope hint. Both
+  choices teach both recipes, in the student's chosen order.
+- **The Day 3 card is the last story card.** Keep playing starts Day 4 with
+  the existing generic morning greeting. Later free-day sleeps wake directly
+  into the next day title, without another card or required conversation.
+- **Automation observes fishing rather than guessing its timing.** The
+  read-only test state exposes cast phase, spot rest timers, action animation
+  and free-play status alongside the existing quest, clock and sleep state.
+

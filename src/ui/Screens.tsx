@@ -83,7 +83,8 @@ export function TitleScreen() {
 /** What each story day achieved, for its card. */
 const DAY_DONE: Record<number, { en: string; ja: string; icon: IconId }> = {
   1: { en: "You found food, met Kai and made a fire.", ja: "たべものを みつけて、カイに あって、火を つけたね！", icon: "fire" },
-  2: { en: "You made an axe, opened the forest and built a shelter.", ja: "おのを つくって、もりを ひらいて、こやを たてたね！", icon: "shelter" }
+  2: { en: "You made an axe, opened the forest and built a shelter.", ja: "おのを つくって、もりを ひらいて、こやを たてたね！", icon: "shelter" },
+  3: { en: "You built a bridge, found water and cooked a fish.", ja: "はしを つくって、みずを みつけて、さかなを やいたね！", icon: "grilledFish" }
 };
 
 /** "Day 2: Make Camp" -> ["Day 2", "Make Camp"]. */
@@ -128,12 +129,12 @@ export function DayEndScreen() {
           ))}
         </ul>
         <p className="next-day">
-          Next: {next.steps.length ? next.en : `Day ${day + 1}`}
-          <Ja>{next.steps.length ? `つぎは ${next.ja}` : `つぎは ${day + 1}にちめ`}</Ja>
+          {day === 3 ? "To be continued... Next time: the cave!" : `Next: ${next.steps.length ? next.en : `Day ${day + 1}`}`}
+          <Ja>{day === 3 ? "つづく… つぎは どうくつへ！" : next.steps.length ? `つぎは ${next.ja}` : `つぎは ${day + 1}にちめ`}</Ja>
         </p>
         <div className="title-buttons">
           <button className="primary big" onClick={() => void nextDay()} data-testid="next-day">
-            Day {day + 1} → <Ja>{day + 1}にちめへ</Ja>
+            {day === 3 ? "Keep playing" : `Day ${day + 1} →`} <Ja>{day === 3 ? "もっと あそぶ" : `${day + 1}にちめへ`}</Ja>
           </button>
           <button className="secondary big" onClick={() => toTitle()} data-testid="to-title">
             Title <Ja>タイトルへ</Ja>

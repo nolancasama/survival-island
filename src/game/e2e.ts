@@ -4,6 +4,7 @@ import { seedChoices } from "./flow/ask";
 import { syncStats } from "./flow/session";
 import { nextDay } from "./flow/days";
 import { currentGates, targetPosition } from "./flow/places";
+import { findFocus } from "./flow/focus";
 import {
   BRIDGE,
   CAVE_SIGN,
@@ -34,9 +35,10 @@ import * as THREE from "three";
 /** English a student has used by the end of each story day (for startDay). */
 const KNOWN_BY_DAY: Record<number, PhraseId[]> = {
   1: ["hungry", "getCoconut", "eatCoconut", "needWood", "yesICan", "getWood", "getStone", "craftCampfire", "makeFire", "sleep"],
-  2: ["yesICan", "craftAxe", "cutTree", "getLeaves", "craftShelter", "buildShelter", "sleep"]
+  2: ["yesICan", "craftAxe", "cutTree", "getLeaves", "craftShelter", "buildShelter", "sleep"],
+  3: ["wantWater", "buildBridge", "craftContainer", "getWater", "drinkWater", "craftRod", "catchFish", "cookFish", "eatFish", "sleep"]
 };
-const UNLOCKED_BY_DAY: Record<number, CraftId[]> = { 1: ["campfire"], 2: ["axe", "shelter"] };
+const UNLOCKED_BY_DAY: Record<number, CraftId[]> = { 1: ["campfire"], 2: ["axe", "shelter"], 3: ["container", "rod"] };
 /** Where startDay puts the camp: the Day 1 fire on the beach, the Day 2 shelter beside it. */
 const CAMP_FIRE = { x: 2, z: 5 };
 const CAMP_SHELTER = { x: -3, z: 5 };
@@ -104,6 +106,11 @@ export function installE2eHook(seed: number) {
         hint: g.hint,
         player: { x: rt.player.x, z: rt.player.z, yaw: rt.player.yaw },
         taken: [...rt.taken.keys()],
+        /** Read-only semantic cast phase and saved live-seconds rest timers. */
+        fishing: rt.fishing ? { ...rt.fishing } : null,
+        fishRests: Object.fromEntries([...rt.taken].filter(([id]) => FISH_SPOTS.some((s) => s.id === id))),
+        action: rt.player.action ? { ...rt.player.action } : null,
+        freePlay: g.quest.day > 3,
         beacons: rt.time < rt.beacons.until ? rt.beacons.ids : [],
         pathCleared: g.pathCleared,
         bridgeBuilt: g.bridgeBuilt,
@@ -143,7 +150,11 @@ export function installE2eHook(seed: number) {
         const a = (i / 16) * Math.PI * 2;
         const x = at.x + Math.sin(a) * 1.4;
         const z = at.z + Math.cos(a) * 1.4;
-        if (isWalkable(x, z, gates, PLAYER_R) && !overlaps(x, z, PLAYER_R, solid)) return place(x, z, at.x, at.z);
+        if (!isWalkable(x, z, gates, PLAYER_R) || overlaps(x, z, PLAYER_R, solid)) continue;
+        // Water and fishing spots share a shore. Stand where this target,
+        // rather than its close neighbour, really receives the E action.
+        const yaw = Math.atan2(at.x - x, at.z - z);
+        if (findFocus(x, z, yaw)?.id === id) return place(x, z, at.x, at.z);
       }
       return place(at.x, at.z + 1.4, at.x, at.z);
     },
@@ -164,8 +175,8 @@ export function installE2eHook(seed: number) {
       const fire: PlacedBuilding = { id: "bE2eFire", type: "campfire", x: CAMP_FIRE.x, z: CAMP_FIRE.z, rot: 0, lit: true };
       const buildings: PlacedBuilding[] = [fire];
       if (n >= 3) buildings.push({ id: "bE2eShelter", type: "shelter", x: CAMP_SHELTER.x, z: CAMP_SHELTER.z, rot: 0, built: true });
-      const bag: Bag = n >= 3 ? { coconut: 1, wood: 1, axe: 1 } : { coconut: 1 };
-      const crafted: CraftId[] = n >= 3 ? ["campfire", "axe", "shelter"] : ["campfire"];
+      const bag: Bag = n >= 4 ? { coconut: 1, wood: 1, axe: 1, container: 1, rod: 1 } : n >= 3 ? { coconut: 1, wood: 1, axe: 1 } : { coconut: 1 };
+      const crafted: CraftId[] = n >= 4 ? ["campfire", "axe", "shelter", "container", "rod"] : n >= 3 ? ["campfire", "axe", "shelter"] : ["campfire"];
       const lastDay = DAYS.find((d) => d.day === before);
       resetRuntime();
       setGame({
@@ -184,6 +195,11 @@ export function installE2eHook(seed: number) {
         buildings,
         bag,
         pathCleared: n >= 3,
+        bridgeBuilt: n >= 4,
+        gotWater: n >= 4 ? 1 : 0,
+        drank: n >= 4 ? 1 : 0,
+        caught: n >= 4 ? 1 : 0,
+        cooked: n >= 4 ? 1 : 0,
         sleptDay: before,
         hint: null,
         fade: 0,
@@ -290,7 +306,8 @@ export function installE2eHook(seed: number) {
       return { light: rt.light, lightTarget: rt.lightTarget };
     },
     setTaken(id: string, taken: boolean) {
-      if (!NODE_BY_ID.has(id)) throw new Error(`no node ${id}`);
+      // Fishing spots rest in the same map, so a test can hold one resting across a slow reload.
+      if (!NODE_BY_ID.has(id) && !FISH_SPOTS.some((s) => s.id === id)) throw new Error(`no node ${id}`);
       if (taken) {
         rt.taken.set(id, 10_000);
         rt.regrown.delete(id);

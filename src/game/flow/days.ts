@@ -9,7 +9,7 @@ import { KAI_HOME } from "../world/island";
 import { ask, fastMode, say } from "./ask";
 import { currentGates } from "./places";
 import { facts, refreshQuest, save, setMood, showPlaces, syncStats, updateHint, wait } from "./session";
-import { morningTalk } from "./kai";
+import { dayThreeThanks, morningTalk } from "./kai";
 import { audio } from "../../audio/audio";
 
 /**
@@ -97,6 +97,7 @@ export async function eveningCue() {
   audio.play("fanfare");
   const bed = sleepPlace();
   if (bed) showPlaces([bed.id]);
+  await dayThreeThanks();
   await say("kai", "It's getting dark. Let's sleep in the shelter!", "くらく なって きたね。 こやで ねよう！");
   setGame({ mode: "explore" });
   updateHint();
@@ -117,7 +118,7 @@ export async function trySleep(bed: PlacedBuilding) {
   await sleepTonight(bed);
 }
 
-/** Lie down, fade through a starry night, recover, and end the day with its card. */
+/** Lie down and recover; story days show a card, free days wake straight into the next morning. */
 export async function sleepTonight(bed: PlacedBuilding | null) {
   setGame({ mode: "busy", focus: null, needsPulse: false });
   rt.beacons = { ids: [], until: 0 };
@@ -135,6 +136,10 @@ export async function sleepTonight(bed: PlacedBuilding | null) {
   const g = getGame();
   setGame({ sleptDay: Math.max(g.sleptDay, g.quest.day) });
   refreshQuest();
+  if (!isStoryDay(g.quest.day)) {
+    await nextDay();
+    return;
+  }
   setGame({ screen: "dayEnd", mode: "busy", sleeping: false, fade: 0, focus: null, hint: getGame().hint === "micBlocked" ? "micBlocked" : null });
   save();
 }
@@ -148,6 +153,7 @@ export async function nextDay() {
   if (advancing) return;
   advancing = true;
   try {
+    const previousDay = getGame().quest.day;
     const q = advanceDay(getGame().quest, facts());
     rt.clock = dayStartT(q.day);
     rt.light = rt.lightTarget = lightAt(rt.clock);
@@ -179,7 +185,7 @@ export async function nextDay() {
     setGame({ dayTitle: null });
     rt.player.lyingTarget = 0;
     await wait(900);
-    await morningTalk(q.day);
+    if (isStoryDay(previousDay)) await morningTalk(q.day);
     setGame({ mode: "explore" });
     refreshQuest();
     updateHint();

@@ -74,6 +74,34 @@ export const HINTS: Record<string, { keys: Bi; touch: Bi }> = {
     keys: { en: "Sleep in your shelter (or by the fire): press E there.", ja: "こや（か 火の そば）で E を おして ねよう" },
     touch: { en: "Sleep in your shelter (or by the fire): tap the hand there.", ja: "こや（か 火の そば）で て を タップして ねよう" }
   },
+  bridge: {
+    keys: { en: "Take four wood to the broken bridge. Press E.", ja: "木 4つを はしへ はこぼう。ちかくで E" },
+    touch: { en: "Take four wood to the broken bridge. Tap the hand.", ja: "木 4つを はしへ はこぼう。ちかくで てを タップ" }
+  },
+  container: {
+    keys: { en: "Make a water container: 1 coconut + 2 leaves. Press C.", ja: "ココナッツ 1つと はっぱ 2つで みずいれを つくろう。C キー" },
+    touch: { en: "Make a water container: 1 coconut + 2 leaves. Tap the hammer.", ja: "ココナッツ 1つと はっぱ 2つで みずいれを つくろう。ハンマーを タップ" }
+  },
+  water: {
+    keys: { en: "Take your container to the pond shore. Press E.", ja: "みずいれを もって いけの ほとりへ。E を おそう" },
+    touch: { en: "Take your container to the pond shore. Tap the hand.", ja: "みずいれを もって いけの ほとりへ。てを タップ" }
+  },
+  drink: {
+    keys: { en: "Drink: click the water in your bag, or press F.", ja: "バッグの みずを クリックして のもう。F キーでも のめるよ" },
+    touch: { en: "Drink: tap the water in your bag.", ja: "バッグの みずを タップして のもう" }
+  },
+  rod: {
+    keys: { en: "Make a fishing rod: 2 wood + 1 rope. Press C. The beach box has rope!", ja: "木 2つと ロープ 1つで つりざおを つくろう。C キー。ロープは はまの はこに！" },
+    touch: { en: "Make a fishing rod: 2 wood + 1 rope. Tap the hammer. The beach box has rope!", ja: "木 2つと ロープ 1つで つりざおを つくろう。ハンマーを タップ。ロープは はまの はこに！" }
+  },
+  fish: {
+    keys: { en: "Take your rod to a fishing spot at the pond. Press E, then wait.", ja: "つりざおを もって いけの つりばへ。E を おして まとう" },
+    touch: { en: "Take your rod to a fishing spot at the pond. Tap the hand, then wait.", ja: "つりざおを もって いけの つりばへ。てを タップして まとう" }
+  },
+  cook: {
+    keys: { en: "Take the fish to a lit campfire. Press E to cook it.", ja: "さかなを もって たきびへ。E を おして やこう" },
+    touch: { en: "Take the fish to a lit campfire. Tap the hand to cook it.", ja: "さかなを もって たきびへ。てを タップして やこう" }
+  },
   micBlocked: {
     keys: { en: "The microphone is off. Choose the sentences.", ja: "マイクが つかえないので、ぶんを えらんで こたえよう" },
     touch: { en: "The microphone is off. Tap the sentences.", ja: "マイクが つかえないので、ぶんを タップして こたえよう" }

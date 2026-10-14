@@ -1,9 +1,10 @@
-import { NODES, CRATE, FOREST_GAP, CAVE_SIGN, CLIFF_SIGN, FALLEN_TREE, INTERACT_RANGE } from "../world/island";
+import { NODES, CRATE, FOREST_GAP, CAVE_SIGN, CLIFF_SIGN, FALLEN_TREE, BRIDGE, FISH_SPOTS, WATER_SPOTS, INTERACT_RANGE } from "../world/island";
 import { ITEMS, NODE_YIELD } from "../types";
 import { rt } from "../runtime";
 import { getGame, type Focus } from "../store";
 import { targetPosition } from "./places";
 import { canSleepNow } from "./days";
+import { count } from "../logic/inventory";
 
 /**
  * What the player can use right now: the nearest usable thing within reach,
@@ -40,11 +41,29 @@ function candidates(): Candidate[] {
       reach: INTERACT_RANGE + 0.6
     });
   }
+  if (!g.bridgeBuilt) {
+    out.push({
+      focus: { id: BRIDGE.id, kind: "bridge", verb: "Build", noun: "a bridge", icon: "bridge" },
+      x: BRIDGE.beachSide.x,
+      z: BRIDGE.beachSide.z,
+      reach: INTERACT_RANGE + 0.6
+    });
+  }
+  for (const s of WATER_SPOTS) {
+    out.push({ focus: { id: s.id, kind: "water", verb: "Get", noun: "water", icon: "water" }, x: s.x, z: s.z, reach: INTERACT_RANGE });
+  }
+  for (const s of FISH_SPOTS) {
+    // Resting spots disappear briefly so a nearby water spot can still be used.
+    if (rt.taken.has(s.id)) continue;
+    out.push({ focus: { id: s.id, kind: "fish", verb: "Catch", noun: "a fish", icon: "fish" }, x: s.x, z: s.z, reach: INTERACT_RANGE });
+  }
   out.push({ focus: { id: "kai", kind: "kai", verb: "Talk to", noun: "Kai", icon: "needs" }, x: rt.kai.x, z: rt.kai.z, reach: INTERACT_RANGE + 0.5 });
   const hasShelter = g.buildings.some((b) => b.type === "shelter" && b.built);
   for (const b of g.buildings) {
     if (b.type === "campfire" && !b.lit) {
       out.push({ focus: { id: b.id, kind: "campfire", verb: "Make", noun: "a fire", icon: "fire" }, x: b.x, z: b.z, reach: INTERACT_RANGE + 0.5 });
+    } else if (b.type === "campfire" && count(g.bag, "fish") > 0) {
+      out.push({ focus: { id: b.id, kind: "campfire", verb: "Cook", noun: "the fish", icon: "grilledFish" }, x: b.x, z: b.z, reach: INTERACT_RANGE + 0.5 });
     } else if (b.type === "campfire" && !hasShelter && canSleepNow()) {
       // No shelter yet: a lit fire is the place to sleep.
       out.push({ focus: { id: b.id, kind: "campfire", verb: "Sleep", noun: "by the fire", icon: "moon" }, x: b.x, z: b.z, reach: INTERACT_RANGE + 0.5 });

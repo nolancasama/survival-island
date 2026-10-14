@@ -39,8 +39,8 @@ export const rt = {
     /** 1 = lying on the sand (intro / fainted), 0 = standing. */
     lying: 0,
     lyingTarget: 0,
-    /** Short action animation (gather, eat, craft, chop, build). */
-    action: null as null | { kind: "gather" | "eat" | "craft" | "chop" | "build"; t0: number },
+    /** Short action animation (cooking shares craft). */
+    action: null as null | { kind: "gather" | "eat" | "drink" | "craft" | "chop" | "build"; t0: number },
     frozenUntil: 0
   },
   /** Keyboard + joystick intent, camera space: x = right, y = forward. */
@@ -68,6 +68,17 @@ export const rt = {
   },
   /** Taken resource nodes: id -> seconds until it grows back. */
   taken: new Map<string, number>(),
+  /** Active cast; each phase starts at t0. Spot rests share the saved taken map. */
+  fishing: null as null | {
+    spotId: string;
+    phase: "cast" | "wait" | "bite" | "reel";
+    t0: number;
+    /** Where the bobber lands (in open water, not at the spot). */
+    x: number;
+    z: number;
+    /** The way the player faces while fishing. */
+    yaw: number;
+  },
   /** Node id -> time it reappeared (pop-in animation). */
   regrown: new Map<string, number>(),
   /** Glowing markers from "I need ___": node ids and when they end. */
@@ -131,6 +142,7 @@ export function resetRuntime() {
   rt.kai.walkTo = null;
   rt.kai.talking = false;
   rt.taken.clear();
+  rt.fishing = null;
   rt.regrown.clear();
   rt.beacons = { ids: [], until: 0 };
   rt.place.visible = false;

@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { rt } from "../game/runtime";
 import { getGame, setGame } from "../game/store";
 import { keyboardMove, keys } from "../input/keyboard";
-import { groundY, shoreZ } from "../game/world/island";
+import { groundY, POND, shoreZ } from "../game/world/island";
 import { PLAYER_R, STATIC_OBSTACLES, resolveCollisions, type Obstacles } from "../game/world/collision";
 import { buildingObstacles } from "../game/world/placement";
 import { canRun } from "../game/logic/stats";
@@ -30,6 +30,9 @@ interface Rig {
   armL: React.RefObject<THREE.Group | null>;
   armR: React.RefObject<THREE.Group | null>;
   axe: React.RefObject<THREE.Group | null>;
+  rod: React.RefObject<THREE.Group | null>;
+  rodTip: React.RefObject<THREE.Group | null>;
+  cup: React.RefObject<THREE.Group | null>;
 }
 
 function useRig(): Rig {
@@ -40,7 +43,10 @@ function useRig(): Rig {
     legR: useRef<THREE.Group>(null),
     armL: useRef<THREE.Group>(null),
     armR: useRef<THREE.Group>(null),
-    axe: useRef<THREE.Group>(null)
+    axe: useRef<THREE.Group>(null),
+    rod: useRef<THREE.Group>(null),
+    rodTip: useRef<THREE.Group>(null),
+    cup: useRef<THREE.Group>(null)
   };
 }
 
@@ -51,9 +57,28 @@ function axeGeometry(): THREE.BufferGeometry {
   return b.build();
 }
 
+/** Handheld tools share the character's arm pivot and need no loaded models. */
+function rodGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0);
+  b.add(new THREE.CylinderGeometry(0.012, 0.026, 1.55, 8), "#d2a265", [0, -0.72, 0]);
+  b.cylAt(0.038, 0.2, [0, -0.025, 0], [0, 0, 0], "#714a32", 8);
+  b.torus(0.06, 0.018, [0, -0.16, -0.04], [0, Math.PI / 2, 0], "#ddd1a5");
+  return b.build();
+}
+
+function cupGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0);
+  b.sphere(0.12, 0, -0.04, 0.02, "#785133", [1, 0.75, 1]);
+  b.cyl(0.11, 0.11, 0.018, 0, 0.015, 0.02, "#e4d5ad", 12);
+  b.cyl(0.085, 0.085, 0.006, 0, 0.034, 0.02, "#72bfda", 12);
+  return b.build();
+}
+
 function KidMesh({ outfit, rig, scale = 1 }: { outfit: Outfit; rig: Rig; scale?: number }) {
   const g = useKid(outfit);
   const axe = useMemo(() => axeGeometry(), []);
+  const rod = useMemo(() => rodGeometry(), []);
+  const cup = useMemo(() => cupGeometry(), []);
   const shadow = useMemo(() => shadowMaterial(0.35), []);
   return (
     <group ref={rig.root}>
@@ -74,6 +99,13 @@ function KidMesh({ outfit, rig, scale = 1 }: { outfit: Outfit; rig: Rig; scale?:
             <group ref={rig.axe} position={[0, -0.37, 0.01]} visible={false}>
               <mesh geometry={axe} material={smoothMat} />
             </group>
+            <group ref={rig.rod} position={[0, -0.37, 0.01]} visible={false}>
+              <mesh geometry={rod} material={smoothMat} />
+              <group ref={rig.rodTip} position={[0, -1.5, 0]} />
+            </group>
+            <group ref={rig.cup} position={[0, -0.37, 0.035]} visible={false}>
+              <mesh geometry={cup} material={smoothMat} />
+            </group>
           </group>
         </group>
       </group>
@@ -85,6 +117,99 @@ function KidMesh({ outfit, rig, scale = 1 }: { outfit: Outfit; rig: Rig; scale?:
 }
 
 const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : Math.sin(t * Math.PI));
+
+function caughtFishGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0);
+  b.sphere(0.16, 0, 0, 0, "#66b7b4", [0.7, 1, 1.75]);
+  b.sphere(0.12, 0, -0.035, 0.04, "#d5e6c9", [0.72, 0.65, 1.5]);
+  b.add(new THREE.ConeGeometry(0.16, 0.22, 3), "#438e9e", [0, 0, -0.3], [Math.PI / 2, 0, 0]);
+  b.sphere(0.028, 0.085, 0.045, 0.15, "#182b32", [0.5, 1, 1], 8);
+  b.sphere(0.028, -0.085, 0.045, 0.15, "#182b32", [0.5, 1, 1], 8);
+  return b.build();
+}
+
+/** World-space tackle follows the live fishing phases, without React updates. */
+function FishingTackle({ rig }: { rig: Rig }) {
+  const group = useRef<THREE.Group>(null);
+  const bobber = useRef<THREE.Group>(null);
+  const fish = useRef<THREE.Mesh>(null);
+  const ripple = useRef<THREE.Mesh>(null);
+  const fishGeometry = useMemo(() => caughtFishGeometry(), []);
+  const tip = useMemo(() => new THREE.Vector3(), []);
+  const line = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(9), 3));
+    return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: "#fff3cf", transparent: true, opacity: 0.9 }));
+  }, []);
+  const waterY = groundY(POND.x, POND.z) + 0.59;
+
+  useFrame(() => {
+    const f = rt.fishing;
+    if (!group.current) return;
+    group.current.visible = f !== null;
+    if (!f || !rig.rodTip.current) return;
+    const age = Math.max(0, rt.time - f.t0);
+    let bx = f.x;
+    let bz = f.z;
+    let by = waterY + Math.sin(rt.time * 5) * 0.025;
+    rig.rodTip.current.updateWorldMatrix(true, false);
+    rig.rodTip.current.getWorldPosition(tip);
+    if (f.phase === "cast") {
+      const t = Math.min(1, age / 0.38);
+      bx = THREE.MathUtils.lerp(tip.x, bx, t);
+      bz = THREE.MathUtils.lerp(tip.z, bz, t);
+      by = THREE.MathUtils.lerp(tip.y, waterY, t) + Math.sin(t * Math.PI) * 0.7;
+    } else if (f.phase === "bite") {
+      by -= Math.min(1, age / 0.12) * 0.12;
+    }
+    if (bobber.current) {
+      bobber.current.position.set(bx, by, bz);
+      bobber.current.visible = f.phase !== "reel";
+    }
+    const points = line.geometry.getAttribute("position") as THREE.BufferAttribute;
+    points.setXYZ(0, tip.x, tip.y, tip.z);
+    points.setXYZ(1, (tip.x + bx) / 2, (tip.y + by) / 2 - 0.12, (tip.z + bz) / 2);
+    points.setXYZ(2, bx, by, bz);
+    points.needsUpdate = true;
+    line.geometry.computeBoundingSphere();
+    if (fish.current) {
+      fish.current.visible = f.phase === "reel";
+      const t = Math.min(1, age / 0.45);
+      fish.current.position.set(
+        THREE.MathUtils.lerp(bx, rt.player.x, t * 0.7),
+        waterY + 0.12 + Math.sin(t * Math.PI) * 1.15,
+        THREE.MathUtils.lerp(bz, rt.player.z, t * 0.7)
+      );
+      fish.current.rotation.set(Math.sin(t * Math.PI * 2) * 0.65, f.yaw, Math.sin(t * Math.PI * 4) * 0.25);
+    }
+    if (ripple.current) {
+      ripple.current.visible = f.phase === "bite" || f.phase === "reel";
+      ripple.current.position.set(bx, waterY + 0.01, bz);
+      ripple.current.scale.setScalar(0.35 + Math.min(age, 0.8) * 1.4);
+    }
+  });
+
+  return (
+    <group ref={group} visible={false}>
+      <primitive object={line} />
+      <group ref={bobber}>
+        <mesh position={[0, 0.035, 0]}>
+          <sphereGeometry args={[0.085, 10, 8]} />
+          <meshLambertMaterial color="#f36b46" />
+        </mesh>
+        <mesh position={[0, 0.13, 0]}>
+          <cylinderGeometry args={[0.019, 0.019, 0.17, 6]} />
+          <meshLambertMaterial color="#fff3ce" />
+        </mesh>
+      </group>
+      <mesh ref={fish} geometry={fishGeometry} material={smoothMat} visible={false} />
+      <mesh ref={ripple} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+        <ringGeometry args={[0.32, 0.37, 24]} />
+        <meshBasicMaterial color="#d7f1eb" transparent opacity={0.6} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
 
 export function Player() {
   const rig = useRig();
@@ -170,7 +295,7 @@ export function Player() {
     const act = p.action;
     if (act) {
       const actionKind: string = act.kind;
-      const duration = actionKind === "craft" || actionKind === "build" ? 0.9 : actionKind === "chop" ? 0.75 : 0.55;
+      const duration = actionKind === "craft" || actionKind === "build" ? 0.9 : actionKind === "chop" || actionKind === "drink" ? 0.75 : 0.55;
       const t = (rt.time - act.t0) / duration;
       if (t >= 1) p.action = null;
       else if (actionKind === "gather") {
@@ -181,6 +306,10 @@ export function Player() {
       } else if (actionKind === "eat") {
         armRx = -2.3 * ease(Math.min(1, t * 1.6));
         bodyY += Math.sin(t * Math.PI * 6) * 0.01;
+      } else if (actionKind === "drink") {
+        const lift = Math.min(1, t / 0.25, (1 - t) / 0.2);
+        armRx = -2.35 * lift;
+        bend = -0.08 * lift;
       } else if (actionKind === "chop") {
         const smooth = (v: number) => v * v * (3 - 2 * v);
         if (t < 0.3) {
@@ -201,6 +330,21 @@ export function Player() {
     }
     const activeKind: string | undefined = act?.kind;
     if (rig.axe.current) rig.axe.current.visible = activeKind === "chop" && act !== null && (rt.time - act.t0) / 0.75 < 1;
+    if (rig.cup.current) rig.cup.current.visible = activeKind === "drink" && p.action !== null;
+    if (rig.rod.current) rig.rod.current.visible = rt.fishing !== null;
+    if (rt.fishing) {
+      const f = rt.fishing;
+      const age = Math.max(0, rt.time - f.t0);
+      armLx = -1.05;
+      if (f.phase === "cast") {
+        armRx = THREE.MathUtils.lerp(-2.8, -1.4, Math.min(1, age / 0.38));
+      } else if (f.phase === "reel") {
+        armRx = -1.9 + Math.sin(age * 16) * 0.15;
+        bend = -0.08;
+      } else {
+        armRx = -1.4 + Math.sin(rt.time * 2) * 0.025;
+      }
+    }
     if (rig.legL.current) rig.legL.current.rotation.x = swing;
     if (rig.legR.current) rig.legR.current.rotation.x = -swing;
     if (rig.armL.current) rig.armL.current.rotation.x = armLx;
@@ -234,7 +378,12 @@ export function Player() {
     }
   });
 
-  return <KidMesh outfit={PLAYER_OUTFIT} rig={rig} />;
+  return (
+    <group>
+      <KidMesh outfit={PLAYER_OUTFIT} rig={rig} />
+      <FishingTackle rig={rig} />
+    </group>
+  );
 }
 
 /** "!" bubble texture over Kai until you have met him. */

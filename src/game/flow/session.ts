@@ -5,7 +5,7 @@ import { tickStats, afterFaint, RUN_AGAIN_AT, type Stats } from "../logic/stats"
 import { advanceClock, storyFloor, lightAt, isNight, faintPenalty, CAP } from "../logic/clock";
 import { SAVE_KEY, V1_SAVE_KEY, SAVE_VERSION, loadSaveText, serialize, type SaveData } from "../logic/save";
 import { checkCraft } from "../logic/crafting";
-import { NODE_BY_ID, NODES, FALLEN_TREE } from "../world/island";
+import { NODE_BY_ID, NODES, FALLEN_TREE, FISH_SPOTS } from "../world/island";
 import { resolveCollisions, PLAYER_R, STATIC_OBSTACLES } from "../world/collision";
 import { isReachable } from "../world/reach";
 import { buildingObstacles } from "../world/placement";
@@ -168,7 +168,9 @@ export async function continueGame() {
   rt.camera.yaw = data.player.yaw + Math.PI;
   rt.camera.snap = true;
   rt.walked = 99;
-  for (const [id, left] of Object.entries(data.taken)) if (NODE_BY_ID.has(id)) rt.taken.set(id, left);
+  for (const [id, left] of Object.entries(data.taken)) {
+    if (NODE_BY_ID.has(id) || FISH_SPOTS.some((spot) => spot.id === id)) rt.taken.set(id, left);
+  }
   for (const b of data.buildings) if (b.lit) rt.fireT0.set(b.id, -10);
   if (data.metKai && !data.unlocked.includes("campfire")) setGame({ unlocked: ["campfire", ...data.unlocked] });
   // The evening cue has already played for a day that is waiting for sleep.
@@ -351,6 +353,15 @@ export function updateHint() {
         break;
       case "sleep":
         hint = "sleep";
+        break;
+      case "bridge":
+      case "container":
+      case "water":
+      case "drink":
+      case "rod":
+      case "fish":
+      case "cook":
+        hint = step.id;
         break;
     }
   }

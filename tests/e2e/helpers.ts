@@ -15,7 +15,7 @@ export interface SiState {
   crafted: string[];
   buildings: Array<{ id: string; type: string; x: number; z: number; lit?: boolean; built?: boolean }>;
   metKai: boolean;
-  kai: { need?: string; canFire?: boolean; canAxe?: boolean };
+  kai: { need?: string; canFire?: boolean; canAxe?: boolean; want?: string };
   ate: number;
   crateOpened: boolean;
   focus: { id: string; kind: string } | null;
@@ -49,6 +49,11 @@ export interface SiState {
   sleeping: boolean;
   toasts: string[];
   kaiAt: { x: number; z: number };
+  counters: { gotWater: number; drank: number; caught: number; cooked: number };
+  fishRests: Record<string, number>;
+  fishing: { spotId: string; phase: "cast" | "wait" | "bite" | "reel"; t0: number; x: number; z: number; yaw: number } | null;
+  action: { kind: string; t0: number } | null;
+  freePlay: boolean;
 }
 
 /** Open the game with speech stubs, fast pacing and the test hook. Returns collected page errors. */

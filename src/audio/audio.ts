@@ -20,6 +20,13 @@ export type SfxName =
   | "chop"
   | "leaves"
   | "build"
+  | "bridge"
+  | "fill"
+  | "gulp"
+  | "cast"
+  | "plop"
+  | "fishSplash"
+  | "sizzle"
   | "sleep"
   | "morning"
   | "munch"
@@ -260,6 +267,44 @@ class AudioEngine {
           this.noiseBurst(tt, { filter: "bandpass", freq: 1450, q: 3, peak: 0.13, attack: 0.002, decay: 0.06 });
         }
         this.tone(midi(79), t + 0.63, { peak: 0.07, decay: 0.4, type: "triangle" });
+        break;
+      case "bridge":
+        // Low plank knocks alternate with the brighter tap of the hammer.
+        for (let i = 0; i < 4; i++) {
+          const tt = t + i * 0.17;
+          this.tone(120 + i * 12, tt, { to: 75, peak: 0.24, attack: 0.003, decay: 0.12, type: "triangle" });
+          this.noiseBurst(tt + 0.045, { filter: "bandpass", freq: 1800, q: 3, peak: 0.12, attack: 0.002, decay: 0.055 });
+        }
+        break;
+      case "fill":
+        this.noiseBurst(t, { filter: "bandpass", freq: 1100, to: 450, q: 0.6, peak: 0.19, attack: 0.045, decay: 0.42 });
+        for (let i = 0; i < 5; i++) {
+          this.tone(350 + i * 65, t + i * 0.07, { to: 240 + i * 40, peak: 0.055, decay: 0.09 });
+        }
+        break;
+      case "gulp":
+        for (let i = 0; i < 3; i++) {
+          this.tone(280, t + i * 0.16, { to: 125, peak: 0.14, attack: 0.025, decay: 0.1 });
+          this.noiseBurst(t + i * 0.16, { filter: "bandpass", freq: 500, q: 2, peak: 0.045, decay: 0.08 });
+        }
+        break;
+      case "cast":
+        this.noiseBurst(t, { filter: "bandpass", freq: 400, to: 2800, q: 0.7, peak: 0.13, attack: 0.08, decay: 0.18 });
+        break;
+      case "plop":
+        this.tone(580, t, { to: 150, peak: 0.18, attack: 0.004, decay: 0.16 });
+        this.noiseBurst(t, { filter: "bandpass", freq: 1300, to: 450, q: 0.8, peak: 0.11, decay: 0.16 });
+        break;
+      case "fishSplash":
+        this.noiseBurst(t, { filter: "bandpass", freq: 2200, to: 500, q: 0.6, peak: 0.21, attack: 0.015, decay: 0.35 });
+        [460, 620, 780].forEach((freq, i) => {
+          this.tone(freq, t + i * 0.055, { to: freq * 0.45, peak: 0.065, decay: 0.12 });
+        });
+        break;
+      case "sizzle":
+        for (let i = 0; i < 8; i++) {
+          this.noiseBurst(t + i * 0.09, { filter: "highpass", freq: 2200 + Math.random() * 1700, peak: 0.065, attack: 0.002, decay: 0.12 });
+        }
         break;
       case "sleep":
         // A breathy yawn followed by a tiny, soft lullaby cadence.

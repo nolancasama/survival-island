@@ -29,12 +29,21 @@ export type IconId =
   | "hand"
   | "run"
   | "tree"
+  | "bridge"
   | "moon";
 
 const O = "#3b2a1c"; // outline
 const SW = 2.6;
 
 const P: Record<IconId, ReactElement> = {
+  bridge: (
+    <g stroke={O} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 34 Q14 28 24 34 T44 34" fill="none" stroke="#559fb6" />
+      <path d="M7 27 L16 19 H33 L42 27 Z" fill="#c58e53" />
+      <path d="M13 22 V10 M36 22 V10 M7 29 V17 M42 29 V17" fill="none" />
+      <path d="M13 13 H36 M7 20 H42 M17 20 L14 26 M24 20 V26 M31 20 L34 26" fill="none" />
+    </g>
+  ),
   wood: (
     <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
       <rect x="5" y="26" width="34" height="11" rx="5.5" fill="#a8693a" transform="rotate(-14 22 31)" />

@@ -1,4 +1,4 @@
-// Visual check: plays Days 1 and 2 in Chromium with speech stubs and saves screenshots to .tmp/shots.
+// Visual check: plays Days 1–3 and free play in Chromium with speech stubs and saves screenshots to .tmp/shots.
 // Usage: node scripts/shots.mjs [baseUrl] [viewport WxH] [--touch] [--tap]
 //   --tap: play in mic-free mode (tap the sentences)
 import { chromium } from "@playwright/test";
@@ -360,6 +360,191 @@ await answer("I want to sleep", "sleep");
 await waitFor(() => window.__si.state().screen === "dayEnd", null, 30000);
 await page.waitForTimeout(1500);
 await shot("day2-end");
+
+/** New captures require the live semantic state; a missing setup is a harness error. */
+const stage = async (name, predicate, arg = null, timeout = 20000) => {
+  try {
+    await waitFor(predicate, arg, timeout);
+  } catch (error) {
+    throw new Error(`HARNESS_PRECONDITION_FAILED: ${name}`, { cause: error });
+  }
+};
+const day3Target = async (id) => {
+  await stage(`exploring before approaching ${id}`, () => window.__si.state().mode === "explore");
+  await page.evaluate((target) => window.__si.goTo(target), id);
+  await stage(`focus on ${id}`, (target) => window.__si.state().focus?.id === target, id);
+};
+/** Submit without the usual settling delay so the brief action animation can be captured. */
+const answerForAnimation = async (sayText, choiceId) => {
+  await stage(`prompt offers ${choiceId}`, (id) => {
+    const prompt = window.__si.state().prompt;
+    return prompt !== null && prompt.status !== "correct" && prompt.choices.includes(id);
+  }, choiceId);
+  if (tap) {
+    await page.locator(`[data-testid=choice][data-id=${choiceId}]`).click();
+  } else {
+    await page.evaluate((text) => (window.__speech.say = text), sayText);
+    await page.keyboard.press("Space");
+  }
+};
+const day3Gather = async (kind, item, need, sentence, phrase) => {
+  await stage(`${kind} has enough reachable sources`, ([source, target, required]) => {
+    return (window.__si.state().bag[target] ?? 0) >= required || window.__si.nodes(source).length > 0;
+  }, [kind, item, need]);
+  await gatherItem(kind, item, need, sentence, phrase);
+  await stage(`${need} ${item} gathered`, ([target, required]) => (window.__si.state().bag[target] ?? 0) >= required, [item, need]);
+};
+
+// Day 3: choose water, then teach both recipes and the bridge.
+await page.getByTestId("next-day").click();
+await stage("Day 3 title", () => window.__si.state().dayTitle === 3);
+await shot("day3-title");
+await stage("Day 3 good morning", () => window.__si.state().line?.en === "Good morning!");
+await next();
+await stage("Kai is thirsty", () => window.__si.state().line?.en === "I'm thirsty.");
+await shot("day3-thirsty");
+await next();
+await stage("Kai explains the broken bridge", () => window.__si.state().line?.en.startsWith("The pond has water and fish."));
+await next();
+await stage("Day 3 water/fish choice", () => window.__si.state().prompt?.question === "What do you want to do?");
+await shot("day3-morning-choice");
+await answer("I want to get water", "wantWater");
+await stage("coconut carries water", () => window.__si.state().line?.en === "A coconut can carry water!");
+await shot("day3-coconut-container");
+await next();
+await stage("container recipe lesson", () => window.__si.state().line?.en.startsWith("Make a water container"));
+await shot("day3-container-recipe");
+await next();
+await stage("rod recipe lesson", () => window.__si.state().line?.en.startsWith("Make a fishing rod"));
+await next();
+await stage("bridge lesson", () => window.__si.state().line?.en === "You need four wood for the bridge.");
+await shot("day3-bridge-lesson");
+await next();
+await stage("Day 3 recipes unlocked", () => {
+  const s = window.__si.state();
+  return s.mode === "explore" && s.unlocked.includes("container") && s.unlocked.includes("rod");
+});
+const world = await page.evaluate(() => window.__si.world());
+
+// Build the bridge, using the existing real collection and command flows.
+await day3Gather("tree", "wood", 4, "cut the tree", "cutTree");
+await day3Target(world.bridge.id);
+await page.evaluate(() => window.__si.setCameraFollow(Math.PI / 2, 0.48, 8));
+await shot("day3-broken-bridge");
+await page.keyboard.press("KeyE");
+await stage("bridge command", () => window.__si.state().prompt?.choices.includes("buildBridge"));
+await shot("day3-bridge-prompt");
+await answerForAnimation("build a bridge", "buildBridge");
+await stage("bridge building animation", () => {
+  const s = window.__si.state();
+  return s.bridgeBuilt && s.action?.kind === "build";
+});
+await shot("day3-bridge-build");
+await stage("bridge complete", () => window.__si.state().mode === "explore" && window.__si.state().quest.done.includes("bridge"));
+await shot("day3-built-bridge");
+
+// Make a container, fill it at the shore, and drink from the bag.
+await day3Gather("coconut", "coconut", 1, "get the coconut", "getCoconut");
+await day3Gather("leaves", "leaves", 2, "get the leaves", "getLeaves");
+await page.keyboard.press("KeyC");
+await shot("day3-craft-menu");
+await page.getByTestId("make-container").click();
+await answer("I want to make a water container", "craftContainer");
+await stage("water container crafted", () => window.__si.state().bag.container === 1 && window.__si.state().mode === "explore");
+const waterSpot = world.waterSpots[1];
+await stage("water shore reachable across bridge", (id) => window.__si.reachable(id), waterSpot.id);
+await day3Target(waterSpot.id);
+await page.evaluate(() => window.__si.setCameraFollow(0.25, 0.5, 8));
+await shot("day3-water-shore");
+await page.keyboard.press("KeyE");
+await answer("get some water", "getWater");
+await stage("water collected", () => window.__si.state().counters.gotWater >= 1 && window.__si.state().bag.water >= 1);
+await shot("day3-got-water");
+await page.getByTestId("slot-water").click();
+await answerForAnimation("drink the water", "drinkWater");
+await stage("drinking animation", () => window.__si.state().counters.drank >= 1 && window.__si.state().action?.kind === "drink");
+await shot("day3-drinking");
+await stage("drinking complete", () => window.__si.state().mode === "explore" && window.__si.state().action === null);
+
+// Make the rod and wait automatically for the fish to bite.
+await day3Gather("tree", "wood", 2, "cut the tree", "cutTree");
+if (!(await st()).crateOpened) {
+  await day3Target("crate");
+  await page.keyboard.press("KeyE");
+  await answer("open the box", "openBox");
+}
+await stage("rope available for rod", () => (window.__si.state().bag.rope ?? 0) >= 1);
+await page.keyboard.press("KeyC");
+await page.getByTestId("make-rod").click();
+await answer("I want to make a fishing rod", "craftRod");
+await stage("rod crafted", () => window.__si.state().bag.rod === 1 && window.__si.state().mode === "explore");
+// The dock is separated from the water targets, so its focus is unambiguous.
+const fishSpot = world.fishSpots[1];
+await day3Target(fishSpot.id);
+await page.evaluate(() => window.__si.setCameraFollow(Math.PI / 2, 0.45, 7));
+await shot("day3-fishing-spot");
+await page.keyboard.press("KeyE");
+await stage("catch fish prompt", () => window.__si.state().prompt?.choices.includes("catchFish"));
+await shot("day3-fishing-prompt");
+await answerForAnimation("catch a fish", "catchFish");
+await stage("fishing wait with bobber", () => window.__si.state().fishing?.phase === "wait");
+await shot("day3-fishing-bobber");
+await stage("raw fish caught and spot resting", (id) => {
+  const s = window.__si.state();
+  return s.mode === "explore" && s.counters.caught >= 1 && s.bag.fish >= 1 && s.fishRests[id] > 0;
+}, fishSpot.id);
+await shot("day3-caught-fish");
+
+// Raw fish asks to be cooked; the lit campfire transforms it.
+await page.getByTestId("slot-fish").click();
+await stage("raw fish cooking reminder", () => window.__si.state().toasts.includes("Cook it first!"));
+await shot("day3-cook-it-first");
+const cookingFire = (await st()).buildings.find((building) => building.type === "campfire" && building.lit);
+if (!cookingFire) throw new Error("HARNESS_PRECONDITION_FAILED: lit cooking campfire exists");
+await day3Target(cookingFire.id);
+await page.evaluate(() => window.__si.setCameraFollow(0.4, 0.42, 7));
+await page.keyboard.press("KeyE");
+await stage("cook fish prompt", () => window.__si.state().prompt?.choices.includes("cookFish"));
+await shot("day3-cooking-prompt");
+// Arm the action observer before answering so capture starts on the first cooking frame.
+await Promise.all([
+  stage("cooking animation", () => window.__si.state().counters.cooked >= 1 && window.__si.state().action?.kind === "craft")
+    .then(() => shot("day3-cooking")),
+  answerForAnimation("cook the fish", "cookFish")
+]);
+await stage("Kai thanks the water choice", () => window.__si.state().line?.en === "Fresh water! Thank you!");
+await shot("day3-evening-thanks");
+await next();
+await stage("Kai says sleep in shelter", () => window.__si.state().line?.en.startsWith("It's getting dark. Let's sleep"));
+await next();
+await stage("evening conversation finished", () => window.__si.state().mode === "explore");
+await page.getByTestId("slot-grilledFish").click();
+await stage("eat grilled fish prompt", () => window.__si.state().prompt?.choices.includes("eatFish"));
+await shot("day3-eat-fish-prompt");
+await answer("eat the fish", "eatFish");
+await stage("grilled fish eaten", () => window.__si.state().known.includes("eatFish") && !window.__si.state().bag.grilledFish);
+await page.evaluate(() => window.__si.setClock(0.95));
+await stage("Day 3 night", () => window.__si.state().day === 3 && window.__si.state().isNight);
+await day3Target(frame.id);
+await shot("day3-night");
+await page.keyboard.press("KeyE");
+await answer("I want to sleep", "sleep");
+await stage("Day 3 complete card", () => window.__si.state().day === 3 && window.__si.state().screen === "dayEnd", null, 30000);
+await page.waitForTimeout(1500);
+await shot("day3-end");
+
+// Keep playing opens Day 4 with the free-time objective and no story checklist.
+await page.getByTestId("next-day").click();
+await stage("Day 4 free-time title", () => window.__si.state().dayTitle === 4 && window.__si.state().freePlay);
+await shot("day4-title");
+await stage("free-play morning talk", () => window.__si.state().line?.en === "Good morning! Let's explore the island!");
+await next();
+await stage("free play without a checklist", () => {
+  const s = window.__si.state();
+  return s.day === 4 && s.freePlay && s.mode === "explore" && s.step === null;
+});
+await page.evaluate(() => window.__si.setCameraFollow(0.35, 0.42, 9.5));
+await shot("day4-free-play");
 
 const s = await st();
 console.log("final:", JSON.stringify({ quest: s.quest, daySaid: s.daySaid, dayNew: s.dayNew, bag: s.bag, stats: s.stats, kai: s.kai }));

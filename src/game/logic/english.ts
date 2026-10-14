@@ -103,12 +103,14 @@ export const PHRASES: Record<PhraseId, Phrase> = {
   craftRod: {
     id: "craftRod",
     en: "I want to make a fishing rod.",
-    keys: [[...W.want, ...W.make], ["rod", "rods", "fishingrod", "fishing", "road", "rad"]]
+    keys: [[...W.want, ...W.make], ["rod", "rods", "fishingrod", "fishing", "road", "rad"]],
+    distractors: ["craftContainer", "craftShelter"]
   },
   craftContainer: {
     id: "craftContainer",
     en: "I want to make a water container.",
-    keys: [[...W.want, ...W.make], ["container", "containers", "contain", "contena", "watercontainer"]]
+    keys: [[...W.want, ...W.make], ["container", "containers", "contain", "contena", "watercontainer"]],
+    distractors: ["craftRod", "craftCampfire"]
   },
   craftShelter: {
     id: "craftShelter",

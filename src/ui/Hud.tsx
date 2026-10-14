@@ -56,7 +56,7 @@ function Objective() {
           <Ja>{quest.day}にちめ</Ja>
         </div>
         <p className="free-play">
-          Explore the island!
+          Free time: explore the island!
           <Ja>じゆうに しまを たんけんしよう！</Ja>
         </p>
       </div>
@@ -120,6 +120,9 @@ function Toasts() {
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.tone}`}>
           {t.icon && <Icon id={t.icon} size={26} />}
+          {t.icons?.map(({ item, n }) => (
+            <span key={item}><Icon id={item} size={22} /> ×{n}</span>
+          ))}
           <span>
             {t.en}
             {ja && t.ja && (
@@ -139,7 +142,7 @@ function Hotbar() {
   const mode = useGame((s) => s.mode);
   const items = ITEM_ORDER.filter((id) => count(bag, id) > 0);
   const usable = mode === "explore";
-  const action = (id: ItemId) => (ITEMS[id].food ? "Eat" : ITEMS[id].places ? "Put down" : null);
+  const action = (id: ItemId) => (id === "water" ? "Drink" : id === "fish" ? "Use" : ITEMS[id].food ? "Eat" : ITEMS[id].places ? "Put down" : null);
   return (
     <div className="hotbar ui" data-testid="hotbar" aria-label="Your bag">
       <span className="hotbar-bag" title="Bag">

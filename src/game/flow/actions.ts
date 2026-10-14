@@ -2,11 +2,11 @@ import { getGame, setGame, toast } from "../store";
 import { rt, floatText } from "../runtime";
 import { ITEMS, ITEM_ORDER, NODE_YIELD, type Bag, type CraftId, type ItemId, type NodeKind } from "../types";
 import type { PhraseId } from "../logic/english";
-import { addItem, count, isFull, missing, removeAll } from "../logic/inventory";
-import { RECIPES, checkCraft, craft } from "../logic/crafting";
-import { eat, spend } from "../logic/stats";
+import { addItem, count, hasAll, isFull, missing, removeAll } from "../logic/inventory";
+import { BRIDGE_NEEDS, RECIPES, checkCraft, cookFish, craft } from "../logic/crafting";
+import { consume, eat, spend } from "../logic/stats";
 import { dayDef } from "../logic/quest";
-import { BRIDGE, CAVE_SIGN, CLIFF_SIGN, CRATE, FALLEN_TREE, NODE_BY_ID, RESPAWN_S, WATER_SPOTS, groundY } from "../world/island";
+import { BRIDGE, CAVE_SIGN, CLIFF_SIGN, CRATE, FALLEN_TREE, FISH_SPOTS, NODE_BY_ID, POND, RESPAWN_S, WATER_SPOTS, groundY } from "../world/island";
 import type { PlacedBuilding } from "../world/placement";
 import { ask, say } from "./ask";
 import { refreshQuest, save, showBeacons, showPlaces, syncStats, updateHint, wait } from "./session";
@@ -18,7 +18,7 @@ import { UI } from "../../ui/i18n";
 
 /** What the student says to collect from a node, until it is known (then it is quick). */
 const GATHER: Record<NodeKind, PhraseId> = { wood: "getWood", stone: "getStone", coconut: "getCoconut", leaves: "getLeaves", tree: "cutTree" };
-const EAT: Partial<Record<ItemId, PhraseId>> = { coconut: "eatCoconut" };
+const EAT: Partial<Record<ItemId, PhraseId>> = { coconut: "eatCoconut", grilledFish: "eatFish" };
 const GATHER_SOUND: Record<NodeKind, "wood" | "stone" | "coconut" | "leaves" | "chop"> = {
   wood: "wood",
   stone: "stone",
@@ -57,9 +57,184 @@ export async function interact() {
       return useShelter(f.id);
     case "fallenTree":
       return cutFallenTree();
+    case "bridge":
+      return buildBridge();
+    case "water":
+      return getWater(f.id);
+    case "fish":
+      return catchFish(f.id);
     case "sign":
       return readSign(f.id);
   }
+}
+
+/** The bridge can be built as soon as the player reaches it with four wood. */
+async function buildBridge() {
+  const g = getGame();
+  if (g.bridgeBuilt) return;
+  if (!hasAll(g.bag, BRIDGE_NEEDS)) {
+    audio.play("error");
+    toast({ en: "You need four wood.", ja: "木が 4つ ひつようだよ。", icon: "wood", icons: [{ item: "wood", n: 4 }], tone: "warn" });
+    return;
+  }
+  const said = await ask({ kind: "command", options: ["buildBridge"], picture: "bridge", cancellable: true, readSentence: true });
+  if (!said || getGame().bridgeBuilt) return;
+  const bag = removeAll(getGame().bag, BRIDGE_NEEDS);
+  if (!bag) return;
+  setGame({ mode: "busy", focus: null, bag, bridgeBuilt: true });
+  rt.bridgeBuiltT0 = rt.time;
+  rt.player.action = { kind: "build", t0: rt.time };
+  rt.player.frozenUntil = rt.time + 0.9;
+  rt.stats = spend(rt.stats, 4);
+  audio.play("bridge");
+  // Save the gate and its checklist tick together, including during the animation.
+  refreshQuest();
+  await wait(900);
+  setGame({ mode: "explore" });
+  floatText("Bridge!", BRIDGE.x, groundY(BRIDGE.x, BRIDGE.z) + 1.8, BRIDGE.z);
+  refreshQuest();
+}
+
+/** Filling and drinking are separate first-time English actions. */
+async function getWater(id: string) {
+  const spot = WATER_SPOTS.find((s) => s.id === id);
+  if (!spot) return;
+  if (count(getGame().bag, "container") === 0) {
+    audio.play("error");
+    toast({ en: "You need a water container.", ja: "みずいれが ひつようだよ。", icon: "container", tone: "warn" });
+    return;
+  }
+  if (isFull(getGame().bag, "water")) {
+    audio.play("full");
+    toast({ ...UI.full, icon: "water", tone: "warn" });
+    return;
+  }
+  if (!getGame().known.includes("getWater")) {
+    const said = await ask({ kind: "command", options: ["getWater"], picture: "water", cancellable: true, readSentence: true });
+    if (!said) return;
+  }
+  const added = addItem(getGame().bag, "water", 1);
+  if (!added.added) return;
+  rt.player.action = { kind: "gather", t0: rt.time };
+  rt.player.frozenUntil = rt.time + 0.5;
+  setGame({ bag: added.bag, gotWater: getGame().gotWater + 1 });
+  audio.play("fill");
+  floatText("+1 water", spot.x, groundY(spot.x, spot.z) + 1.2, spot.z);
+  refreshQuest();
+}
+
+async function drinkWater() {
+  if (count(getGame().bag, "water") === 0) return;
+  if (!getGame().known.includes("drinkWater")) {
+    const said = await ask({ kind: "command", options: ["drinkWater"], picture: "water", cancellable: true, readSentence: true });
+    if (!said) return;
+  }
+  const bag = removeAll(getGame().bag, { water: 1 });
+  if (!bag) return;
+  rt.stats = consume(rt.stats, ITEMS.water);
+  syncStats();
+  rt.player.action = { kind: "drink", t0: rt.time };
+  rt.player.frozenUntil = rt.time + 0.75;
+  setGame({ bag, drank: getGame().drank + 1, needsPulse: false });
+  audio.play("gulp");
+  floatText("Ah!", rt.player.x, rt.player.y + 2.1, rt.player.z);
+  refreshQuest();
+}
+
+/** How far from the pond's middle the bobber lands: open water, past the end of the dock (about 3.4 m). */
+const CAST_R = 2.4;
+
+/** Where the bobber lands: from wherever the player stands at a spot, straight out toward the pond's middle. */
+function castPoint() {
+  const dx = rt.player.x - POND.x;
+  const dz = rt.player.z - POND.z;
+  const d = Math.hypot(dx, dz) || 1;
+  return { x: POND.x + (dx / d) * CAST_R, z: POND.z + (dz / d) * CAST_R };
+}
+
+/** Cast once, then the fish bites automatically; no timing or extra button is required. */
+async function catchFish(id: string) {
+  const spot = FISH_SPOTS.find((s) => s.id === id);
+  if (!spot || rt.fishing) return;
+  if (rt.taken.has(id)) {
+    toast({ en: "Wait a little.", ja: "すこし まってね。", icon: "fish", tone: "info" });
+    return;
+  }
+  if (count(getGame().bag, "rod") === 0) {
+    audio.play("error");
+    toast({ en: "You need a fishing rod.", ja: "つりざおが ひつようだよ。", icon: "rod", tone: "warn" });
+    return;
+  }
+  if (isFull(getGame().bag, "fish")) {
+    audio.play("full");
+    toast({ ...UI.full, icon: "fish", tone: "warn" });
+    return;
+  }
+  if (!getGame().known.includes("catchFish")) {
+    const said = await ask({ kind: "command", options: ["catchFish"], picture: "rod", cancellable: true, readSentence: true });
+    if (!said) return;
+  }
+  setGame({ mode: "busy", focus: null });
+  const cast = castPoint();
+  rt.player.yaw = Math.atan2(cast.x - rt.player.x, cast.z - rt.player.z);
+  const fishing = { spotId: id, x: cast.x, z: cast.z, yaw: rt.player.yaw, t0: rt.time, phase: "cast" as "cast" | "wait" | "bite" | "reel" };
+  rt.fishing = fishing;
+  const active = () => {
+    if (rt.fishing === fishing && getGame().screen === "game") return true;
+    if (rt.fishing === fishing) rt.fishing = null;
+    return false;
+  };
+  audio.play("cast");
+  await wait(380);
+  if (!active()) return;
+  fishing.phase = "wait";
+  fishing.t0 = rt.time;
+  audio.play("plop");
+  await wait(1700);
+  if (!active()) return;
+  fishing.phase = "bite";
+  fishing.t0 = rt.time;
+  audio.play("plop");
+  await wait(250);
+  if (!active()) return;
+  fishing.phase = "reel";
+  fishing.t0 = rt.time;
+  audio.play("fishSplash");
+  await wait(450);
+  if (!active()) return;
+  rt.fishing = null;
+  rt.taken.set(id, 15);
+  rt.stats = spend(rt.stats, 3);
+  const added = addItem(getGame().bag, "fish", 1);
+  setGame({ mode: "explore", bag: added.bag, caught: getGame().caught + added.added });
+  floatText("+1 fish", spot.x, groundY(spot.x, spot.z) + 1.6, spot.z);
+  refreshQuest();
+}
+
+async function cookAtFire(id: string) {
+  const fire = getGame().buildings.find((b) => b.id === id && b.type === "campfire" && b.lit);
+  if (!fire || count(getGame().bag, "fish") === 0) return;
+  if (isFull(getGame().bag, "grilledFish")) {
+    audio.play("full");
+    toast({ ...UI.full, icon: "grilledFish", tone: "warn" });
+    return;
+  }
+  if (!getGame().known.includes("cookFish")) {
+    const said = await ask({ kind: "command", options: ["cookFish"], picture: "grilledFish", cancellable: true, readSentence: true });
+    if (!said) return;
+  }
+  const bag = cookFish(getGame().bag);
+  if (!bag) return;
+  setGame({ mode: "busy", focus: null, bag, cooked: getGame().cooked + 1 });
+  rt.player.action = { kind: "craft", t0: rt.time };
+  rt.player.frozenUntil = rt.time + 0.9;
+  audio.play("sizzle");
+  // A save during cooking must already agree with the cooked fish in the bag.
+  refreshQuest();
+  await wait(900);
+  setGame({ mode: "explore" });
+  floatText("Grilled fish!", fire.x, groundY(fire.x, fire.z) + 1.3, fire.z);
+  refreshQuest();
 }
 
 /** Standing trees and the fallen palm need the stone axe; without it there is no prompt. */
@@ -167,19 +342,24 @@ function useCampfire(id: string) {
   const b = getGame().buildings.find((x) => x.id === id);
   if (!b) return;
   if (!b.lit) return lightFire(id);
+  if (count(getGame().bag, "fish") > 0) return cookAtFire(id);
   return trySleep(b);
 }
 
 /** F: eat the first food in the bag (in hotbar order). Water is drunk, not eaten. */
 export function eatFirst() {
   const bag = getGame().bag;
-  const food = ITEM_ORDER.find((id) => ITEMS[id].food && id !== "water" && count(bag, id) > 0);
+  const food = ITEM_ORDER.find((id) => ITEMS[id].food && count(bag, id) > 0);
   return eatItem(food ?? "coconut");
 }
 
 /** F / tapping food in the bag. */
 export async function eatItem(item: ItemId = "coconut") {
   if (!canAct()) return;
+  if (item === "water") {
+    setGame({ selected: null });
+    return drinkWater();
+  }
   const def = ITEMS[item];
   if (!def.food || count(getGame().bag, item) === 0) return;
   setGame({ selected: null });
@@ -226,9 +406,9 @@ async function readSign(id: string) {
   const g = getGame();
   setGame({ mode: "talk" });
   if (id === CAVE_SIGN.id) {
-    await say("game", "CAVE → It's very dark inside. Not yet!", "どうくつ → なかは まっくら。 まだ はいれないよ！");
+    await say("game", "CAVE → It's too dark. You need a torch!", "どうくつ → くらすぎるよ。 たいまつが ひつよう！");
   } else if (id === CLIFF_SIGN.id) {
-    await say("game", "CLIFF PATH → Big rocks are in the way.", "がけの みち → おおきな いわで とおれないよ。");
+    await say("game", "CLIFF → Rocks fell. The path is closed.", "がけ → いわが おちた。 みちは とおれないよ。");
   } else if (g.pathCleared) {
     await say("game", "FOREST → Trees, leaves and more!", "もり → 木や はっぱが あるよ！");
   } else if (g.quest.day >= 2) {
@@ -431,6 +611,11 @@ export async function needs() {
 
 /** Hotbar click: food is eaten, buildings are placed. */
 export function useItem(item: ItemId) {
+  if (item === "fish" && count(getGame().bag, item) > 0) {
+    if (!canAct()) return;
+    toast({ en: "Cook it first!", ja: "さきに やこう！", icon: "grilledFish", tone: "info" });
+    return;
+  }
   const def = ITEMS[item];
   if (def.food) return eatItem(item);
   if (def.places) return startPlacing(item);

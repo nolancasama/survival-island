@@ -70,7 +70,7 @@ export interface Line {
 
 export interface Focus {
   id: string;
-  kind: "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign";
+  kind: "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign" | "bridge" | "water" | "fish";
   verb: string;
   noun: string;
   icon: IconId;
@@ -81,6 +81,7 @@ export interface Toast {
   en: string;
   ja?: string;
   icon?: IconId;
+  icons?: Array<{ item: ItemId; n: number }>;
   tone: "good" | "info" | "warn";
 }
 
@@ -101,6 +102,13 @@ export type HintKey =
   | "build"
   | "placeShelter"
   | "sleep"
+  | "bridge"
+  | "container"
+  | "water"
+  | "drink"
+  | "rod"
+  | "fish"
+  | "cook"
   | "micBlocked"
   | null;
 

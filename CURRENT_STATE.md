@@ -1,69 +1,62 @@
 # Current State
 
 ## Status
-Phase 1 (beach, Day 1) and **Phase 2 so far (the world, the logic and story
-slice A: Days 1–2 with day/night and sleeping) are on `main` and pushed**
-(`3a1953e`; the repo is private). Story slice B (Day 3) is next. The design is in
-DESIGN_DECISIONS.md under "2026-10-13 — Phase 2 (Exploration) design" plus
-"2026-10-14 — Phase 2 decisions made while building". Read those first.
+**Phase 2 is feature-complete: Days 1–3 and free play from Day 4.** Phase 1
+and Phase 2 slice A (world, logic, Days 1–2) are on `main` and pushed
+(`3a1953e`; the repo is private). **Slice B (Day 3) is reviewed and
+accepted but uncommitted** in the working tree. The design is in
+DESIGN_DECISIONS.md: "2026-10-13 — Phase 2 (Exploration) design",
+"2026-10-14 — Phase 2 decisions made while building" and "2026-10-15 —
+Phase 2 story slice B decisions". Read those first.
 
-## Phase 2: done so far (committed, reviewed)
+## Phase 2
 - **World slice (accepted visually):** forest, stream, broken/built bridge,
   pond with dock and fish spots, cave mouth, cliff path rockfall, signs,
-  regions and gates (`pathCleared` / `bridgeBuilt`), forest nodes, shelter
-  frame/built model, stars and moonlight, line-of-sight dither fade. Perf in
-  the Day 1–2 playthrough: 40–79 draw calls, ≤62k triangles.
+  regions and gates (`pathCleared` / `bridgeBuilt`), forest nodes, shelter,
+  stars and moonlight, line-of-sight dither fade (a cone). Perf in the
+  Day 1–2 playthrough: 40–79 draw calls, ≤62k triangles.
 - **Logic slice:** Days 1–3 quest data plus free-play days, the clock
   (`logic/clock.ts`), night/shelter stamina, `afterSleep`, `consume`,
-  `cookFish`, `BRIDGE_NEEDS`, the new phrases, save v2 with v1 migration.
-- **Story slice A (done this session, Claude direct; Codex was out of quota):**
-  - `flow/places.ts`: `targetPosition(id)` / `targetReachable` for nodes,
-    places (fallen tree, bridge, crate, water/fish spots, signs) and
-    buildings. Used by beacons (`scene/Nodes.tsx`), focus, edge arrows and
-    the e2e hook.
-  - `flow/days.ts` (new): Day 1 `celebrate()` → "It's late. Let's sleep." →
-    the "I want to sleep." prompt; `eveningCue()` for Day 2+; `trySleep` /
-    `sleepTonight` (starry overlay, `afterSleep`, `sleptDay`, card);
-    `nextDay()` (morning, day title, Kai's talk); `sleepPlace`,
-    `canSleepNow`, `placeKaiAtCamp`.
-  - `session.ts`: the clock drives the light and the music (`LIGHT_STEPS`
-    removed), storyFloor on quest change, night/shelter stamina, faint wakes
-    at shelter > fire > Kai, the clock is saved, resuming a finished day goes
-    to `nextDay`. `showBeacons` takes several kinds, only lights reachable
-    nodes, and falls back to the fallen palm; `showPlaces(ids)`.
-  - `kai.ts`: Day 2 morning talk ("Can you make a stone axe?"), Day 2 hints
-    per step with beacons, bedtime lines, a generic morning for later days.
-  - `actions.ts`: trees need the axe (chop, +2 wood), leaves (+2, the first
-    teaches the shelter), the fallen palm (camera shot, "Wow! The forest!"),
-    building the shelter, sleeping at a shelter or lit fire, the three
-    signs, relevance-ordered "I need…" (max 4, incl. sleep and water), F eats
-    the first food.
-  - UI: dynamic day-end card ("Day N+1 →", today's English, NEW badges),
-    `DayTitle`, `SleepOverlay`, edge arrows in `WorldOverlay`, icons `tree`
-    and `moon`, Day 2 hints, free-play objective.
-  - e2e hook: `startDay(n)`, `setClock(t)`, `reachable(id)`, reachable
-    `nodes()`, goTo for places, more state (day, clock, isNight, sleptDay,
-    daySaid, dayNew, toasts, placeOk…).
-- **Verified:** typecheck, `npm test` (94), `npm run e2e` (12: 9 Day 1 +
-  3 new Day 2). The Day 2 spec was checked to fail on a broken build (sleep
-  allowed by day). `npm run shots` plays Days 1–2 (54 shots in .tmp/shots);
-  reviewed: sleep prompt, starry sleep, both day cards, Day 2 title, axe
-  question, palm cut and forest shot, edge arrows, leaves discovery, chop,
-  shelter frame/built, evening, night, sleep label.
+  `cookFish`, `BRIDGE_NEEDS`, the phrases, save v2 with v1 migration.
+- **Story slice A (Days 1–2):** `flow/places.ts` (one id space for
+  everything the game points at), `flow/days.ts` (celebrate, evening cue,
+  sleeping, `nextDay`), clock-driven light and music, Day 2 in `kai.ts` and
+  `actions.ts`, the dynamic day card, day title, sleep overlay, edge arrows,
+  relevance-ordered "I need…", and the e2e hook (`startDay(n)`, `setClock`,
+  `reachable`, `goTo` for places).
+- **Story slice B (Day 3, Codex, uncommitted):** Kai's morning with "What do
+  you want to do?" (water → coconut + container first; fish → rod first,
+  plus a crate beacon if the rope box is closed); "Build a bridge." at the
+  bridge with 4 wood; the water container, "Get some water." at the water
+  spots, "Drink the water." (F or tapping water); the fishing rod, "Catch a
+  fish." (automatic cast → wait → bite → fish, each spot rests 15 s, saved);
+  "Cook the fish." at a lit fire, "Eat the fish."; Kai's evening thanks per
+  choice; Day 3 hints; the Day 3 card ("To be continued... Next time: the
+  cave!", "Keep playing"); free play from Day 4 (no checklist, free-day
+  sleep goes straight to the next morning); cave/cliff sign texts; sounds
+  (fill, gulp, cast, plop, fish splash, sizzle, bridge); fishing pose, rod,
+  line, bobber and jumping fish; README updated.
+  - Claude's fixes on review: the bobber now lands in open water toward the
+    pond's middle from where the player stands (it used to land on the
+    dock), the shots script waits for the Day 3 card's fade-in, the Day 3
+    save/resume spec holds the spot rest long (it was flaky on a slow
+    reload; `setTaken` in the e2e hook accepts fish spots), and the slice B
+    decisions moved to the end of DESIGN_DECISIONS.md.
+- **Verified for slice B:** typecheck, `npm test` (101), `npm run e2e` (16:
+  9 Day 1, 3 Day 2, 4 Day 3). `npm run shots` plays Days 1–3 and Day 4
+  (81 shots in .tmp/shots); reviewed: morning choice, bridge build and built
+  bridge, fishing with the bobber in the water, catch, cooking, Day 3 card,
+  Day 4 free play.
 
 ## Next Steps
-1. **Story slice B.** The work order is `.ai/story-b.json` (Day 3: bridge,
-   water and drinking, fishing, cooking, Kai's water/fish choice, the
-   after-Day-3 card, free play, README). Route it:
-   `node ~/.claude/workers/bin/route.js .ai/story-b.json`. Update its brief
-   first: slice A now exists (`flow/days.ts`, `flow/places.ts`, the e2e
-   `startDay`), Kai's Day 3 morning replaces the generic one in
-   `morningTalk`, "I need water." already lights water/bridge/palm, and
-   `DAY_DONE` in `ui/Screens.tsx` needs a Day 3 entry.
-2. Acceptance after slice B: `npm run e2e`, `npm run shots`, `npm run
-   shots:world` (shots need `npx vite preview --port 5287`; it binds to
-   `localhost`, so pass `http://localhost:5287/` to the script).
-3. Commit slice B when the user asks.
+1. Commit slice B when the user asks (then push to the private repo).
+2. Not yet looked at: the second fishing spot (the flat rock, `fish-1`) in a
+   screenshot, and `npm run shots:world` after slice B (no world changes,
+   so low risk).
+3. Phase 3 (the cave, the clifftop, the torch, metal, the signal fire, and
+   classroom mode, which tunes counts and clock speed) has no design yet.
+   It starts with a design pass like "2026-10-13 — Phase 2 (Exploration)
+   design", frozen before any worker builds it.
 
 ## Known Issues / Unverified
 - Real speech recognition, sound and Chromebook GPU are untested (as in
@@ -71,11 +64,10 @@ DESIGN_DECISIONS.md under "2026-10-13 — Phase 2 (Exploration) design" plus
 - Night at clock 0.95 reads grey-blue rather than deep blue on the beach; it
   is the accepted world lighting, but worth a look on a real screen.
 - The dither fade can still show a light stipple at the edges of near
-  canopies. `THREE.Clock` deprecation warning (harmless).
+  canopies, visible around the pond dock. `THREE.Clock` deprecation warning
+  (harmless).
 
 ## Codex / Delegated Work
-No run is in flight. Codex was in a usage-limit window (until about
-2026-10-14 22:58 local) when slice A was routed, so the router assigned it to
-Claude. Work orders and results are in `.ai/` (gitignored), incl.
-`story-a2.json` (the completion order) and `snapshot-pre-a2/` (a copy of the
-tree before slice A was finished).
+No run is in flight. Slice B (`.ai/story-b.json`) was built by Codex (Sol)
+and is reviewed and accepted; its first e2e run had one flaky failure, since
+fixed. Work orders and results are in `.ai/` (gitignored).
