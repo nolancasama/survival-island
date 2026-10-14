@@ -42,6 +42,38 @@ export const HINTS: Record<string, { keys: Bi; touch: Bi }> = {
     keys: { en: "Go to your campfire and press E.", ja: "たきびの ちかくで E を おそう" },
     touch: { en: "Go to your campfire and tap the hand.", ja: "たきびの ちかくで て を タップ" }
   },
+  axe: {
+    keys: { en: "Make a stone axe: 2 wood + 1 stone. Press C.", ja: "木 2つと 石 1つで おのを つくろう。C キー" },
+    touch: { en: "Make a stone axe: 2 wood + 1 stone. Tap the hammer.", ja: "木 2つと 石 1つで おのを つくろう。ハンマーを タップ" }
+  },
+  path: {
+    keys: { en: "Go to the big tree in the forest gap. Press E.", ja: "もりの いりぐちの おおきな 木へ。E を おそう" },
+    touch: { en: "Go to the big tree in the forest gap. Tap the hand.", ja: "もりの いりぐちの おおきな 木へ。て を タップ" }
+  },
+  leaves: {
+    keys: { en: "Find leaves in the forest. Need help? Press Q.", ja: "もりで はっぱを さがそう。こまったら Q" },
+    touch: { en: "Find leaves in the forest. Need help? Tap the speech bubble.", ja: "もりで はっぱを さがそう。こまったら ふきだしを タップ" }
+  },
+  wood2: {
+    keys: { en: "Cut trees with your axe: go to a tree and press E.", ja: "おので 木を きろう。木の ちかくで E" },
+    touch: { en: "Cut trees with your axe: go to a tree and tap the hand.", ja: "おので 木を きろう。木の ちかくで て を タップ" }
+  },
+  shelter: {
+    keys: { en: "Press C to make a shelter.", ja: "C キーで こやを つくろう" },
+    touch: { en: "Tap the hammer to make a shelter.", ja: "ハンマーを タップして こやを つくろう" }
+  },
+  placeShelter: {
+    keys: { en: "Click the shelter in your bag to put it down.", ja: "バッグの こやを クリックして おこう" },
+    touch: { en: "Tap the shelter in your bag to put it down.", ja: "バッグの こやを タップして おこう" }
+  },
+  build: {
+    keys: { en: "Go to your shelter and press E to build it.", ja: "こやの ちかくで E を おして たてよう" },
+    touch: { en: "Go to your shelter and tap the hand to build it.", ja: "こやの ちかくで て を タップして たてよう" }
+  },
+  sleep: {
+    keys: { en: "Sleep in your shelter (or by the fire): press E there.", ja: "こや（か 火の そば）で E を おして ねよう" },
+    touch: { en: "Sleep in your shelter (or by the fire): tap the hand there.", ja: "こや（か 火の そば）で て を タップして ねよう" }
+  },
   micBlocked: {
     keys: { en: "The microphone is off. Choose the sentences.", ja: "マイクが つかえないので、ぶんを えらんで こたえよう" },
     touch: { en: "The microphone is off. Tap the sentences.", ja: "マイクが つかえないので、ぶんを タップして こたえよう" }

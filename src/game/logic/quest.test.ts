@@ -3,7 +3,7 @@ import { START_QUEST, currentStep, evaluate, newlyDone, type Facts } from "./que
 import { craft } from "./crafting";
 import type { Bag } from "../types";
 
-const facts = (f: Partial<Facts> = {}): Facts => ({ ate: 0, metKai: false, bag: {}, crafted: [], placed: [], litFires: 0, ...f });
+const facts = (f: Partial<Facts> = {}): Facts => ({ ate: 0, metKai: false, bag: {}, crafted: [], placed: [], litFires: 0, pathCleared: false, bridgeBuilt: false, builtShelters: 0, gotWater: 0, drank: 0, caught: 0, cooked: 0, sleptDay: 0, ...f });
 
 describe("quest (Day 1)", () => {
   it("starts at 'Eat something'", () => {
@@ -27,6 +27,8 @@ describe("quest (Day 1)", () => {
     q = evaluate(q, facts({ ate: 1, metKai: true, bag: {}, crafted: ["campfire"], placed: ["campfire"] }));
     expect(currentStep(q)?.id).toBe("light");
     q = evaluate(q, facts({ ate: 1, metKai: true, crafted: ["campfire"], placed: ["campfire"], litFires: 1 }));
+    expect(currentStep(q)?.id).toBe("sleep");
+    q = evaluate(q, facts({ ate: 1, metKai: true, crafted: ["campfire"], placed: ["campfire"], litFires: 1, sleptDay: 1 }));
     expect(q.complete).toBe(true);
     expect(currentStep(q)).toBeNull();
   });

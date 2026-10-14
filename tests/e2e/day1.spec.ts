@@ -68,20 +68,43 @@ test("speech: the whole Day 1 loop, from waking up to the campfire", async ({ pa
   expect(s.bag.stone ?? 0).toBe(0);
   expect(s.bag.campfire).toBe(1);
 
-  await waitFor(page, (st) => st.placing !== null && st.placing.problem === null);
+  await waitFor(page, (st) => st.placeOk);
   await page.keyboard.press("KeyE");
   await waitFor(page, (st) => st.buildings.length === 1);
   const fire = (await state(page)).buildings[0];
   await goTo(page, fire.id);
   await page.keyboard.press("KeyE");
   await speak(page, "make a fire");
+
+  // Kai: "It's late. Let's sleep." The day ends with "I want to sleep." by the fire.
+  await waitFor(page, (st) => st.prompt !== null && st.prompt.sentences[0] === "I want to sleep.", 30_000);
+  s = await state(page);
+  expect(s.isNight).toBe(true);
+  expect(s.quest.complete).toBe(false);
+  expect(s.screen).toBe("game");
+  await speak(page, "I want to sleep");
   await waitFor(page, (st) => st.screen === "dayEnd", 30_000);
   s = await state(page);
   expect(s.quest.complete).toBe(true);
+  expect(s.sleptDay).toBe(1);
   expect(s.buildings[0].lit).toBe(true);
+  expect(s.stats.stamina).toBe(100);
   await expect(page.getByTestId("said")).toContainText("Make a fire.");
-  await page.getByTestId("keep-playing").click();
-  await waitFor(page, (st) => st.mode === "explore" && st.screen === "game");
+  await expect(page.getByTestId("said")).toContainText("I want to sleep.");
+
+  // "Day 2 →": the next morning starts with Kai's talk.
+  await page.getByTestId("next-day").click();
+  await waitFor(page, (st) => st.prompt?.question === "Can you make a stone axe?", 30_000);
+  s = await state(page);
+  expect(s.day).toBe(2);
+  expect(s.screen).toBe("game");
+  expect(s.isNight).toBe(false);
+  await speak(page, "yes I can");
+  await waitFor(page, (st) => st.mode === "explore");
+  s = await state(page);
+  expect(s.unlocked).toContain("axe");
+  expect(s.kai.canAxe).toBe(true);
+  expect(s.step).toBe("axe");
   expect(errors).toEqual([]);
 });
 
@@ -241,7 +264,7 @@ test("a building cannot be put in the sea", async ({ page }) => {
   await expect(page.getByTestId("place-ok")).toBeDisabled();
   // Turn round to the beach: now it fits.
   await hook(page, "setCameraYaw", 0);
-  await waitFor(page, (s) => s.placing?.problem === null);
+  await waitFor(page, (s) => s.placing?.problem === null && s.placeOk);
   await page.getByTestId("place-ok").click();
   await waitFor(page, (s) => s.buildings.length === 1);
 });

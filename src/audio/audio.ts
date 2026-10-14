@@ -17,6 +17,11 @@ export type SfxName =
   | "stone"
   | "coconut"
   | "rope"
+  | "chop"
+  | "leaves"
+  | "build"
+  | "sleep"
+  | "morning"
   | "munch"
   | "craft"
   | "place"
@@ -54,8 +59,9 @@ class AudioEngine {
   private fireLevel = 0;
   /** 1 = day (birds), 0 = night (crickets). */
   private daylight = 1;
+  private seaNearness = 0.5;
   private musicTimer = 0;
-  private music: { next: number; step: number; mood: "day" | "dusk" } | null = null;
+  private music: { next: number; step: number; mood: "day" | "dusk" | "night" } | null = null;
 
   /** Must be called from a user gesture (Start button). */
   unlock() {
@@ -229,6 +235,49 @@ class AudioEngine {
       case "rope":
         this.noiseBurst(t, { filter: "bandpass", freq: 1500, to: 600, q: 1.5, peak: 0.12, attack: 0.04, decay: 0.25 });
         break;
+      case "chop":
+        this.tone(115, t, { to: 72, peak: 0.38, attack: 0.003, decay: 0.16, type: "triangle" });
+        this.noiseBurst(t, { filter: "bandpass", freq: 850, to: 260, q: 1.8, peak: 0.24, attack: 0.003, decay: 0.13 });
+        this.noiseBurst(t + 0.08, { filter: "highpass", freq: 2100, q: 0.8, peak: 0.08, attack: 0.002, decay: 0.12 });
+        break;
+      case "leaves":
+        for (let i = 0; i < 4; i++) {
+          this.noiseBurst(t + i * 0.055, {
+            filter: "bandpass",
+            freq: 1800 + Math.random() * 1200,
+            to: 900,
+            q: 0.7,
+            peak: 0.075,
+            attack: 0.015,
+            decay: 0.11
+          });
+        }
+        break;
+      case "build":
+        for (let i = 0; i < 3; i++) {
+          const tt = t + i * 0.2;
+          this.tone(205, tt, { to: 135, peak: 0.28, attack: 0.002, decay: 0.08, type: "triangle" });
+          this.noiseBurst(tt, { filter: "bandpass", freq: 1450, q: 3, peak: 0.13, attack: 0.002, decay: 0.06 });
+        }
+        this.tone(midi(79), t + 0.63, { peak: 0.07, decay: 0.4, type: "triangle" });
+        break;
+      case "sleep":
+        // A breathy yawn followed by a tiny, soft lullaby cadence.
+        this.noiseBurst(t, { filter: "bandpass", freq: 700, to: 380, q: 1.2, peak: 0.055, attack: 0.18, decay: 0.75 });
+        this.tone(midi(69), t + 0.18, { to: midi(62), peak: 0.045, attack: 0.1, decay: 0.75, type: "sine" });
+        [65, 69, 72, 69].forEach((m, i) => {
+          this.tone(midi(m), t + 0.95 + i * 0.24, { peak: 0.045, attack: 0.04, decay: 0.65, type: "triangle" });
+        });
+        break;
+      case "morning": {
+        // A compact flock call for the wake-up transition.
+        const notes = [91, 95, 93, 98, 96];
+        notes.forEach((m, i) => {
+          const tt = t + i * 0.105;
+          this.tone(midi(m), tt, { to: midi(m + 3), peak: 0.035, attack: 0.008, decay: 0.09, type: "sine" });
+        });
+        break;
+      }
       case "munch":
         for (let i = 0; i < 4; i++) this.noiseBurst(t + i * 0.14, { filter: "bandpass", freq: 2100, q: 1.5, peak: 0.14, decay: 0.05 });
         this.tone(midi(79), t + 0.6, { peak: 0.08, decay: 0.3 });
@@ -354,11 +403,21 @@ class AudioEngine {
   /** Louder surf near the water (0 = far inland, 1 = at the waterline). */
   setSeaNearness(k: number) {
     if (!this.ctx || !this.ocean) return;
-    this.ocean.near.gain.setTargetAtTime(0.35 + 0.65 * k, this.ctx.currentTime, 0.5);
+    this.seaNearness = Math.max(0, Math.min(1, k));
+    this.updateOceanLevel();
   }
 
   setDaylight(d: number) {
-    this.daylight = d;
+    this.daylight = Math.max(0, Math.min(1, d));
+    this.updateOceanLevel();
+  }
+
+  /** Night keeps the surf present, but softer under the crickets. */
+  private updateOceanLevel() {
+    if (!this.ctx || !this.ocean) return;
+    const proximity = 0.35 + 0.65 * this.seaNearness;
+    const nightSoftness = 0.55 + 0.45 * this.daylight;
+    this.ocean.near.gain.setTargetAtTime(proximity * nightSoftness, this.ctx.currentTime, 0.5);
   }
 
   /** Birds by day, crickets at dusk. Randomised, sparse, never while listening. */
@@ -428,8 +487,8 @@ class AudioEngine {
 
   // ------------------------------------------------------------------ music
 
-  /** Quiet marimba tune (F major pentatonic). Dusk plays it slower and softer. */
-  startMusic(mood: "day" | "dusk") {
+  /** Quiet marimba tune. Dusk is slower; night is sparse and softer still. */
+  startMusic(mood: "day" | "dusk" | "night") {
     if (!this.ctx) return;
     if (this.music) {
       this.music.mood = mood;
@@ -448,7 +507,7 @@ class AudioEngine {
     const ctx = this.ctx;
     const m = this.music;
     if (!ctx || !m) return;
-    const eighth = m.mood === "day" ? 60 / 100 / 2 : 60 / 80 / 2;
+    const eighth = m.mood === "day" ? 60 / 100 / 2 : m.mood === "dusk" ? 60 / 80 / 2 : 60 / 68 / 2;
     while (m.next < ctx.currentTime + 0.3) {
       this.playStep(m.step, m.next, eighth, m.mood);
       m.step++;
@@ -456,7 +515,7 @@ class AudioEngine {
     }
   }
 
-  private playStep(step: number, t: number, eighth: number, mood: "day" | "dusk") {
+  private playStep(step: number, t: number, eighth: number, mood: "day" | "dusk" | "night") {
     // 8 bars of 8 eighths. Melody: [step-in-bar, midi]; 0 = rest.
     const MELODY: Array<Array<[number, number]>> = [
       [[0, 72], [2, 74], [3, 77], [6, 74]],
@@ -472,16 +531,19 @@ class AudioEngine {
     const bar = Math.floor(step / 8) % 8;
     const s = step % 8;
     const bus = this.musicBus;
-    const soft = mood === "dusk" ? 0.7 : 1;
+    const soft = mood === "night" ? 0.34 : mood === "dusk" ? 0.7 : 1;
     for (const [at, note] of MELODY[bar]) {
       if (at !== s) continue;
+      if (mood === "night" && bar % 2 === 1) continue;
       const f = midi(note);
       // Marimba: sine + a quick high partial.
       this.tone(f, t, { peak: 0.13 * soft, attack: 0.004, decay: 0.55, bus });
       this.tone(f * 4, t, { peak: 0.02 * soft, attack: 0.002, decay: 0.08, bus });
     }
-    if (s === 0 || s === 4) this.tone(midi(BASS[bar] - 12), t, { peak: 0.12 * soft, attack: 0.01, decay: eighth * 3.5, bus, type: "triangle" });
-    if (s === 2 || s === 6) {
+    if (s === 0 || (s === 4 && mood !== "night")) {
+      this.tone(midi(BASS[bar] - 12), t, { peak: 0.12 * soft, attack: 0.01, decay: eighth * 3.5, bus, type: "triangle" });
+    }
+    if (mood !== "night" && (s === 2 || s === 6)) {
       for (const n of [BASS[bar] + 7, BASS[bar] + 12]) this.tone(midi(n), t, { peak: 0.025 * soft, attack: 0.01, decay: 0.25, bus });
     }
   }

@@ -1,6 +1,6 @@
 import { getGame, setGame } from "../store";
 import { cancelAsk, chooseIndex, hasLine, micPress, nextLine } from "./ask";
-import { cancelPlacing, closeCraft, confirmPlacing, eatItem, interact, makeItem, needs, openCraft, rotatePlacing } from "./actions";
+import { cancelPlacing, closeCraft, confirmPlacing, eatFirst, interact, makeItem, needs, openCraft, rotatePlacing } from "./actions";
 import { checkCraft, RECIPE_ORDER } from "../logic/crafting";
 
 /** Fresh key presses, routed by what is on screen. Movement keys are read per frame. */
@@ -46,7 +46,7 @@ export function onKey(code: string) {
       if (code === "KeyE" || code === "Enter") void interact();
       else if (code === "KeyQ") void needs();
       else if (code === "KeyC") openCraft();
-      else if (code === "KeyF") void eatItem("coconut");
+      else if (code === "KeyF") void eatFirst();
       else if (code === "Escape") setGame({ settingsOpen: true });
       return;
     }

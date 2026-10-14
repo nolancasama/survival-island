@@ -163,7 +163,9 @@ function succeed(id: PhraseId) {
   const g = getGame();
   setGame({
     said: g.said.includes(id) ? g.said : [...g.said, id],
-    known: g.known.includes(id) ? g.known : [...g.known, id]
+    known: g.known.includes(id) ? g.known : [...g.known, id],
+    daySaid: g.daySaid.includes(id) ? g.daySaid : [...g.daySaid, id],
+    dayNew: g.said.includes(id) || g.dayNew.includes(id) ? g.dayNew : [...g.dayNew, id]
   });
   window.setTimeout(() => {
     active = null;

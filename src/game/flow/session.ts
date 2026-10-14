@@ -1,34 +1,30 @@
 import { getGame, setGame, freshGameData, toast, type HintKey } from "../store";
 import { rt, resetRuntime } from "../runtime";
-import { evaluate, newlyDone, currentStep, dayDef, type Facts, type QuestState } from "../logic/quest";
+import { evaluate, newlyDone, currentStep, dayDef, readyToSleep, isStoryDay, type Facts } from "../logic/quest";
 import { tickStats, afterFaint, RUN_AGAIN_AT, type Stats } from "../logic/stats";
-import { SAVE_KEY, SAVE_VERSION, parseSave, serialize, type SaveData } from "../logic/save";
-import { NODE_BY_ID, KAI_HOME, NODES } from "../world/island";
+import { advanceClock, storyFloor, lightAt, isNight, faintPenalty, CAP } from "../logic/clock";
+import { SAVE_KEY, V1_SAVE_KEY, SAVE_VERSION, loadSaveText, serialize, type SaveData } from "../logic/save";
+import { checkCraft } from "../logic/crafting";
+import { NODE_BY_ID, NODES, FALLEN_TREE } from "../world/island";
 import { resolveCollisions, PLAYER_R, STATIC_OBSTACLES } from "../world/collision";
+import { isReachable } from "../world/reach";
 import { buildingObstacles } from "../world/placement";
 import { count } from "../logic/inventory";
 import { ask, fastMode, say } from "./ask";
+import { currentGates } from "./places";
+import { celebrate, eveningCue, nextDay, placeKaiAtCamp, sleepPlace } from "./days";
 import { audio } from "../../audio/audio";
 import { tts } from "../../audio/tts";
 import { recognition, requestMicPermission } from "../../audio/recognition";
-import type { NodeKind } from "../types";
-
-/** Story light per number of finished Day 1 steps (midday -> golden hour). */
-const LIGHT_STEPS = [0.95, 0.88, 0.8, 0.72, 0.64, 0.56, 0.48];
-const NIGHT_WITH_FIRE = 0.14;
+import { NODE_YIELD, type NodeKind } from "../types";
 
 export const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, fastMode() ? Math.min(ms, 40) : ms));
-
-function lightFor(q: QuestState): number {
-  if (q.complete) return NIGHT_WITH_FIRE;
-  return LIGHT_STEPS[Math.min(q.done.length, LIGHT_STEPS.length - 1)];
-}
 
 // ------------------------------------------------------------------ save
 
 export function hasSaved(): boolean {
   try {
-    return parseSave(localStorage.getItem(SAVE_KEY)) !== null;
+    return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V1_SAVE_KEY)) !== null;
   } catch {
     return false;
   }
@@ -56,7 +52,17 @@ export function save() {
     kai: g.kai,
     player: { x: rt.player.x, z: rt.player.z, yaw: rt.player.yaw },
     light: rt.lightTarget,
-    said: g.said
+    said: g.said,
+    daySaid: g.daySaid,
+    dayNew: g.dayNew,
+    t: Math.max(0, Math.min(1, rt.clock)),
+    pathCleared: g.pathCleared,
+    bridgeBuilt: g.bridgeBuilt,
+    gotWater: g.gotWater,
+    drank: g.drank,
+    caught: g.caught,
+    cooked: g.cooked,
+    sleptDay: g.sleptDay
   };
   try {
     localStorage.setItem(SAVE_KEY, serialize(data));
@@ -93,19 +99,19 @@ function startAudio() {
   const s = getGame().settings;
   audio.setVolumes(s.music, s.sfx);
   audio.startAmbience();
-  audio.startMusic("day");
+  setMood(moodAt(rt.clock), true);
   tts.setRate(s.slowVoice ? 0.8 : 1);
 }
 
 function enterGame() {
-  setGame({ screen: "game", focus: null, prompt: null, line: null, craftOpen: false, placing: null, selected: null, toasts: [] });
+  setGame({ screen: "game", focus: null, prompt: null, line: null, craftOpen: false, placing: null, selected: null, toasts: [], dayTitle: null, sleeping: false });
 }
 
 /** Start button (a user gesture: audio and the mic prompt are allowed here). */
 export async function newGame() {
-  startAudio();
   clearSave();
   resetRuntime();
+  startAudio();
   setGame({ ...freshGameData(), hint: null, needsPulse: false, craftPulse: false, fade: 1, mode: "busy" });
   enterGame();
   rt.player.lying = rt.player.lyingTarget = 1;
@@ -116,20 +122,25 @@ export async function newGame() {
 export async function continueGame() {
   const data = (() => {
     try {
-      return parseSave(localStorage.getItem(SAVE_KEY));
+      return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V1_SAVE_KEY));
     } catch {
       return null;
     }
   })();
   if (!data) return newGame();
-  startAudio();
   resetRuntime();
+  // The clock is restored as saved: resuming in the evening or at night never jumps to daylight.
+  rt.clock = data.t;
+  rt.light = rt.lightTarget = lightAt(data.t);
+  startAudio();
   setGame({
     ...freshGameData(),
     quest: data.quest,
     bag: data.bag,
     known: data.known,
     said: data.said,
+    daySaid: data.daySaid ?? [],
+    dayNew: data.dayNew ?? [],
     unlocked: data.unlocked,
     crafted: data.crafted,
     buildings: data.buildings,
@@ -137,6 +148,14 @@ export async function continueGame() {
     metKai: data.metKai,
     ate: data.ate,
     kai: data.kai,
+    pathCleared: data.pathCleared,
+    bridgeBuilt: data.bridgeBuilt,
+    gotWater: data.gotWater,
+    drank: data.drank,
+    caught: data.caught,
+    cooked: data.cooked,
+    sleptDay: data.sleptDay,
+    t: data.t,
     stats: roundStats(data.stats),
     fade: 0,
     mode: "explore",
@@ -151,11 +170,18 @@ export async function continueGame() {
   rt.walked = 99;
   for (const [id, left] of Object.entries(data.taken)) if (NODE_BY_ID.has(id)) rt.taken.set(id, left);
   for (const b of data.buildings) if (b.lit) rt.fireT0.set(b.id, -10);
-  rt.light = rt.lightTarget = data.quest.complete ? NIGHT_WITH_FIRE : data.light;
-  if (data.metKai && !data.unlocked.includes("campfire")) setGame({ unlocked: ["campfire"] });
-  if (data.quest.complete) placeKaiAtFire();
+  if (data.metKai && !data.unlocked.includes("campfire")) setGame({ unlocked: ["campfire", ...data.unlocked] });
+  // The evening cue has already played for a day that is waiting for sleep.
+  if (readyToSleep(data.quest)) rt.eveningDay = data.quest.day;
+  if (data.quest.day > 1 || readyToSleep(data.quest)) placeKaiAtCamp();
   enterGame();
   updateHint();
+  // A day that ended with sleep (the card was showing) goes straight on to the next morning.
+  if (data.sleptDay >= data.quest.day) {
+    setGame({ mode: "busy" });
+    void nextDay();
+    return;
+  }
   await prepareMic();
 }
 
@@ -163,7 +189,7 @@ export function toTitle() {
   save();
   tts.cancel();
   audio.stopFire();
-  setGame({ screen: "title", settingsOpen: false, mode: "busy", prompt: null, line: null, craftOpen: false, placing: null, hasSave: hasSaved(), toasts: [] });
+  setGame({ screen: "title", settingsOpen: false, mode: "busy", prompt: null, line: null, craftOpen: false, placing: null, hasSave: hasSaved(), toasts: [], dayTitle: null, sleeping: false });
 }
 
 // ------------------------------------------------------------------ intro
@@ -193,19 +219,39 @@ async function intro() {
 
 // -------------------------------------------------------------- beacons
 
-/** Light up the nearest available nodes of a kind ("I need ___"). */
-export function showBeacons(kind: NodeKind, n = 2): boolean {
+const BEACON_S = 14;
+
+/** Light up places by id (nodes, the fallen tree, the bridge, water, buildings). */
+export function showPlaces(ids: string[]) {
+  if (!ids.length) return;
+  rt.beacons = { ids: ids.slice(0, 3), until: rt.time + BEACON_S };
+  audio.play("ping");
+}
+
+/**
+ * Light up the nearest reachable nodes of a kind ("I need ___"). When every
+ * one of them is behind a closed gate, the gate is lit instead (the fallen
+ * palm for the forest, the bridge for the pond), so the help always shows the
+ * way to what was asked for.
+ */
+export function showBeacons(kind: NodeKind | NodeKind[], n = 2): boolean {
+  const kinds = Array.isArray(kind) ? kind : [kind];
+  const gates = currentGates();
   const p = rt.player;
-  const avail = NODES.filter((x) => x.kind === kind && !rt.taken.has(x.id))
+  const avail = NODES.filter((x) => kinds.includes(x.kind) && !rt.taken.has(x.id) && isReachable(x.x, x.z, gates))
     .sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))
     .slice(0, n);
-  if (!avail.length) {
-    toast({ en: "None now. Wait a little!", ja: "いまは ないよ。すこし まってね。", icon: kind, tone: "info" });
-    return false;
+  if (avail.length) {
+    showPlaces(avail.map((x) => x.id));
+    return true;
   }
-  rt.beacons = { ids: avail.map((x) => x.id), until: rt.time + 14 };
-  audio.play("ping");
-  return true;
+  const behindGate = NODES.some((x) => kinds.includes(x.kind) && !isReachable(x.x, x.z, gates));
+  if (behindGate && !gates.pathCleared) {
+    showPlaces([FALLEN_TREE.id]);
+    return true;
+  }
+  toast({ en: "None now. Wait a little!", ja: "いまは ないよ。すこし まってね。", icon: NODE_YIELD[kinds[0]].item, tone: "info" });
+  return false;
 }
 
 // ------------------------------------------------------------------ quest
@@ -218,7 +264,15 @@ export function facts(): Facts {
     bag: g.bag,
     crafted: g.crafted,
     placed: g.buildings.map((b) => b.type),
-    litFires: g.buildings.filter((b) => b.lit).length
+    litFires: g.buildings.filter((b) => b.lit).length,
+    pathCleared: g.pathCleared,
+    bridgeBuilt: g.bridgeBuilt,
+    builtShelters: g.buildings.filter((b) => b.type === "shelter" && b.built).length,
+    gotWater: g.gotWater,
+    drank: g.drank,
+    caught: g.caught,
+    cooked: g.cooked,
+    sleptDay: g.sleptDay
   };
 }
 
@@ -232,14 +286,19 @@ export function refreshQuest() {
     const day = dayDef(q.day);
     for (const id of added) {
       const step = day.steps.find((s) => s.id === id);
-      if (step) toast({ en: `✓ ${step.en}`, ja: step.ja, tone: "good" });
+      if (step && step.id !== "sleep") toast({ en: `✓ ${step.en}`, ja: step.ja, tone: "good" });
     }
     if (added.length) audio.play("sparkle");
-    rt.lightTarget = lightFor(q);
-    if (q.complete && !g.quest.complete) void celebrate();
+    // Each finished step pushes the sun on (it never waits past golden hour).
+    rt.clock = Math.max(rt.clock, storyFloor(q.done.length, day.steps.length));
+    if (readyToSleep(q) && !readyToSleep(g.quest) && rt.eveningDay !== q.day) {
+      if (q.day === 1) void celebrate();
+      else void eveningCue();
+    }
   }
-  const craftable = g.unlocked.includes("campfire") && !g.crafted.includes("campfire") && count(g.bag, "wood") >= 3 && count(g.bag, "stone") >= 2;
-  if (craftable && !getGame().craftPulse && !getGame().quest.done.includes("craft")) setGame({ craftPulse: true });
+  const now = getGame();
+  const craftable = now.unlocked.some((id) => !now.crafted.includes(id) && checkCraft(now.bag, id, now.unlocked) === "ok");
+  if (craftable && !now.craftPulse) setGame({ craftPulse: true });
   updateHint();
   save();
 }
@@ -260,6 +319,9 @@ export function updateHint() {
         hint = "kai";
         break;
       case "wood":
+        if (g.quest.day === 1) hint = g.metKai ? "gather" : "kai";
+        else hint = "wood2";
+        break;
       case "stone":
         hint = g.metKai ? "gather" : "kai";
         break;
@@ -272,6 +334,24 @@ export function updateHint() {
       case "light":
         hint = "light";
         break;
+      case "axe":
+        hint = "axe";
+        break;
+      case "path":
+        hint = "path";
+        break;
+      case "leaves":
+        hint = "leaves";
+        break;
+      case "shelter":
+        hint = "shelter";
+        break;
+      case "build":
+        hint = g.buildings.some((b) => b.type === "shelter") ? "build" : "placeShelter";
+        break;
+      case "sleep":
+        hint = "sleep";
+        break;
     }
   }
   if (hint !== g.hint) setGame({ hint });
@@ -282,20 +362,46 @@ export function updateHint() {
 const roundStats = (s: Stats): Stats => ({ hp: Math.round(s.hp), stamina: Math.round(s.stamina), food: Math.round(s.food) });
 let mirrorT = 0;
 let saveT = 0;
+let mood: "day" | "dusk" | "night" | null = null;
 
 export function litFireNear(x: number, z: number, r: number): boolean {
   return getGame().buildings.some((b) => b.lit && Math.hypot(b.x - x, b.z - z) < r);
+}
+
+/** A finished shelter within r metres (it warms like a fire by day). */
+export function builtShelterNear(x: number, z: number, r: number): boolean {
+  return getGame().buildings.some((b) => b.type === "shelter" && b.built && Math.hypot(b.x - x, b.z - z) < r);
+}
+
+/** Music for a time of day: the tune slows at golden hour and goes quiet at night. */
+function moodAt(t: number): "day" | "dusk" | "night" {
+  return isNight(t) ? "night" : t >= CAP ? "dusk" : "day";
+}
+
+export function setMood(next: "day" | "dusk" | "night", force = false) {
+  if (next === mood && !force) return;
+  mood = next;
+  audio.startMusic(next);
+}
+
+/** The sun waits on a story day until only Sleep is left. */
+export function clockCapped(): boolean {
+  const q = getGame().quest;
+  return isStoryDay(q.day) && !readyToSleep(q);
 }
 
 /** Called every frame by the scene. */
 export function tick(dt: number) {
   const g = getGame();
   if (g.screen === "title") return;
+  rt.lightTarget = lightAt(rt.clock);
   rt.light += (rt.lightTarget - rt.light) * Math.min(1, dt * 0.4);
   audio.setDaylight(rt.light);
   const live = g.screen === "game" && (g.mode === "explore" || g.mode === "place") && !g.settingsOpen;
   if (!live) return;
   rt.simTime += dt;
+  rt.clock = advanceClock(rt.clock, dt, { capped: clockCapped() });
+  setMood(moodAt(rt.clock));
 
   // Resources grow back, but never right in front of the player.
   for (const [id, left] of rt.taken) {
@@ -315,7 +421,14 @@ export function tick(dt: number) {
 
   const p = rt.player;
   const moving = p.speed > 0.4;
-  const { stats, events } = tickStats(rt.stats, { dt, moving, running: moving && p.running, nearFire: litFireNear(p.x, p.z, 3.5) });
+  const { stats, events } = tickStats(rt.stats, {
+    dt,
+    moving,
+    running: moving && p.running,
+    nearFire: litFireNear(p.x, p.z, 3.5),
+    night: isNight(rt.clock),
+    nearShelter: builtShelterNear(p.x, p.z, 3.5)
+  });
   rt.stats = stats;
   if (stats.stamina <= 0.5) p.exhausted = true;
   else if (p.exhausted && stats.stamina >= RUN_AGAIN_AT) p.exhausted = false;
@@ -337,6 +450,8 @@ export function tick(dt: number) {
     const r = roundStats(stats);
     const s = g.stats;
     if (r.hp !== s.hp || r.stamina !== s.stamina || r.food !== s.food) setGame({ stats: r });
+    const t = Math.round(rt.clock * 1000) / 1000;
+    if (t !== g.t) setGame({ t });
     if (g.hint === "move" && rt.walked >= 4) updateHint();
   }
   saveT += dt;
@@ -351,7 +466,7 @@ export function syncStats() {
   setGame({ stats: roundStats(rt.stats) });
 }
 
-// ----------------------------------------------------------- faint, win
+// ------------------------------------------------------------------ faint
 
 async function faint() {
   setGame({ mode: "busy", focus: null });
@@ -360,15 +475,16 @@ async function faint() {
   await wait(1300);
   setGame({ fade: 1 });
   await wait(800);
-  const fire = getGame().buildings.find((b) => b.lit);
-  const home = fire ? { x: fire.x + 1.6, z: fire.z + 1.2 } : { x: KAI_HOME.x + 1.4, z: KAI_HOME.z + 1.8 };
-  const at = resolveCollisions(home.x, home.z, PLAYER_R, [STATIC_OBSTACLES, buildingObstacles(getGame().buildings)]);
+  // Wake at the shelter, else by a lit fire, else next to Kai.
+  const camp = sleepPlace();
+  const home = camp ? { x: camp.x + 1.6, z: camp.z + 1.9 } : { x: rt.kai.x + 1.4, z: rt.kai.z + 1.8 };
+  const at = resolveCollisions(home.x, home.z, PLAYER_R, [STATIC_OBSTACLES, buildingObstacles(getGame().buildings)], currentGates());
   rt.player.x = at.x;
   rt.player.z = at.z;
   rt.stats = afterFaint();
   syncStats();
   rt.camera.snap = true;
-  rt.lightTarget = Math.max(NIGHT_WITH_FIRE, rt.lightTarget - 0.04); // a little time has passed
+  rt.clock = faintPenalty(rt.clock, clockCapped()); // a little time has passed
   setGame({ fade: 0 });
   await wait(700);
   await say("game", "You fainted. Kai helped you.", "たおれて しまった。 カイが たすけて くれたよ。");
@@ -377,50 +493,4 @@ async function faint() {
   await wait(600);
   setGame({ mode: "explore" });
   save();
-}
-
-function placeKaiAtFire() {
-  const fire = getGame().buildings.find((b) => b.lit);
-  if (!fire) return;
-  const spot = resolveCollisions(fire.x - 1.8, fire.z - 0.6, 0.4, [STATIC_OBSTACLES, buildingObstacles(getGame().buildings)]);
-  rt.kai.x = spot.x;
-  rt.kai.z = spot.z;
-  rt.kai.yaw = Math.atan2(fire.x - spot.x, fire.z - spot.z);
-}
-
-async function celebrate() {
-  setGame({ mode: "busy", focus: null });
-  const fire = getGame().buildings.find((b) => b.lit);
-  rt.celebrateT0 = rt.time;
-  audio.play("fanfare");
-  audio.startMusic("dusk");
-  rt.lightTarget = NIGHT_WITH_FIRE;
-  if (fire) {
-    // Camera from the sea side, looking up the beach at the fire.
-    rt.camera.mode = "shot";
-    rt.camera.shot = { pos: { x: fire.x + 3.2, y: 3.4, z: fire.z + 7.2 }, target: { x: fire.x - 0.4, y: 0.9, z: fire.z } };
-    const spot = resolveCollisions(fire.x - 1.8, fire.z - 0.6, 0.4, [STATIC_OBSTACLES, buildingObstacles(getGame().buildings)]);
-    rt.kai.walkTo = { x: spot.x, z: spot.z, face: { x: fire.x, z: fire.z } };
-    const p = rt.player;
-    p.yaw = Math.atan2(fire.x - p.x, fire.z - p.z);
-  }
-  await wait(3200);
-  if (!fastMode()) {
-    // Give Kai time to arrive (he walks across the beach).
-    for (let i = 0; i < 40 && rt.kai.walkTo; i++) await wait(200);
-  }
-  if (rt.kai.walkTo) placeKaiAtFire();
-  rt.kai.walkTo = null;
-  await say("kai", "You can make a fire! Great job!", "火を つけられたね！ すごい！");
-  await say("kai", "Let's rest. Tomorrow, we go to the forest!", "きょうは やすもう。 あしたは もりへ いこう！");
-  rt.camera.mode = "follow";
-  rt.camera.shot = null;
-  setGame({ screen: "dayEnd", mode: "busy" });
-  save();
-}
-
-/** "Keep playing" on the day-end card. */
-export function keepPlaying() {
-  setGame({ screen: "game", mode: "explore" });
-  updateHint();
 }

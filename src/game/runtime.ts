@@ -39,8 +39,8 @@ export const rt = {
     /** 1 = lying on the sand (intro / fainted), 0 = standing. */
     lying: 0,
     lyingTarget: 0,
-    /** Short action animation (gather, eat, craft). */
-    action: null as null | { kind: "gather" | "eat" | "craft"; t0: number },
+    /** Short action animation (gather, eat, craft, chop, build). */
+    action: null as null | { kind: "gather" | "eat" | "craft" | "chop" | "build"; t0: number },
     frozenUntil: 0
   },
   /** Keyboard + joystick intent, camera space: x = right, y = forward. */
@@ -79,7 +79,16 @@ export const rt = {
   /** Story light: 1 = midday, 0 = night. Eases toward lightTarget. */
   light: 0.95,
   lightTarget: 0.95,
+  /** Authoritative live day clock. The store receives a throttled HUD/save copy. */
+  clock: 0.05,
+  /** Story day whose one-off evening cue has already started. */
+  eveningDay: 0,
   crateOpenT0: -1,
+  /** When the fallen palm was cut / the bridge was built (-1 = not yet, or already done before load). */
+  pathClearedT0: -1,
+  bridgeBuiltT0: -1,
+  /** Building id -> time a shelter was built (roof animation). */
+  builtT0: new Map<string, number>(),
   floaters: [] as Floater[],
   celebrateT0: -100,
   /** Seconds the game has been running (paused in menus and dialogue). */
@@ -127,7 +136,12 @@ export function resetRuntime() {
   rt.place.visible = false;
   rt.fireT0.clear();
   rt.light = rt.lightTarget = 0.95;
+  rt.clock = 0.05;
+  rt.eveningDay = 0;
   rt.crateOpenT0 = -1;
+  rt.pathClearedT0 = -1;
+  rt.bridgeBuiltT0 = -1;
+  rt.builtT0.clear();
   rt.floaters = [];
   rt.celebrateT0 = -100;
   rt.simTime = 0;

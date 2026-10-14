@@ -13,7 +13,7 @@ export type Screen = "title" | "game" | "dayEnd";
 /**
  * explore: walking around.  ask: an English prompt is open.  talk: a line of
  * dialogue is showing.  craft: the Craft menu.  place: the building preview.
- * busy: a scripted moment (intro, fainting, the celebration).
+ * busy: a scripted moment (intro, fainting, the celebration, sleeping, the morning).
  */
 export type Mode = "explore" | "ask" | "talk" | "craft" | "place" | "busy";
 
@@ -70,7 +70,7 @@ export interface Line {
 
 export interface Focus {
   id: string;
-  kind: "node" | "crate" | "kai" | "campfire" | "sign";
+  kind: "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign";
   verb: string;
   noun: string;
   icon: IconId;
@@ -84,11 +84,36 @@ export interface Toast {
   tone: "good" | "info" | "warn";
 }
 
-export type HintKey = "move" | "coconut" | "eat" | "kai" | "gather" | "craft" | "place" | "light" | "micBlocked" | null;
+export type HintKey =
+  | "move"
+  | "coconut"
+  | "eat"
+  | "kai"
+  | "gather"
+  | "craft"
+  | "place"
+  | "light"
+  | "axe"
+  | "path"
+  | "leaves"
+  | "wood2"
+  | "shelter"
+  | "build"
+  | "placeShelter"
+  | "sleep"
+  | "micBlocked"
+  | null;
 
+/** The student's answers to Kai's questions (each answer changes what he says and gives). */
 export interface KaiMemory {
+  /** "What do you need?" on Day 1. */
   need?: "water" | "food" | "wood";
+  /** "Can you make a fire?" on Day 1. */
   canFire?: boolean;
+  /** "Can you make a stone axe?" on Day 2. */
+  canAxe?: boolean;
+  /** "What do you want to do?" on Day 3: get water or catch a fish. */
+  want?: "water" | "fish";
 }
 
 export interface GameState {
@@ -106,6 +131,10 @@ export interface GameState {
   quest: QuestState;
   known: PhraseId[];
   said: PhraseId[];
+  /** Sentences used during the current day, for its end card. */
+  daySaid: PhraseId[];
+  /** Current-day sentences that were also first-ever successes. */
+  dayNew: PhraseId[];
   unlocked: CraftId[];
   crafted: CraftId[];
   buildings: PlacedBuilding[];
@@ -113,6 +142,26 @@ export interface GameState {
   metKai: boolean;
   ate: number;
   kai: KaiMemory;
+  /** World gates (Phase 2). The fallen palm in the forest gap has been cut. */
+  pathCleared: boolean;
+  /** The bridge over the stream to the pond has been built. */
+  bridgeBuilt: boolean;
+  /** Water collected from the pond. */
+  gotWater: number;
+  /** Water consumed by the player. */
+  drank: number;
+  /** Fish caught by the player. */
+  caught: number;
+  /** Fish cooked by the player. */
+  cooked: number;
+  /** Most recent day completed by sleeping. */
+  sleptDay: number;
+  /** Time through the day, from sunrise (0) to held night (1). */
+  t: number;
+  /** Large transient title shown between morning wake-up and Kai's talk. */
+  dayTitle: number | null;
+  /** Starry overlay shown during the sleep fade. */
+  sleeping: boolean;
 
   focus: Focus | null;
   prompt: PromptUi | null;
@@ -165,13 +214,25 @@ export function freshGameData() {
     quest: { ...START_QUEST, done: [] },
     known: [] as PhraseId[],
     said: [] as PhraseId[],
+    daySaid: [] as PhraseId[],
+    dayNew: [] as PhraseId[],
     unlocked: [] as CraftId[],
     crafted: [] as CraftId[],
     buildings: [] as PlacedBuilding[],
     crateOpened: false,
     metKai: false,
     ate: 0,
-    kai: {} as KaiMemory
+    kai: {} as KaiMemory,
+    pathCleared: false,
+    bridgeBuilt: false,
+    gotWater: 0,
+    drank: 0,
+    caught: 0,
+    cooked: 0,
+    sleptDay: 0,
+    t: 0.05,
+    dayTitle: null as number | null,
+    sleeping: false
   };
 }
 

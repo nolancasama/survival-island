@@ -1,14 +1,19 @@
 import { getGame, setGame, toast } from "../store";
 import { rt, floatText } from "../runtime";
 import { addItem, count } from "../logic/inventory";
+import { currentStep, readyToSleep } from "../logic/quest";
+import { FALLEN_TREE } from "../world/island";
+import type { CraftId } from "../types";
 import { ask, say } from "./ask";
-import { refreshQuest, showBeacons } from "./session";
+import { refreshQuest, showBeacons, showPlaces } from "./session";
+import { sleepPlace } from "./days";
 import { audio } from "../../audio/audio";
 
 /**
- * Kai: the other survivor. He teaches the campfire, and the player's answers
- * change what he says and gives. Questions are target English (no Japanese);
- * his other lines have optional Japanese help.
+ * Kai: the other survivor. He teaches the recipes (the campfire on Day 1, the
+ * stone axe on Day 2), and the player's answers change what he says and
+ * gives. Questions are target English (no Japanese); his other lines have
+ * optional Japanese help.
  */
 
 function frameConversation() {
@@ -52,11 +57,138 @@ export async function talkToKai() {
   try {
     const g = getGame();
     if (!g.metKai) await firstMeeting();
-    else if (g.quest.complete) await say("kai", "Good fire! Tomorrow, let's go to the forest.", "いい 火だね！ あした もりへ いこう。");
-    else await helpAgain();
+    else if (readyToSleep(g.quest)) await bedtime();
+    else if (g.quest.day === 1) await helpAgain();
+    else if (g.quest.day === 2) await helpDayTwo();
+    else await whatDoYouNeed();
   } finally {
     endConversation();
     refreshQuest();
+  }
+}
+
+/** Kai's talk when a new day starts (after the day title). */
+export async function morningTalk(day: number) {
+  setGame({ mode: "talk", focus: null });
+  rt.kai.talking = true;
+  frameConversation();
+  try {
+    if (day === 2) await dayTwoMorning();
+    else await say("kai", "Good morning! Let's explore the island!", "おはよう！ しまを たんけんしよう！");
+  } finally {
+    endConversation();
+    refreshQuest();
+  }
+}
+
+function unlock(id: CraftId, en: string, ja: string) {
+  const g = getGame();
+  if (!g.unlocked.includes(id)) setGame({ unlocked: [...g.unlocked, id] });
+  setGame({ craftPulse: true });
+  audio.play("unlock");
+  toast({ en: `New recipe: ${en}`, ja: `あたらしい レシピ: ${ja}`, icon: id, tone: "good" }, 3500);
+}
+
+/** Only Sleep is left today. */
+async function bedtime() {
+  const bed = sleepPlace();
+  if (bed) showPlaces([bed.id]);
+  if (bed?.type === "shelter") await say("kai", "It's getting dark. Let's sleep in the shelter!", "くらく なって きたね。 こやで ねよう！");
+  else await say("kai", "It's late. Let's sleep by the fire.", "もう おそいね。 火の そばで ねよう。");
+}
+
+async function dayTwoMorning() {
+  await say("kai", "Good morning!", "おはよう！");
+  await say("kai", "Brr! The sand was cold.", "ブルル！ すなの うえは さむかったね。");
+  await say("kai", "Let's make a shelter.", "こやを つくろう。");
+  showPlaces([FALLEN_TREE.id]);
+  await say("kai", "Leaves are in the forest. But a big tree is in the way.", "もりに はっぱが あるよ。 でも おおきな 木が じゃまなんだ。");
+  const can = await ask({
+    kind: "choice",
+    options: ["yesICan", "noICant"],
+    question: { en: "Can you make a stone axe?", by: "kai" },
+    picture: "axe",
+    readQuestion: true
+  });
+  if (can === "yesICan") {
+    setGame({ kai: { ...getGame().kai, canAxe: true } });
+    await say("kai", "Great! Show me!", "すごい！ みせて！");
+  } else {
+    setGame({ kai: { ...getGame().kai, canAxe: false } });
+    give("stone");
+    await say("kai", "That's OK. Here's a stone.", "だいじょうぶ。 はい、 石を どうぞ。");
+  }
+  await say("kai", "You need two wood and one stone.", "木が 2つと、 石が 1つ いるよ。", {
+    icons: [
+      { item: "wood", n: 2 },
+      { item: "stone", n: 1 }
+    ]
+  });
+  unlock("axe", "stone axe", "石の おの");
+}
+
+/** Later visits on Day 2: a hint for the open step, with the beacons that go with it. */
+async function helpDayTwo() {
+  const g = getGame();
+  const step = currentStep(g.quest)?.id;
+  const shelter = g.buildings.find((b) => b.type === "shelter" && !b.built);
+  switch (step) {
+    case "axe":
+      if (count(g.bag, "wood") >= 2 && count(g.bag, "stone") >= 1) {
+        await say("kai", "Make a stone axe. Then cut the big tree!", "石の おのを つくろう。 それから おおきな 木を きろう！");
+        return;
+      }
+      return whatDoYouNeed();
+    case "path":
+      showPlaces([FALLEN_TREE.id]);
+      await say("kai", "Cut the big tree with your axe!", "おので おおきな 木を きろう！");
+      return;
+    case "leaves":
+      showBeacons("leaves");
+      await say("kai", "Leaves are in the forest. Look!", "はっぱは もりに あるよ。 みて！");
+      return;
+    case "wood":
+      showBeacons(count(g.bag, "axe") > 0 ? ["tree", "wood"] : "wood");
+      await say("kai", "Cut the trees with your axe!", "おので 木を きろう！");
+      return;
+    case "shelter":
+      await say("kai", "You have wood and leaves! Make a shelter.", "木と はっぱが あるね！ こやを つくろう。");
+      return;
+    case "build":
+      if (shelter) {
+        showPlaces([shelter.id]);
+        await say("kai", "Now build the shelter!", "さあ、 こやを たてよう！");
+      } else {
+        await say("kai", "Put the shelter down. Then build it!", "こやを おいてから、 たてよう！");
+      }
+      return;
+    default:
+      return whatDoYouNeed();
+  }
+}
+
+/** Kai's repeatable question, with the needs that matter now. */
+async function whatDoYouNeed() {
+  const g = getGame();
+  const leaves = g.pathCleared || g.unlocked.includes("shelter");
+  const need = await ask({
+    kind: "choice",
+    options: leaves ? ["needWood", "needStone", "needLeaves"] : ["needWood", "needStone", "needFood"],
+    question: { en: "What do you need?", by: "kai" },
+    readQuestion: true
+  });
+  if (need === "needWood") {
+    showBeacons(count(getGame().bag, "axe") > 0 ? ["wood", "tree"] : "wood");
+    await say("kai", "Look! Wood is over there.", "みて！ 木は あそこだよ。");
+  } else if (need === "needStone") {
+    showBeacons("stone");
+    await say("kai", "Look! Stones are over there.", "みて！ 石は あそこだよ。");
+  } else if (need === "needLeaves") {
+    showBeacons("leaves");
+    await say("kai", "Look! Leaves are over there.", "みて！ はっぱは あそこだよ。");
+  } else {
+    showBeacons("coconut");
+    await say("kai", "Coconuts are under the palm trees.", "ココナッツは ヤシの 木の したに あるよ。");
   }
 }
 

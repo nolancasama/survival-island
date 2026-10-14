@@ -26,7 +26,17 @@ const W = {
   water: ["water", "waters", "wata", "watah", "waiter", "walter", "warter", "wauter"],
   food: ["food", "foods", "foot", "fruit", "fruits", "fuud", "fude"],
   yes: ["yes", "yeah", "yep", "yup", "ya", "yah", "yess", "yea", "can", "sure", "ok", "okay"],
-  no: ["no", "nope", "know", "nah", "can't", "cant", "cannot", "not", "don't", "dont"]
+  no: ["no", "nope", "know", "nah", "can't", "cant", "cannot", "not", "don't", "dont"],
+  cut: ["cut", "cuts", "cutting", "cat", "cot", "cart", "chop"],
+  tree: ["tree", "trees", "three", "tri"],
+  leaves: ["leaves", "leaf", "leafs", "lives", "leave", "reeves"],
+  build: ["build", "builds", "building", "built", "bill", "bild", "make", "makes", "made", "fix", "repair"],
+  bridge: ["bridge", "bridges", "brij", "ridge", "fridge"],
+  drink: ["drink", "drinks", "drank", "drunk", "drinking", "dink", "trink"],
+  catch: ["catch", "catches", "caught", "cash", "ketch", "get", "gets", "got", "getting"],
+  fish: ["fish", "fishes", "fishing", "fist", "fresh", "feesh"],
+  cook: ["cook", "cooks", "cooked", "cooking", "cuke", "kook", "coke"],
+  sleep: ["sleep", "sleeps", "sleepy", "slept", "sleeping", "slip", "sheep"]
 } as const;
 
 export type PhraseId =
@@ -49,7 +59,20 @@ export type PhraseId =
   | "needWater"
   | "needFood"
   | "yesICan"
-  | "noICant";
+  | "noICant"
+  | "cutTree"
+  | "getLeaves"
+  | "buildShelter"
+  | "buildBridge"
+  | "getWater"
+  | "drinkWater"
+  | "catchFish"
+  | "cookFish"
+  | "eatFish"
+  | "sleep"
+  | "needLeaves"
+  | "wantWater"
+  | "wantFish";
 
 export interface Phrase {
   id: PhraseId;
@@ -103,7 +126,20 @@ export const PHRASES: Record<PhraseId, Phrase> = {
   needWater: { id: "needWater", en: "I need water.", keys: [W.need, W.water] },
   needFood: { id: "needFood", en: "I need food.", keys: [W.need, W.food] },
   yesICan: { id: "yesICan", en: "Yes, I can.", keys: [W.yes], forbid: W.no },
-  noICant: { id: "noICant", en: "No, I can't.", keys: [W.no] }
+  noICant: { id: "noICant", en: "No, I can't.", keys: [W.no] },
+  cutTree: { id: "cutTree", en: "Cut the tree.", keys: [W.cut, W.tree], distractors: ["getLeaves", "buildShelter"] },
+  getLeaves: { id: "getLeaves", en: "Get the leaves.", keys: [W.get, W.leaves], distractors: ["cutTree", "getWater"] },
+  buildShelter: { id: "buildShelter", en: "Build a shelter.", keys: [W.build, ["shelter", "shelters", "sheltar", "shelta", "shoulder", "helter"]], distractors: ["buildBridge", "getLeaves"] },
+  buildBridge: { id: "buildBridge", en: "Build a bridge.", keys: [W.build, W.bridge], distractors: ["buildShelter", "getWater"] },
+  getWater: { id: "getWater", en: "Get some water.", keys: [W.get, W.water], distractors: ["getLeaves", "catchFish"] },
+  drinkWater: { id: "drinkWater", en: "Drink the water.", keys: [W.drink, W.water], distractors: ["getWater", "eatFish"] },
+  catchFish: { id: "catchFish", en: "Catch a fish.", keys: [W.catch, W.fish], distractors: ["getWater", "cookFish"] },
+  cookFish: { id: "cookFish", en: "Cook the fish.", keys: [W.cook, W.fish], distractors: ["catchFish", "eatFish"] },
+  eatFish: { id: "eatFish", en: "Eat the fish.", keys: [W.eat, W.fish], distractors: ["cookFish", "drinkWater"] },
+  sleep: { id: "sleep", en: "I want to sleep.", keys: [W.want, W.sleep], distractors: ["hungry", "needLeaves"] },
+  needLeaves: { id: "needLeaves", en: "I need leaves.", keys: [W.need, W.leaves], distractors: ["needWood", "needWater"] },
+  wantWater: { id: "wantWater", en: "I want to get water.", keys: [[...W.want, ...W.get], W.water], distractors: ["wantFish", "needWater"] },
+  wantFish: { id: "wantFish", en: "I want to catch a fish.", keys: [[...W.want, ...W.catch], W.fish], distractors: ["wantWater", "needWater"] }
 };
 
 export function phrase(id: PhraseId): Phrase {

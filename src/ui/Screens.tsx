@@ -1,9 +1,11 @@
 import { useGame, setGame } from "../game/store";
-import { continueGame, keepPlaying, newGame, toTitle } from "../game/flow/session";
+import { continueGame, newGame, toTitle } from "../game/flow/session";
+import { nextDay } from "../game/flow/days";
 import { PHRASES } from "../game/logic/english";
+import { dayDef } from "../game/logic/quest";
 import { saveSettings } from "../game/store";
 import { recognition } from "../audio/recognition";
-import { Icon } from "./icons";
+import { Icon, type IconId } from "./icons";
 
 function Ja({ children }: { children: React.ReactNode }) {
   const on = useGame((s) => s.settings.japanese);
@@ -78,47 +80,95 @@ export function TitleScreen() {
   );
 }
 
+/** What each story day achieved, for its card. */
+const DAY_DONE: Record<number, { en: string; ja: string; icon: IconId }> = {
+  1: { en: "You found food, met Kai and made a fire.", ja: "たべものを みつけて、カイに あって、火を つけたね！", icon: "fire" },
+  2: { en: "You made an axe, opened the forest and built a shelter.", ja: "おのを つくって、もりを ひらいて、こやを たてたね！", icon: "shelter" }
+};
+
+/** "Day 2: Make Camp" -> ["Day 2", "Make Camp"]. */
+function splitTitle(en: string): [string, string] {
+  const i = en.indexOf(": ");
+  return i < 0 ? [en, ""] : [en.slice(0, i), en.slice(i + 2)];
+}
+
 export function DayEndScreen() {
   const screen = useGame((s) => s.screen);
-  const said = useGame((s) => s.said);
+  const day = useGame((s) => s.quest.day);
+  const daySaid = useGame((s) => s.daySaid);
+  const dayNew = useGame((s) => s.dayNew);
   if (screen !== "dayEnd") return null;
+  const done = DAY_DONE[day] ?? { en: "You explored the island.", ja: "しまを たんけんしたね！", icon: "moon" as IconId };
+  const next = dayDef(day + 1);
+  // "New" only means something next to sentences used before (on Day 1 everything is new).
+  const showNew = daySaid.some((id) => !dayNew.includes(id));
   return (
     <div className="dayend ui" data-testid="dayend">
       <div className="dayend-card">
         <div className="dayend-badge">
-          <Icon id="fire" size={56} />
+          <Icon id={done.icon} size={56} />
         </div>
         <h2>
-          Day 1 complete!
-          <Ja>1にちめ クリア！</Ja>
+          Day {day} complete!
+          <Ja>{day}にちめ クリア！</Ja>
         </h2>
         <p className="dayend-sub">
-          You found food, met Kai and made a fire.
-          <Ja>たべものを みつけて、カイに あって、火を つけたね！</Ja>
+          {done.en}
+          <Ja>{done.ja}</Ja>
         </p>
         <h3>
-          English you used <Ja>つかった えいご</Ja>
+          English you used today <Ja>きょう つかった えいご</Ja>
         </h3>
         <ul className="said" data-testid="said">
-          {said.map((id) => (
+          {daySaid.map((id) => (
             <li key={id}>
               <Icon id="check" size={16} /> {PHRASES[id].en}
+              {showNew && dayNew.includes(id) && <span className="new">NEW</span>}
             </li>
           ))}
         </ul>
         <p className="next-day">
-          Next: Day 2 — The Forest (coming soon)
-          <Ja>つぎは 2にちめ: もりへ（じゅんびちゅう）</Ja>
+          Next: {next.steps.length ? next.en : `Day ${day + 1}`}
+          <Ja>{next.steps.length ? `つぎは ${next.ja}` : `つぎは ${day + 1}にちめ`}</Ja>
         </p>
         <div className="title-buttons">
-          <button className="primary big" onClick={() => keepPlaying()} data-testid="keep-playing">
-            Keep playing <Ja>つづけて あそぶ</Ja>
+          <button className="primary big" onClick={() => void nextDay()} data-testid="next-day">
+            Day {day + 1} → <Ja>{day + 1}にちめへ</Ja>
           </button>
           <button className="secondary big" onClick={() => toTitle()} data-testid="to-title">
             Title <Ja>タイトルへ</Ja>
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** The new day's name, large, while the player wakes up. */
+export function DayTitle() {
+  const n = useGame((s) => s.dayTitle);
+  if (n === null) return null;
+  const def = dayDef(n);
+  const [, name] = def.steps.length ? splitTitle(def.en) : ["", "Explore the island!"];
+  const ja = def.steps.length ? def.ja : "じゆうに たんけん";
+  return (
+    <div className="day-title" data-testid="day-title" key={n}>
+      <div>
+        <span className="day-n">Day {n}</span>
+        <span className="day-name">{name}</span>
+        <Ja>{ja}</Ja>
+      </div>
+    </div>
+  );
+}
+
+/** A starry night between lying down and the day's card. */
+export function SleepOverlay() {
+  const on = useGame((s) => s.sleeping);
+  if (!on) return null;
+  return (
+    <div className="sleep-overlay" data-testid="sleeping">
+      <span className="zzz">Z z z…</span>
     </div>
   );
 }

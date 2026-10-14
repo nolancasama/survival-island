@@ -27,7 +27,9 @@ export type IconId =
   | "rotate"
   | "close"
   | "hand"
-  | "run";
+  | "run"
+  | "tree"
+  | "moon";
 
 const O = "#3b2a1c"; // outline
 const SW = 2.6;
@@ -84,6 +86,14 @@ const P: Record<IconId, ReactElement> = {
       <path d="M6 24 Q20 10 34 24 Q20 38 6 24 Z" fill="#5aa7e0" />
       <path d="M33 24 L43 15 L43 33 Z" fill="#3d86c0" />
       <circle cx="14" cy="22" r="2" fill={O} stroke="none" />
+    </g>
+  ),
+  grilledFish: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <path d="M6 24 Q20 10 34 24 Q20 38 6 24 Z" fill="#d98a3d" />
+      <path d="M33 24 L43 15 L43 33 Z" fill="#b8692a" />
+      <path d="M15 18 L19 30 M21 16 L25 31 M27 18 L30 28" fill="none" stroke="#6b3a17" strokeWidth={2.2} strokeLinecap="round" />
+      <circle cx="11" cy="22" r="1.8" fill={O} stroke="none" />
     </g>
   ),
   water: (
@@ -254,6 +264,23 @@ const P: Record<IconId, ReactElement> = {
     <g stroke="currentColor" strokeWidth={4} fill="none" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="30" cy="8" r="4" fill="currentColor" />
       <path d="M14 20 L24 15 L32 22 L38 22 M24 15 L20 30 L28 36 L26 44 M20 30 L12 40" />
+    </g>
+  ),
+  /** A standing tree (the ones the axe cuts). */
+  tree: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <rect x="20" y="28" width="8" height="15" rx="2" fill="#a8693a" />
+      <circle cx="24" cy="17" r="12" fill="#4fae4a" />
+      <circle cx="15" cy="25" r="7.5" fill="#3f9a3f" />
+      <circle cx="33" cy="25" r="7.5" fill="#3f9a3f" />
+      <path d="M18 12 Q22 8 27 9" fill="none" stroke="#8fd77f" strokeWidth={2.6} strokeLinecap="round" />
+    </g>
+  ),
+  /** Night and sleeping. */
+  moon: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <path d="M30 6 A17 17 0 1 0 42 32 A13 13 0 1 1 30 6 Z" fill="#ffe27a" />
+      <path d="M36 9 l1.4 3 3 1.4 -3 1.4 -1.4 3 -1.4 -3 -3 -1.4 3 -1.4 Z" fill="#fff6c4" strokeWidth={1.4} />
     </g>
   )
 };

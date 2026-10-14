@@ -25,6 +25,9 @@ export const RECIPES: Record<CraftId, Recipe> = {
   signalFire: { id: "signalFire", needs: { wood: 4, leaves: 3, metal: 2 }, phrase: "craftSignalFire", purpose: { en: "Call for rescue.", ja: "たすけを よぶ。" } }
 };
 
+/** The bridge is repaired in the world, not crafted into the bag. */
+export const BRIDGE_NEEDS = { wood: 4 } as const;
+
 /** Recipes shown in the Craft menu, in this order, once unlocked. */
 export const RECIPE_ORDER: CraftId[] = ["campfire", "axe", "rod", "container", "shelter", "torch", "signalFire"];
 
@@ -41,4 +44,10 @@ export function craft(bag: Bag, id: CraftId, unlocked: readonly CraftId[]): Bag 
   const after = removeAll(bag, RECIPES[id].needs);
   if (!after) return null;
   return addItem(after, id, 1, Infinity).bag;
+}
+
+/** Cook one fish and return the changed bag, or null when no fish is available. */
+export function cookFish(bag: Bag): Bag | null {
+  const after = removeAll(bag, { fish: 1 });
+  return after ? addItem(after, "grilledFish", 1).bag : null;
 }

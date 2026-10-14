@@ -85,12 +85,115 @@ export function kaiCampGeometry(lean: { x: number; z: number }, seat: { x: numbe
 /** Fallen palm across the forest path, and the sign post. */
 export function forestGapGeometry(gap: { x: number; z: number }, sign: { x: number; z: number }, y: number, signY: number): THREE.BufferGeometry {
   const b = new PartBuilder(0.3);
-  between(b, [gap.x - 3.4, y + 0.35, gap.z - 0.6], [gap.x + 2.6, y + 0.45, gap.z + 0.3], 0.34, 0.26, "#8a6238", 8);
-  b.add(rockGeometry(0.75, 0.6, 31, 0), "#6a4a2c", [gap.x - 3.6, y + 0.4, gap.z - 0.7]);
-  for (let i = 0; i < 4; i++) {
-    b.add(new THREE.ConeGeometry(0.4, 2.2, 4), "#4e8f3f", [gap.x + 3 + i * 0.2, y + 0.6, gap.z + 0.5 - i * 0.35], [Math.PI / 2 - 0.2, 0.5 + i * 0.5, 0.3], [1, 1, 0.18]);
-  }
+  void gap;
+  void y;
   b.box(0.16, 1.5, 0.16, sign.x, signY, sign.z, "#7a5532");
   b.boxAt(1.5, 0.56, 0.08, [sign.x, signY + 1.55, sign.z + 0.06], [0, -0.25, 0], "#b77f45");
+  return b.build();
+}
+
+/** One half of the cut palm gate, centred at the cut end for the clearing animation. */
+export function fallenPalmHalfGeometry(crown: boolean): THREE.BufferGeometry {
+  const b = new PartBuilder(0.25);
+  const x0 = crown ? 0 : -3.2;
+  const x1 = crown ? 3.2 : 0;
+  between(b, [x0, 0.3, 0], [x1, 0.34, 0], 0.28, crown ? 0.2 : 0.34, "#8a6238", 8);
+  b.cylAt(0.29, 0.035, [0, 0.32, 0], [0, 0, Math.PI / 2], "#d6b174", 8);
+  if (crown) {
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      b.add(new THREE.ConeGeometry(0.42, 2.2, 4), i % 2 ? "#4e8f3f" : "#5aa247", [3.25, 0.45, 0], [Math.PI / 2, a, 0], [1, 1, 0.17]);
+    }
+  } else {
+    b.add(rockGeometry(0.68, 0.55, 31, 0), "#6a4a2c", [-3.3, 0.38, 0]);
+  }
+  return b.build();
+}
+
+export function bridgePostsGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.25);
+  for (const x of [-2.15, 2.15]) {
+    for (const z of [-0.82, 0.82]) b.cyl(0.1, 0.14, 1.25, x, 0, z, "#6f4a29", 6);
+    b.boxAt(0.22, 0.18, 1.85, [x, 0.22, 0], [0, 0, 0], "#76502d");
+  }
+  return b.build();
+}
+
+export function bridgePlankGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.12);
+  b.box(0.48, 0.13, 1.5, 0, 0, 0, "#ad7b45");
+  b.boxAt(0.43, 0.035, 1.38, [0, 0.13, 0], [0, 0.03, 0], "#c38d50");
+  return b.build();
+}
+
+export function bridgeRailsGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.2);
+  for (const z of [-0.82, 0.82]) {
+    for (const x of [-1.65, -0.55, 0.55, 1.65]) b.cyl(0.055, 0.065, 0.72, x, 0.24, z, "#76502d", 5);
+    between(b, [-2.05, 0.9, z], [2.05, 0.9, z], 0.055, 0.055, "#76502d", 5);
+  }
+  return b.build();
+}
+
+/** Reeds and lily pads around a pond centred at the origin. */
+export function pondDetailsGeometry(r: number): THREE.BufferGeometry {
+  const b = new PartBuilder(0.2);
+  const reeds: Array<[number, number]> = [
+    [-r * 0.72, -r * 0.55], [-r * 0.85, -r * 0.2], [r * 0.78, -r * 0.48],
+    [r * 0.86, 0.24], [-r * 0.58, r * 0.67], [r * 0.52, r * 0.72]
+  ];
+  reeds.forEach(([x, z], i) => {
+    for (let k = 0; k < 4; k++) {
+      const ox = (k - 1.5) * 0.12;
+      between(b, [x + ox, 0.03, z + (k % 2) * 0.1], [x + ox * 0.7, 0.75 + (k % 3) * 0.13, z], 0.025, 0.012, i % 2 ? "#699744" : "#7aa64b", 4);
+    }
+  });
+  const pads: Array<[number, number, number]> = [[-1.1, 0.9, 0.48], [0.5, -1.25, 0.38], [1.35, 0.45, 0.34], [-0.3, 1.7, 0.3]];
+  pads.forEach(([x, z, s], i) => b.add(new THREE.CircleGeometry(s, 10, 0.35, Math.PI * 1.82), i % 2 ? "#69a84b" : "#75b556", [x, 0.055, z], [-Math.PI / 2, 0, i]));
+  return b.build();
+}
+
+export function fishingRockGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.15);
+  b.add(rockGeometry(1.05, 0.42, 88, 0), "#8e918b", [0, 0.08, 0], [0, 0.3, 0], [1, 0.55, 0.8]);
+  return b.build();
+}
+
+/** Dock points along local -z, with its first plank on shore. */
+export function fishingDockGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.2);
+  for (let i = 0; i < 6; i++) b.boxAt(1.15, 0.1, 0.42, [0, 0.2, -i * 0.4], [0, 0.04 * (i % 2), 0], i % 2 ? "#a97945" : "#bd8a50");
+  for (const z of [0.05, -2.05]) for (const x of [-0.62, 0.62]) b.cyl(0.045, 0.065, 0.75, x, -0.2, z, "#6f4a29", 5);
+  return b.build();
+}
+
+export function caveFaceGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.7);
+  const rocks: Array<[number, number, number, number, number]> = [
+    [-2.6, 0.8, 0, 1.5, 1.7], [2.6, 0.8, 0, 1.5, 1.7],
+    [-2.15, 2.6, -0.05, 1.45, 1.5], [2.15, 2.6, -0.05, 1.45, 1.5],
+    [-1.05, 3.7, -0.1, 1.55, 1.2], [0.7, 3.85, -0.1, 1.6, 1.2],
+    [-4, 1.3, -0.5, 2.2, 2.4], [4.1, 1.4, -0.7, 2.1, 2.5]
+  ];
+  rocks.forEach(([x, y, z, r, h], i) => b.add(rockGeometry(r, h, 110 + i, 0), i % 2 ? "#77786f" : "#85847a", [x, y, z], [0, i * 0.5, 0]));
+  return b.build();
+}
+
+export function rockfallGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.5);
+  // A long pale trail climbs the analytical northern slope toward the tower.
+  b.boxAt(4.6, 0.14, 21, [0, 6.05, -10.1], [0.52, 0, 0], "#9c825a");
+  const rocks: Array<[number, number, number, number]> = [
+    [-1.65, 0, 0.25, 1.4], [0, 0, -0.3, 1.7], [1.65, 0, 0.25, 1.35],
+    [-0.9, 0.85, 0, 1.05], [0.7, 1.05, -0.15, 0.98], [2.25, 0, -0.45, 0.82]
+  ];
+  rocks.forEach(([x, y, z, r], i) => b.add(rockGeometry(r, r * 0.9, 130 + i, 0), i % 2 ? "#8a887f" : "#74766f", [x, y + r * 0.25, z], [0, i, 0]));
+  return b.build();
+}
+
+export function signPostGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.15);
+  b.box(0.14, 1.45, 0.14, 0, 0, 0, "#73502f");
+  b.boxAt(1.42, 0.52, 0.09, [0, 1.45, 0.05], [0, 0, 0], "#b77f45");
   return b.build();
 }

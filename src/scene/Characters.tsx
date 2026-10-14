@@ -13,6 +13,7 @@ import { audio } from "../audio/audio";
 import { tts } from "../audio/tts";
 import { smoothMat, shadowMaterial } from "./materials";
 import { KAI_OUTFIT, PLAYER_OUTFIT, armGeometry, bodyGeometry, legGeometry, type Outfit } from "./models/people";
+import { PartBuilder } from "./partBuilder";
 
 const WALK = 4.2;
 const RUN = 6.8;
@@ -28,6 +29,7 @@ interface Rig {
   legR: React.RefObject<THREE.Group | null>;
   armL: React.RefObject<THREE.Group | null>;
   armR: React.RefObject<THREE.Group | null>;
+  axe: React.RefObject<THREE.Group | null>;
 }
 
 function useRig(): Rig {
@@ -37,12 +39,21 @@ function useRig(): Rig {
     legL: useRef<THREE.Group>(null),
     legR: useRef<THREE.Group>(null),
     armL: useRef<THREE.Group>(null),
-    armR: useRef<THREE.Group>(null)
+    armR: useRef<THREE.Group>(null),
+    axe: useRef<THREE.Group>(null)
   };
+}
+
+function axeGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0);
+  b.cylAt(0.026, 0.54, [0, -0.22, 0], [0, 0, 0], "#8a5835", 8);
+  b.boxAt(0.24, 0.13, 0.08, [-0.065, -0.43, 0], [0, 0, -0.12], "#777b78");
+  return b.build();
 }
 
 function KidMesh({ outfit, rig, scale = 1 }: { outfit: Outfit; rig: Rig; scale?: number }) {
   const g = useKid(outfit);
+  const axe = useMemo(() => axeGeometry(), []);
   const shadow = useMemo(() => shadowMaterial(0.35), []);
   return (
     <group ref={rig.root}>
@@ -60,6 +71,9 @@ function KidMesh({ outfit, rig, scale = 1 }: { outfit: Outfit; rig: Rig; scale?:
           </group>
           <group ref={rig.armR} position={[0.27, 0.98, 0]} rotation={[0, 0, 0.12]}>
             <mesh geometry={g.arm} material={smoothMat} />
+            <group ref={rig.axe} position={[0, -0.37, 0.01]} visible={false}>
+              <mesh geometry={axe} material={smoothMat} />
+            </group>
           </group>
         </group>
       </group>
@@ -125,7 +139,10 @@ export function Player() {
       const ox = p.x;
       const oz = p.z;
       for (let i = 0; i < steps; i++) {
-        const r = resolveCollisions(p.x + (p.vx * dt) / steps, p.z + (p.vz * dt) / steps, PLAYER_R, obstacles);
+        const r = resolveCollisions(p.x + (p.vx * dt) / steps, p.z + (p.vz * dt) / steps, PLAYER_R, obstacles, {
+          pathCleared: g.pathCleared,
+          bridgeBuilt: g.bridgeBuilt
+        });
         p.x = r.x;
         p.z = r.z;
       }
@@ -152,23 +169,38 @@ export function Player() {
     let bodyY = Math.abs(Math.cos(p.step)) * (0.04 + runK * 0.05) * moving + Math.sin(rt.time * 2.2) * 0.006;
     const act = p.action;
     if (act) {
-      const t = (rt.time - act.t0) / (act.kind === "craft" ? 0.9 : 0.55);
+      const actionKind: string = act.kind;
+      const duration = actionKind === "craft" || actionKind === "build" ? 0.9 : actionKind === "chop" ? 0.75 : 0.55;
+      const t = (rt.time - act.t0) / duration;
       if (t >= 1) p.action = null;
-      else if (act.kind === "gather") {
+      else if (actionKind === "gather") {
         const e = ease(t);
         bend = 0.75 * e;
         bodyY -= 0.2 * e;
         armLx = armRx = -1.2 * e;
-      } else if (act.kind === "eat") {
+      } else if (actionKind === "eat") {
         armRx = -2.3 * ease(Math.min(1, t * 1.6));
         bodyY += Math.sin(t * Math.PI * 6) * 0.01;
-      } else {
+      } else if (actionKind === "chop") {
+        const smooth = (v: number) => v * v * (3 - 2 * v);
+        if (t < 0.3) {
+          armRx = THREE.MathUtils.lerp(0, -2.65, smooth(t / 0.3));
+        } else if (t < 0.62) {
+          armRx = THREE.MathUtils.lerp(-2.65, 0.5, smooth((t - 0.3) / 0.32));
+        } else {
+          armRx = THREE.MathUtils.lerp(0.5, 0, smooth((t - 0.62) / 0.38));
+        }
+        armLx = -1.05 * ease(t);
+        bend = 0.3 * ease(t);
+      } else if (actionKind === "craft" || actionKind === "build") {
         const hit = Math.abs(Math.sin(t * Math.PI * 3));
         armRx = -1.6 + hit * 0.9;
         armLx = -0.7;
         bend = 0.25;
       }
     }
+    const activeKind: string | undefined = act?.kind;
+    if (rig.axe.current) rig.axe.current.visible = activeKind === "chop" && act !== null && (rt.time - act.t0) / 0.75 < 1;
     if (rig.legL.current) rig.legL.current.rotation.x = swing;
     if (rig.legR.current) rig.legR.current.rotation.x = -swing;
     if (rig.armL.current) rig.armL.current.rotation.x = armLx;
@@ -247,7 +279,10 @@ export function Kai() {
         k.walkTo = null;
       } else {
         const v = Math.min(2.8, d * 3) * dt;
-        const r = resolveCollisions(k.x + (ax / d) * v, k.z + (az / d) * v, 0.35, [STATIC_OBSTACLES, buildingObstacles(g.buildings)]);
+        const r = resolveCollisions(k.x + (ax / d) * v, k.z + (az / d) * v, 0.35, [STATIC_OBSTACLES, buildingObstacles(g.buildings)], {
+          pathCleared: g.pathCleared,
+          bridgeBuilt: g.bridgeBuilt
+        });
         k.x = r.x;
         k.z = r.z;
         k.yaw = Math.atan2(ax, az);

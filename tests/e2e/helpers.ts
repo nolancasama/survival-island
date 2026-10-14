@@ -13,9 +13,9 @@ export interface SiState {
   said: string[];
   unlocked: string[];
   crafted: string[];
-  buildings: Array<{ id: string; type: string; x: number; z: number; lit?: boolean }>;
+  buildings: Array<{ id: string; type: string; x: number; z: number; lit?: boolean; built?: boolean }>;
   metKai: boolean;
-  kai: { need?: string; canFire?: boolean };
+  kai: { need?: string; canFire?: boolean; canAxe?: boolean };
   ate: number;
   crateOpened: boolean;
   focus: { id: string; kind: string } | null;
@@ -31,11 +31,24 @@ export interface SiState {
   } | null;
   line: { by: string; en: string } | null;
   placing: { item: string; rot: number; problem: string | null } | null;
+  placeOk: boolean;
   hint: string | null;
   player: { x: number; z: number; yaw: number };
   taken: string[];
   beacons: string[];
   hasSave: boolean;
+  pathCleared: boolean;
+  bridgeBuilt: boolean;
+  day: number;
+  clock: number;
+  isNight: boolean;
+  sleptDay: number;
+  daySaid: string[];
+  dayNew: string[];
+  dayTitle: number | null;
+  sleeping: boolean;
+  toasts: string[];
+  kaiAt: { x: number; z: number };
 }
 
 /** Open the game with speech stubs, fast pacing and the test hook. Returns collected page errors. */
@@ -125,7 +138,8 @@ export async function startGame(page: Page, how: "speak" | "tap" = "speak") {
 
 export async function goTo(page: Page, id: string) {
   await hook(page, "goTo", id);
-  await waitFor(page, (s) => s.focus !== null);
+  // Wait for this target's focus: on a slow frame the previous focus is still showing.
+  await waitFor(page, (s, want) => s.focus?.id === want, 20_000, id);
 }
 
 export async function firstNode(page: Page, kind: string): Promise<string> {

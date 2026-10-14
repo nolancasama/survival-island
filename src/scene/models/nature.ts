@@ -123,6 +123,47 @@ export function bushGeometry(): THREE.BufferGeometry {
   return b.build();
 }
 
+/** Bright, broad leaves make gatherable bushes readable among the darker decor. */
+export function leafBushGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.55);
+  const leaves: Array<[number, number, number, number, string]> = [
+    [0, 0.55, 0, 0.9, "#80cf55"],
+    [0.62, 0.48, 0.18, 0.68, "#9add60"],
+    [-0.58, 0.42, 0.18, 0.64, "#72bf4b"],
+    [0.12, 0.43, -0.58, 0.7, "#66b747"],
+    [-0.12, 0.95, -0.08, 0.58, "#a8df65"]
+  ];
+  for (const [x, y, z, r, color] of leaves) {
+    b.add(rockGeometry(r, r * 0.68, 60 + Math.round((x + z) * 20), 0), color, [x, y, z], [0, x * 0.7, 0]);
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = i * 1.7 + 0.4;
+    between(b, [0, 0.05, 0], [Math.cos(a) * 0.7, 0.62, Math.sin(a) * 0.7], 0.035, 0.018, "#4f7d31", 4);
+  }
+  return b.build();
+}
+
+/** Smaller straight-trunk tree used for the axe resource nodes. */
+export function choppableTreeGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.65);
+  b.cyl(0.17, 0.28, 3.15, 0, 0, 0, "#8b6137", 7);
+  b.cyl(0.15, 0.18, 0.65, 0, 2.25, 0, "#a27342", 7);
+  b.add(rockGeometry(1.12, 0.85, 71, 0), "#4e9f43", [0, 3.2, 0]);
+  b.add(rockGeometry(0.82, 0.68, 72, 0), "#65b34d", [0.65, 3.05, 0.2]);
+  b.add(rockGeometry(0.78, 0.64, 73, 0), "#408d3d", [-0.58, 3.1, -0.25]);
+  b.add(rockGeometry(0.72, 0.62, 74, 0), "#74bd50", [0.05, 3.8, -0.1]);
+  return b.build();
+}
+
+export function stumpGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.15);
+  b.cyl(0.22, 0.3, 0.42, 0, 0, 0, "#8b6137", 7);
+  b.cyl(0.225, 0.225, 0.035, 0, 0.42, 0, "#d3ae72", 7);
+  between(b, [0.08, 0.05, 0], [0.58, 0.03, 0.28], 0.08, 0.03, "#76502f", 5);
+  between(b, [-0.08, 0.05, 0], [-0.48, 0.03, -0.35], 0.08, 0.03, "#76502f", 5);
+  return b.build();
+}
+
 export function bouldersGeometry(list: Boulder[]): THREE.BufferGeometry {
   const b = new PartBuilder(0.9);
   list.forEach((r, i) => {
@@ -162,11 +203,14 @@ export function coconutGeometry(): THREE.BufferGeometry {
 /** Hills and cliffs behind the forest (the rest of the island, for later phases). */
 export function farIslandGeometry(): THREE.BufferGeometry {
   const b = new PartBuilder(4);
+  // Footprints stay north of the walkable forest and pond clearing (z > -42):
+  // the terrain's own northern climb encloses the forest, and a hill poking up
+  // through the forest floor would read as a wall (and be cut by the line-of-sight fade).
   const hills: Array<[number, number, number, number, string]> = [
-    [-60, -55, 26, 12, "#4f8f4a"],
-    [-28, -62, 30, 16, "#457f42"],
-    [6, -70, 34, 20, "#4a8a45"],
-    [40, -58, 28, 14, "#4f8f4a"],
+    [-66, -60, 24, 14, "#4f8f4a"],
+    [-30, -74, 28, 18, "#457f42"],
+    [6, -82, 27, 20, "#4a8a45"],
+    [44, -72, 26, 16, "#4f8f4a"],
     [70, -45, 24, 10, "#559650"],
     [-82, -30, 22, 8, "#5a9a52"],
     [86, -24, 18, 7, "#5a9a52"]

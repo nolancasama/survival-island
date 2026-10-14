@@ -47,6 +47,21 @@ function Objective() {
   const bag = useGame((s) => s.bag);
   const day = dayDef(quest.day);
   const current = day.steps.find((s) => !quest.done.includes(s.id));
+  if (!day.steps.length) {
+    // Free play after the story: no checklist.
+    return (
+      <div className="panel objective ui" data-testid="objective">
+        <div className="objective-title">
+          Day {quest.day}
+          <Ja>{quest.day}にちめ</Ja>
+        </div>
+        <p className="free-play">
+          Explore the island!
+          <Ja>じゆうに しまを たんけんしよう！</Ja>
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="panel objective ui" data-testid="objective">
       <div className="objective-title">
@@ -73,12 +88,6 @@ function Objective() {
           );
         })}
       </ul>
-      {quest.complete && (
-        <div className="all-done" data-testid="all-done">
-          Day 1 done! Explore, eat, and rest by the fire.
-          <Ja>Day 2（もり）は じゅんびちゅう</Ja>
-        </div>
-      )}
     </div>
   );
 }

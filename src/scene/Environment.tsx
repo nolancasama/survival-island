@@ -2,29 +2,53 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { rt } from "../game/runtime";
+import { useGame } from "../game/store";
 import {
   BOULDERS,
+  BRIDGE,
+  CAVE_MOUTH,
+  CAVE_SIGN,
+  CLIFF_SIGN,
+  FALLEN_TREE,
+  FISH_SPOTS,
   FOREST_GAP,
   KAI_HOME,
   LEAN_TO,
+  NODES,
   PALMS,
+  POND,
   SEA_Y,
+  STREAM,
   WRECK,
   groundY,
   shoreZ
 } from "../game/world/island";
 import { makeRng } from "../game/logic/rng";
-import { flatMat, signTexture, smoothMat } from "./materials";
+import { flatMat, occluderMat, signTexture, smoothMat } from "./materials";
 import {
   bouldersGeometry,
   bushGeometry,
   farIslandGeometry,
   jungleTreeGeometry,
-  palmAt,
   palmsGeometry,
   towerGeometry
 } from "./models/nature";
-import { debrisGeometry, forestGapGeometry, kaiCampGeometry, wreckGeometry } from "./models/props";
+import {
+  bridgePlankGeometry,
+  bridgePostsGeometry,
+  bridgeRailsGeometry,
+  caveFaceGeometry,
+  debrisGeometry,
+  fallenPalmHalfGeometry,
+  fishingDockGeometry,
+  fishingRockGeometry,
+  forestGapGeometry,
+  kaiCampGeometry,
+  pondDetailsGeometry,
+  rockfallGeometry,
+  signPostGeometry,
+  wreckGeometry
+} from "./models/props";
 
 // ------------------------------------------------------------------ light
 
@@ -42,8 +66,9 @@ interface LightKey {
 
 /** Story light keyframes: night, dusk, golden hour, afternoon, midday. */
 const KEYS: LightKey[] = [
-  { l: 0, top: "#0b1430", horizon: "#27305e", sun: "#6b7bd6", sunI: 0.3, sky: "#5a6ab0", ground: "#1d2238", hemiI: 0.62, sea: "#28356a" },
-  { l: 0.15, top: "#1b2358", horizon: "#e47c5c", sun: "#ff9a5a", sunI: 0.6, sky: "#9686c4", ground: "#4a3a40", hemiI: 0.78, sea: "#5a6ab0" },
+  { l: 0, top: "#08152f", horizon: "#273e69", sun: "#b9cbff", sunI: 0.42, sky: "#7899d5", ground: "#26334a", hemiI: 0.72, sea: "#294b75" },
+  { l: 0.15, top: "#102650", horizon: "#415f88", sun: "#cfdbff", sunI: 0.52, sky: "#89a7dc", ground: "#35445a", hemiI: 0.78, sea: "#3d648b" },
+  { l: 0.3, top: "#293f78", horizon: "#d2786a", sun: "#ffa86e", sunI: 0.9, sky: "#a594c8", ground: "#5a4a4d", hemiI: 0.86, sea: "#7184ae" },
   { l: 0.45, top: "#4a7fd0", horizon: "#ffcf96", sun: "#ffd29a", sunI: 1.7, sky: "#bcd2f2", ground: "#a08a60", hemiI: 1.0, sea: "#d8e8f0" },
   { l: 0.75, top: "#3f8fe2", horizon: "#cdeaff", sun: "#fff1d6", sunI: 2.2, sky: "#cfe8ff", ground: "#b49a6a", hemiI: 1.08, sea: "#ffffff" },
   { l: 1, top: "#3a8ee6", horizon: "#d6efff", sun: "#ffffff", sunI: 2.4, sky: "#d8ecff", ground: "#b8a070", hemiI: 1.12, sea: "#ffffff" }
@@ -69,6 +94,34 @@ function sample(l: number) {
     sunI: a.sunI + (b.sunI - a.sunI) * t,
     hemiI: a.hemiI + (b.hemiI - a.hemiI) * t
   };
+}
+
+function Stars() {
+  const points = useRef<THREE.Points>(null);
+  const material = useMemo(
+    () => new THREE.PointsMaterial({ color: "#dce8ff", size: 1.15, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false, fog: false }),
+    []
+  );
+  const geometry = useMemo(() => {
+    const rand = makeRng(913);
+    const a = new Float32Array(420 * 3);
+    for (let i = 0; i < 420; i++) {
+      const yaw = rand() * Math.PI * 2;
+      const elev = 0.12 + rand() * 1.25;
+      const r = 350;
+      a[i * 3] = Math.cos(yaw) * Math.cos(elev) * r;
+      a[i * 3 + 1] = Math.sin(elev) * r;
+      a[i * 3 + 2] = Math.sin(yaw) * Math.cos(elev) * r;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(a, 3));
+    return g;
+  }, []);
+  useFrame(() => {
+    material.opacity = THREE.MathUtils.smoothstep(0.36 - rt.light, 0, 0.28) * 0.92;
+    if (points.current) points.current.rotation.y = rt.time * 0.0015;
+  });
+  return <points ref={points} geometry={geometry} material={material} renderOrder={-8} />;
 }
 
 /** Sky dome, sun, and the fixed light set (hemisphere + sun + ambient). */
@@ -131,6 +184,7 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
   return (
     <group>
       <mesh geometry={dome} material={domeMat} renderOrder={-10} />
+      <Stars />
       <mesh ref={sunDisc} material={discMat} renderOrder={-9}>
         <circleGeometry args={[14, 24]} />
       </mesh>
@@ -149,6 +203,7 @@ const UNDER = new THREE.Color("#a99a72");
 const GRASS = new THREE.Color("#8cbf62");
 const FOREST = new THREE.Color("#4f8f45");
 const DEEP_FOREST = new THREE.Color("#3f7a3a");
+const FOREST_PATH = new THREE.Color("#78985b");
 
 const sstep = (a: number, b: number, v: number) => {
   const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
@@ -174,6 +229,17 @@ function terrainGeometry(): THREE.BufferGeometry {
     c.lerp(GRASS, sstep(1.8, -1.5, z));
     c.lerp(FOREST, sstep(-2, -5, z));
     c.lerp(DEEP_FOREST, sstep(-8, -14, z));
+    if (z < -2.4) {
+      const pathD = Math.min(
+        segDist(-9, -3, -8, -20, x, z).d,
+        segDist(-8, -20, 5, -34, x, z).d,
+        segDist(-8, -20, -27.5, -22, x, z).d,
+        segDist(5, -34, 20, -39, x, z).d,
+        segDist(18, -36, 22, -44, x, z).d,
+        segDist(5, -34, 7.2, -42.2, x, z).d
+      );
+      c.lerp(FOREST_PATH, 1 - sstep(1.25, 2.8, pathD));
+    }
     const k = 0.95 + rand() * 0.07;
     colors[i * 3] = c.r * k;
     colors[i * 3 + 1] = c.g * k;
@@ -323,18 +389,42 @@ function treeSpots(): { trees: TreeSpot[]; bushes: TreeSpot[] } {
   const trees: TreeSpot[] = [];
   const bushes: TreeSpot[] = [];
   const inGap = (x: number, z: number) => Math.abs(x - FOREST_GAP.x) < 2.4 && z > -11;
-  for (let z = -4.6; z > -26; z -= 2.6 + rand() * 0.8) {
-    const rowDensity = z > -12 ? 2.9 : 4.2;
-    for (let x = -74; x < 74; x += rowDensity + rand() * 1.4) {
-      const px = x + (rand() - 0.5) * 1.6;
-      const pz = z + (rand() - 0.5) * 1.4;
-      if (inGap(px, pz)) continue;
-      trees.push({ x: px, z: pz, s: 0.85 + rand() * 0.55, r: rand() * Math.PI * 2, tint: 0.85 + rand() * 0.3 });
-    }
+  const onPath = (x: number, z: number) =>
+    segDist(-9, -3, -8, -20, x, z).d < 3.1 ||
+    segDist(-8, -20, 5, -34, x, z).d < 3.1 ||
+    segDist(-8, -20, -27.5, -22, x, z).d < 3.1 ||
+    segDist(5, -34, 20, -39, x, z).d < 3 ||
+    segDist(18, -36, 22, -44, x, z).d < 4 ||
+    segDist(8, -36, 7.2, -42.2, x, z).d < 4 ||
+    Math.hypot(x - 2, z + 20) < 4.4;
+  const byNode = (x: number, z: number) => NODES.some((n) => Math.hypot(n.x - x, n.z - z) < 2.25);
+  // The original south tree line remains dense, with the single forest gap.
+  for (let x = -40; x < 40; x += 2.8 + rand() * 1.4) {
+    const px = x + (rand() - 0.5) * 1.2;
+    const pz = -4.3 - rand() * 1.2;
+    if (!inGap(px, pz)) trees.push({ x: px, z: pz, s: 0.85 + rand() * 0.45, r: rand() * 6.28, tint: 0.88 + rand() * 0.22 });
+  }
+  // Forest trees are clustered away from the readable three-metre path corridors.
+  for (let i = 0; i < 230; i++) {
+    const px = -27 + rand() * 54;
+    const pz = -7 - rand() * 35;
+    if (inGap(px, pz) || onPath(px, pz) || byNode(px, pz)) continue;
+    const edge = Math.min(px + 27, 27 - px, -7 - pz, pz + 42);
+    if (rand() > (edge < 4 ? 0.9 : 0.54)) continue;
+    trees.push({ x: px, z: pz, s: 0.72 + rand() * 0.48, r: rand() * 6.28, tint: 0.82 + rand() * 0.25 });
   }
   for (let x = -40; x < 40; x += 2.2 + rand() * 2.5) {
     if (inGap(x, -3)) continue;
     bushes.push({ x, z: -3.2 - rand() * 0.9, s: 0.7 + rand() * 0.6, r: rand() * 6, tint: 0.85 + rand() * 0.3 });
+  }
+  // A soft vegetation rim defines the pond clearing without hiding its shore.
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2 + rand() * 0.18;
+    const rr = POND.r + 3.2 + rand() * 2.2;
+    const x = POND.x + Math.cos(a) * rr;
+    const z = POND.z + Math.sin(a) * rr;
+    if (x > STREAM.x - 1 || onPath(x, z) || byNode(x, z)) continue;
+    trees.push({ x, z, s: 0.72 + rand() * 0.3, r: rand() * 6.28, tint: 0.86 + rand() * 0.2 });
   }
   // Headland trees.
   for (const side of [-1, 1]) {
@@ -364,7 +454,7 @@ function Instanced({ geometry, spots, yOffset = 0 }: { geometry: THREE.BufferGeo
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
     m.computeBoundingSphere();
   }, [spots, yOffset]);
-  return <instancedMesh ref={ref} args={[geometry, flatMat, spots.length]} frustumCulled={false} />;
+  return <instancedMesh ref={ref} args={[geometry, occluderMat, spots.length]} frustumCulled={false} />;
 }
 
 /** Distance from point (px, pz) to segment a->b in XZ, and how far along it lies (0..1). */
@@ -376,43 +466,19 @@ function segDist(ax: number, az: number, bx: number, bz: number, px: number, pz:
   return { d: Math.hypot(ax + dx * u - px, az + dz * u - pz), u };
 }
 
-/**
- * Palms are separate meshes so one standing between the camera and the
- * player can fade out (a giant frond across the screen hides everything).
- */
+/** Palms share the general line-of-sight material with the other vegetation. */
 function Palms() {
   const items = useMemo(
     () =>
       PALMS.map((palm, i) => ({
-        geo: palmsGeometry([palm], 7 + i),
-        mat: new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, transparent: true }),
-        base: palmAt(palm, 0),
-        top: palmAt(palm, 1),
-        fade: 1
+        geo: palmsGeometry([palm], 7 + i)
       })),
     []
   );
-  useFrame((_, rawDt) => {
-    const dt = Math.min(rawDt, 0.1);
-    const c = rt.camera.pos;
-    const t = rt.camera.target;
-    for (const it of items) {
-      const crown = segDist(c.x, c.z, t.x, t.z, it.top[0], it.top[2]);
-      const lineY = c.y + (t.y - c.y) * crown.u;
-      const crownBlocks = crown.u > 0.02 && crown.u < 0.97 && crown.d < 2.6 && Math.abs(lineY - it.top[1]) < 2.4;
-      const trunk = segDist(c.x, c.z, t.x, t.z, it.base[0], it.base[2]);
-      const trunkBlocks = trunk.u > 0.05 && trunk.u < 0.9 && trunk.d < 0.7;
-      const nearCam = Math.hypot(c.x - it.top[0], c.y - it.top[1], c.z - it.top[2]) < 3.2;
-      const want = crownBlocks || trunkBlocks || nearCam ? 0.18 : 1;
-      it.fade += (want - it.fade) * Math.min(1, dt * 7);
-      it.mat.opacity = it.fade;
-      it.mat.depthWrite = it.fade > 0.97;
-    }
-  });
   return (
     <group>
       {items.map((it, i) => (
-        <mesh key={i} geometry={it.geo} material={it.mat} />
+        <mesh key={i} geometry={it.geo} material={occluderMat} />
       ))}
     </group>
   );
@@ -433,6 +499,229 @@ export function Vegetation() {
 
 // ------------------------------------------------------------ the rest
 
+function inlandWaterMaterial() {
+  return new THREE.MeshLambertMaterial({ color: "#4a9fa5", transparent: true, opacity: 0.86, depthWrite: false });
+}
+
+function streamCrossSection(t: number) {
+  const z = STREAM.z0 + (STREAM.z1 - STREAM.z0) * t;
+  const x = STREAM.x + Math.sin(t * 8.2) * 0.42 + Math.sin(t * 19) * 0.12;
+  const half = STREAM.width * (0.4 + Math.sin(t * 5.4 + 1) * 0.025);
+  return { x, z, half, y: groundY(x, z) + 0.42 };
+}
+
+function StreamAndPond() {
+  const stream = useMemo(() => {
+    const n = 42;
+    const positions = new Float32Array((n + 1) * 2 * 3);
+    const indices: number[] = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const { x, z, half, y } = streamCrossSection(t);
+      for (let side = 0; side < 2; side++) {
+        const px = x + (side ? half : -half);
+        positions.set([px, y, z], (i * 2 + side) * 3);
+      }
+      if (i < n) {
+        const a = i * 2;
+        indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    g.setIndex(indices);
+    g.computeVertexNormals();
+    return g;
+  }, []);
+  const banks = useMemo(() => {
+    const n = 42;
+    const positions = new Float32Array((n + 1) * 4 * 3);
+    const colors = new Float32Array((n + 1) * 4 * 3);
+    const indices: number[] = [];
+    const mud = new THREE.Color("#8b7048");
+    const sand = new THREE.Color("#b69462");
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const { x, z, half, y } = streamCrossSection(t);
+      const xs = [x - STREAM.width * 0.5, x - half, x + half, x + STREAM.width * 0.5];
+      for (let side = 0; side < 4; side++) {
+        const inner = side === 1 || side === 2;
+        const py = inner ? y + 0.035 : groundY(xs[side], z) + 0.035;
+        positions.set([xs[side], py, z], (i * 4 + side) * 3);
+        const color = inner ? mud : sand;
+        colors.set([color.r, color.g, color.b], (i * 4 + side) * 3);
+      }
+      if (i < n) {
+        for (const side of [0, 2]) {
+          const a = i * 4 + side;
+          indices.push(a, a + 4, a + 1, a + 1, a + 4, a + 5);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    g.setIndex(indices);
+    g.computeVertexNormals();
+    return g;
+  }, []);
+  const water = useMemo(inlandWaterMaterial, []);
+  const pondY = groundY(POND.x, POND.z) + 0.56;
+  const details = useMemo(() => pondDetailsGeometry(POND.r), []);
+  const rock = useMemo(fishingRockGeometry, []);
+  const dock = useMemo(fishingDockGeometry, []);
+  const fish = useRef<THREE.InstancedMesh>(null);
+  const fishMat = useMemo(() => new THREE.MeshBasicMaterial({ color: "#173c46", transparent: true, opacity: 0.48, depthWrite: false }), []);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  useFrame(() => {
+    water.opacity = 0.8 + Math.sin(rt.time * 0.6) * 0.04;
+    if (!fish.current) return;
+    for (let i = 0; i < 4; i++) {
+      const spot = FISH_SPOTS[i % FISH_SPOTS.length];
+      const dx = POND.x - spot.x;
+      const dz = POND.z - spot.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const phase = rt.time * (0.25 + i * 0.025) + i * 2.1;
+      dummy.position.set(spot.x + (dx / len) * (1.45 + i * 0.22) + Math.cos(phase) * 0.45, pondY + 0.025, spot.z + (dz / len) * (1.45 + i * 0.22) + Math.sin(phase) * 0.35);
+      dummy.rotation.set(-Math.PI / 2, 0, phase + 0.5);
+      dummy.scale.set(0.55 + (i % 2) * 0.15, 0.2, 1);
+      dummy.updateMatrix();
+      fish.current.setMatrixAt(i, dummy.matrix);
+    }
+    fish.current.instanceMatrix.needsUpdate = true;
+  });
+  return (
+    <group>
+      <mesh geometry={banks} material={flatMat} />
+      <mesh geometry={stream} material={water} renderOrder={1} />
+      <mesh position={[POND.x, pondY, POND.z]} rotation={[-Math.PI / 2, 0, 0]} material={water} renderOrder={1}>
+        <circleGeometry args={[POND.r, 40]} />
+      </mesh>
+      <mesh geometry={details} material={occluderMat} position={[POND.x, pondY, POND.z]} />
+      <mesh geometry={rock} material={occluderMat} position={[FISH_SPOTS[0].x, groundY(FISH_SPOTS[0].x, FISH_SPOTS[0].z), FISH_SPOTS[0].z]} rotation={[0, FISH_SPOTS[0].yaw, 0]} />
+      <mesh geometry={dock} material={occluderMat} position={[FISH_SPOTS[1].x, groundY(FISH_SPOTS[1].x, FISH_SPOTS[1].z), FISH_SPOTS[1].z]} rotation={[0, -FISH_SPOTS[1].yaw, 0]} />
+      <instancedMesh ref={fish} args={[undefined, fishMat, 4]} frustumCulled={false} renderOrder={2}>
+        <circleGeometry args={[1, 8]} />
+      </instancedMesh>
+    </group>
+  );
+}
+
+function FallenPalm() {
+  const cleared = useGame((s) => s.pathCleared);
+  const left = useRef<THREE.Group>(null);
+  const right = useRef<THREE.Group>(null);
+  const base = useMemo(() => fallenPalmHalfGeometry(false), []);
+  const crown = useMemo(() => fallenPalmHalfGeometry(true), []);
+  useFrame(() => {
+    const t = cleared ? (rt.pathClearedT0 < 0 ? 1 : THREE.MathUtils.smoothstep((rt.time - rt.pathClearedT0) / 1.2, 0, 1)) : 0;
+    if (left.current) {
+      left.current.position.set(-t * 0.8, 0, t * 1.65);
+      left.current.rotation.y = t * 0.3;
+      left.current.rotation.z = -t * 0.08;
+    }
+    if (right.current) {
+      right.current.position.set(t * 0.8, 0, -t * 1.65);
+      right.current.rotation.y = -t * 0.3;
+      right.current.rotation.z = t * 0.08;
+    }
+  });
+  return (
+    <group position={[FALLEN_TREE.x, groundY(FALLEN_TREE.x, FALLEN_TREE.z), FALLEN_TREE.z]}>
+      <group ref={left}><mesh geometry={base} material={occluderMat} /></group>
+      <group ref={right}><mesh geometry={crown} material={occluderMat} /></group>
+    </group>
+  );
+}
+
+function BridgeModel() {
+  const built = useGame((s) => s.bridgeBuilt);
+  const planks = useRef<THREE.InstancedMesh>(null);
+  const dangling = useRef<THREE.Mesh>(null);
+  const posts = useMemo(bridgePostsGeometry, []);
+  const plank = useMemo(bridgePlankGeometry, []);
+  const rails = useMemo(bridgeRailsGeometry, []);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const y = Math.max(groundY(BRIDGE.x - 2.3, BRIDGE.z), groundY(BRIDGE.x + 2.3, BRIDGE.z)) + 0.05;
+  useFrame(() => {
+    const t = built ? (rt.bridgeBuiltT0 < 0 ? 1 : THREE.MathUtils.smoothstep((rt.time - rt.bridgeBuiltT0) / 1.2, 0, 1)) : 0;
+    for (let i = 0; i < 9; i++) {
+      const delay = i / 11;
+      const p = Math.max(0, Math.min(1, (t - delay) * 3.6));
+      dummy.position.set(-1.92 + i * 0.48, 0.24 + (1 - p) * 2.4, 0);
+      dummy.rotation.set(0, 0, (1 - p) * 0.45 * (i % 2 ? 1 : -1));
+      dummy.scale.setScalar(Math.max(0.001, p));
+      dummy.updateMatrix();
+      planks.current?.setMatrixAt(i, dummy.matrix);
+    }
+    if (planks.current) planks.current.instanceMatrix.needsUpdate = true;
+    if (dangling.current) dangling.current.visible = !built;
+  });
+  return (
+    <group position={[BRIDGE.x, y, BRIDGE.z]} rotation={[0, BRIDGE.rot, 0]}>
+      <mesh geometry={posts} material={occluderMat} />
+      <instancedMesh ref={planks} args={[plank, occluderMat, 9]} frustumCulled={false} />
+      <mesh geometry={rails} material={occluderMat} visible={built} position={[0, 0, 0]} />
+      <mesh ref={dangling} geometry={plank} material={occluderMat} position={[-1.7, -0.15, 0]} rotation={[1.15, 0, 0]} />
+    </group>
+  );
+}
+
+function labelTexture(label: string) {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 96;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#d79c58";
+  g.fillRect(0, 0, 256, 96);
+  g.fillStyle = "#4a2a12";
+  g.font = "bold 42px system-ui, sans-serif";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText(label, 128, 50);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function ClosedNorth() {
+  const cave = useMemo(caveFaceGeometry, []);
+  const caveOpening = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-1.55, 0);
+    shape.lineTo(1.55, 0);
+    shape.lineTo(1.55, 2.05);
+    shape.bezierCurveTo(1.55, 3.35, 0.9, 4.15, 0, 4.15);
+    shape.bezierCurveTo(-0.9, 4.15, -1.55, 3.35, -1.55, 2.05);
+    shape.closePath();
+    return new THREE.ShapeGeometry(shape, 12);
+  }, []);
+  const rockfall = useMemo(rockfallGeometry, []);
+  const post = useMemo(signPostGeometry, []);
+  const caveLabel = useMemo(() => new THREE.MeshLambertMaterial({ map: labelTexture("CAVE") }), []);
+  const cliffLabel = useMemo(() => new THREE.MeshLambertMaterial({ map: labelTexture("CLIFF") }), []);
+  const dark = useMemo(() => new THREE.MeshBasicMaterial({ color: "#111925", fog: true }), []);
+  // The threshold stands in the level notch groundY cuts for it; the terrain
+  // rises sharply behind the rock face.
+  const caveY = groundY(CAVE_MOUTH.x, CAVE_MOUTH.z);
+  const cliffY = groundY(CLIFF_SIGN.x, CLIFF_SIGN.z - 2.2);
+  return (
+    <group>
+      <mesh geometry={cave} material={occluderMat} position={[CAVE_MOUTH.x, caveY, CAVE_MOUTH.z - 0.58]} userData={{ cameraCollider: true }} />
+      <mesh geometry={caveOpening} material={dark} position={[CAVE_MOUTH.x, caveY + 0.03, CAVE_MOUTH.z]} />
+      <mesh geometry={rockfall} material={occluderMat} position={[CLIFF_SIGN.x + 1.2, cliffY, CLIFF_SIGN.z - 2.2]} rotation={[0, -0.3, 0]} userData={{ cameraCollider: true }} />
+      <group position={[CAVE_SIGN.x, groundY(CAVE_SIGN.x, CAVE_SIGN.z), CAVE_SIGN.z]} rotation={[0, -0.12, 0]}>
+        <mesh geometry={post} material={flatMat} />
+        <mesh material={caveLabel} position={[0, 1.46, 0.101]}><planeGeometry args={[1.32, 0.42]} /></mesh>
+      </group>
+      <group position={[CLIFF_SIGN.x, groundY(CLIFF_SIGN.x, CLIFF_SIGN.z), CLIFF_SIGN.z]} rotation={[0, 0.14, 0]}>
+        <mesh geometry={post} material={flatMat} />
+        <mesh material={cliffLabel} position={[0, 1.46, 0.101]}><planeGeometry args={[1.32, 0.42]} /></mesh>
+      </group>
+    </group>
+  );
+}
+
 export function Landmarks() {
   const boulders = useMemo(() => bouldersGeometry(BOULDERS), []);
   const far = useMemo(farIslandGeometry, []);
@@ -446,15 +735,19 @@ export function Landmarks() {
   const sa = -0.25;
   return (
     <group>
-      <mesh geometry={boulders} material={flatMat} />
-      <mesh geometry={far} material={flatMat} />
-      <mesh geometry={tower} material={flatMat} position={[26, 25, -78]} />
+      <mesh geometry={boulders} material={occluderMat} userData={{ cameraCollider: true }} />
+      <mesh geometry={far} material={occluderMat} userData={{ cameraCollider: true }} />
+      <mesh geometry={tower} material={occluderMat} position={[26, 25, -78]} />
       <group position={[WRECK.x, groundY(WRECK.x, WRECK.z), WRECK.z]} rotation={[0, WRECK.rot, 0.12]}>
-        <mesh geometry={wreck} material={flatMat} />
+        <mesh geometry={wreck} material={occluderMat} />
       </group>
-      <mesh geometry={debris} material={flatMat} />
-      <mesh geometry={camp} material={flatMat} />
-      <mesh geometry={gap} material={flatMat} />
+      <mesh geometry={debris} material={occluderMat} />
+      <mesh geometry={camp} material={occluderMat} />
+      <mesh geometry={gap} material={occluderMat} />
+      <StreamAndPond />
+      <FallenPalm />
+      <BridgeModel />
+      <ClosedNorth />
       <mesh
         position={[FOREST_GAP.sign.x + Math.sin(sa) * 0.11, signY + 1.55, FOREST_GAP.sign.z + 0.06 + Math.cos(sa) * 0.11]}
         rotation={[0, sa, 0]}

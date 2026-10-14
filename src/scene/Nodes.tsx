@@ -3,10 +3,18 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { rt } from "../game/runtime";
 import { getGame } from "../game/store";
-import { CRATE, NODES, NODE_BY_ID, groundY } from "../game/world/island";
+import { CRATE, NODES, groundY } from "../game/world/island";
+import { targetPosition } from "../game/flow/places";
 import type { NodeKind } from "../game/types";
-import { additiveSprite, flatMat, shadowMaterial } from "./materials";
-import { coconutGeometry, driftwoodGeometry, stonePileGeometry } from "./models/nature";
+import { glowTexture, occluderMat, shadowMaterial } from "./materials";
+import {
+  choppableTreeGeometry,
+  coconutGeometry,
+  driftwoodGeometry,
+  leafBushGeometry,
+  stonePileGeometry,
+  stumpGeometry
+} from "./models/nature";
 import { crateBodyGeometry, crateLidGeometry } from "./models/props";
 
 /**
@@ -16,58 +24,124 @@ import { crateBodyGeometry, crateLidGeometry } from "./models/props";
  */
 export function ResourceNodes() {
   const geos = useMemo<Record<NodeKind, THREE.BufferGeometry>>(
-    () => ({ wood: driftwoodGeometry(), stone: stonePileGeometry(), coconut: coconutGeometry() }),
+    () => ({
+      wood: driftwoodGeometry(),
+      stone: stonePileGeometry(),
+      coconut: coconutGeometry(),
+      leaves: leafBushGeometry(),
+      tree: choppableTreeGeometry()
+    }),
     []
   );
-  const refs = useRef<Array<THREE.Group | null>>([]);
-  const glints = useRef<Array<THREE.Sprite | null>>([]);
-  const glintMat = useMemo(() => NODES.map(() => additiveSprite("#fff6c8", 0)), []);
+  const stump = useMemo(stumpGeometry, []);
+  const kinds = useMemo(() => (["wood", "stone", "coconut", "leaves"] as NodeKind[]), []);
+  const byKind = useMemo(() => new Map(kinds.map((kind) => [kind, NODES.filter((n) => n.kind === kind)])), [kinds]);
+  const instances = useRef(new Map<NodeKind, THREE.InstancedMesh>());
+  const shadows = useRef<THREE.InstancedMesh>(null);
+  const treeRoots = useRef<Array<THREE.Group | null>>([]);
+  const treeCrowns = useRef<Array<THREE.Mesh | null>>([]);
+  const glints = useRef<THREE.Points>(null);
+  const treeNodes = useMemo(() => NODES.filter((n) => n.kind === "tree"), []);
   const shadow = useMemo(() => shadowMaterial(0.22), []);
+  const glintGeo = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(NODES.length * 3), 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(NODES.length * 3), 3));
+    return geo;
+  }, []);
+  const glintMat = useMemo(
+    () => new THREE.PointsMaterial({
+      map: glowTexture(), color: "#fff6c8", size: 0.65, sizeAttenuation: true,
+      transparent: true, opacity: 0.9, vertexColors: true, blending: THREE.AdditiveBlending,
+      depthWrite: false, alphaTest: 0.02
+    }),
+    []
+  );
+  const dummy = useMemo(() => new THREE.Object3D(), []);
 
   useFrame(() => {
     const focus = getGame().focus;
-    NODES.forEach((n, i) => {
-      const g = refs.current[i];
-      if (!g) return;
-      const taken = rt.taken.has(n.id);
-      g.visible = !taken;
-      if (taken) return;
-      const regrow = rt.regrown.get(n.id);
+    const scaleFor = (id: string, focused: boolean) => {
+      const regrow = rt.regrown.get(id);
       let s = 1;
       if (regrow !== undefined) {
         const t = (rt.time - regrow) / 0.45;
-        if (t >= 1) rt.regrown.delete(n.id);
+        if (t >= 1) rt.regrown.delete(id);
         else s = t < 0.7 ? (t / 0.7) * 1.15 : 1.15 - ((t - 0.7) / 0.3) * 0.15;
       }
-      const focused = focus?.kind === "node" && focus.id === n.id;
-      const bob = focused ? 0.05 + Math.sin(rt.time * 5) * 0.04 : 0;
-      g.scale.setScalar(Math.max(0.001, s * (focused ? 1.08 : 1)));
-      g.position.y = groundY(n.x, n.z) + bob;
-      // Glint: a short twinkle every few seconds, offset per node.
-      const phase = (rt.time * 0.45 + i * 0.37) % 3;
-      const tw = phase < 0.35 ? Math.sin((phase / 0.35) * Math.PI) : 0;
-      glintMat[i].opacity = tw * 0.9;
-      const sp = glints.current[i];
-      if (sp) sp.scale.setScalar(0.25 + tw * 0.5);
+      return Math.max(0.001, s * (focused ? 1.08 : 1));
+    };
+    for (const kind of kinds) {
+      const mesh = instances.current.get(kind);
+      const nodes = byKind.get(kind);
+      if (!mesh || !nodes) continue;
+      nodes.forEach((n, i) => {
+        const focused = focus?.kind === "node" && focus.id === n.id;
+        const s = rt.taken.has(n.id) ? 0.001 : scaleFor(n.id, focused);
+        const bob = focused ? 0.05 + Math.sin(rt.time * 5) * 0.04 : 0;
+        dummy.position.set(n.x, groundY(n.x, n.z) + bob, n.z);
+        dummy.rotation.set(0, n.rot, 0);
+        dummy.scale.setScalar(s);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+    treeNodes.forEach((n, i) => {
+      const root = treeRoots.current[i];
+      const crown = treeCrowns.current[i];
+      if (!root || !crown) return;
+      const taken = rt.taken.has(n.id);
+      root.position.y = groundY(n.x, n.z);
+      root.scale.setScalar(taken ? 1 : scaleFor(n.id, focus?.kind === "node" && focus.id === n.id));
+      crown.visible = !taken;
+      root.children[1].visible = taken;
     });
+    if (shadows.current) {
+      NODES.forEach((n, i) => {
+        const show = !rt.taken.has(n.id) || n.kind === "tree";
+        const sx = n.kind === "tree" || n.kind === "leaves" ? 1.7 : n.kind === "wood" ? 2 : 1.1;
+        dummy.position.set(n.x, groundY(n.x, n.z) + 0.025, n.z);
+        dummy.rotation.set(-Math.PI / 2, 0, n.rot);
+        dummy.scale.set(show ? sx : 0.001, show ? (n.kind === "wood" ? 1 : sx) : 0.001, 1);
+        dummy.updateMatrix();
+        shadows.current!.setMatrixAt(i, dummy.matrix);
+      });
+      shadows.current.instanceMatrix.needsUpdate = true;
+    }
+    const gp = glintGeo.attributes.position as THREE.BufferAttribute;
+    const gc = glintGeo.attributes.color as THREE.BufferAttribute;
+    NODES.forEach((n, i) => {
+      const visible = !rt.taken.has(n.id);
+      const phase = (rt.time * 0.45 + i * 0.37) % 3;
+      const tw = visible && phase < 0.35 ? Math.sin((phase / 0.35) * Math.PI) : 0;
+      gp.setXYZ(i, n.x + 0.15, groundY(n.x, n.z) + (n.kind === "tree" ? 3.4 : n.kind === "leaves" ? 1.05 : 0.5), n.z + 0.1);
+      gc.setXYZ(i, tw, tw * 0.96, tw * 0.74);
+    });
+    gp.needsUpdate = true;
+    gc.needsUpdate = true;
   });
 
   return (
     <group>
-      {NODES.map((n, i) => (
-        <group key={n.id} ref={(el) => void (refs.current[i] = el)} position={[n.x, groundY(n.x, n.z), n.z]}>
-          <mesh geometry={geos[n.kind]} material={flatMat} rotation={[0, n.rot, 0]} />
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} material={shadow}>
-            <planeGeometry args={[n.kind === "wood" ? 2 : 1.1, n.kind === "wood" ? 1 : 1.1]} />
-          </mesh>
-          <sprite
-            ref={(el) => void (glints.current[i] = el)}
-            material={glintMat[i]}
-            position={[0.15, n.kind === "wood" ? 0.45 : 0.5, 0.1]}
-            scale={[0.4, 0.4, 1]}
-          />
+      {kinds.map((kind) => (
+        <instancedMesh
+          key={kind}
+          ref={(el) => { if (el) instances.current.set(kind, el); else instances.current.delete(kind); }}
+          args={[geos[kind], occluderMat, byKind.get(kind)?.length ?? 0]}
+          frustumCulled={false}
+        />
+      ))}
+      {treeNodes.map((n, i) => (
+        <group key={n.id} ref={(el) => void (treeRoots.current[i] = el)} position={[n.x, groundY(n.x, n.z), n.z]} rotation={[0, n.rot, 0]}>
+          <mesh ref={(el) => void (treeCrowns.current[i] = el)} geometry={geos.tree} material={occluderMat} />
+          <mesh geometry={stump} material={occluderMat} visible={false} />
         </group>
       ))}
+      <instancedMesh ref={shadows} args={[undefined, shadow, NODES.length]} frustumCulled={false}>
+        <planeGeometry args={[1, 1]} />
+      </instancedMesh>
+      <points ref={glints} geometry={glintGeo} material={glintMat} frustumCulled={false} />
     </group>
   );
 }
@@ -87,9 +161,9 @@ export function Crate() {
   });
   return (
     <group ref={root} position={[CRATE.x, y, CRATE.z]} rotation={[0, CRATE.rot, 0]}>
-      <mesh geometry={body} material={flatMat} />
+      <mesh geometry={body} material={occluderMat} />
       <group ref={lidRef} position={[0, 0.78, -0.53]}>
-        <mesh geometry={lid} material={flatMat} />
+        <mesh geometry={lid} material={occluderMat} />
       </group>
     </group>
   );
@@ -97,7 +171,7 @@ export function Crate() {
 
 const BEACON_COUNT = 3;
 
-/** Light pillars and bobbing arrows over the nodes asked for with "I need ___". */
+/** Light pillars and bobbing arrows over the nodes and places asked for with "I need ___" (or lit by Kai). */
 export function Beacons() {
   const pillarGeo = useMemo(() => {
     const g = new THREE.CylinderGeometry(0.45, 0.6, 9, 12, 1, true);
@@ -134,10 +208,10 @@ export function Beacons() {
       const g = refs.current[i];
       if (!g) continue;
       const id = rt.beacons.ids[i];
-      const n = id ? NODE_BY_ID.get(id) : undefined;
-      g.visible = Boolean(active && n && !rt.taken.has(n.id));
-      if (!g.visible || !n) continue;
-      g.position.set(n.x, groundY(n.x, n.z), n.z);
+      const at = id ? targetPosition(id) : null;
+      g.visible = Boolean(active && at && !rt.taken.has(id));
+      if (!g.visible || !at) continue;
+      g.position.set(at.x, groundY(at.x, at.z), at.z);
       const arrow = g.children[1];
       arrow.position.y = 2.1 + Math.sin(rt.time * 4 + i) * 0.25;
       arrow.rotation.y = rt.time * 2;

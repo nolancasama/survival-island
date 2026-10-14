@@ -1,6 +1,6 @@
 import type { BuildingId } from "../types";
-import { BOUNDS, shoreZ } from "./island";
-import { overlaps, type Obstacles } from "./collision";
+import { BRIDGE, FALLEN_TREE, POND, STREAM, shoreZ } from "./island";
+import { CLOSED_GATES, isWalkable, overlaps, type Obstacles, type WorldGates } from "./collision";
 
 /**
  * Building placement: a grid-snapped preview in front of the player, checked
@@ -27,6 +27,8 @@ export interface PlacedBuilding {
   z: number;
   rot: number;
   lit?: boolean;
+  /** Shelter only: false while it is a placed frame, true after "Build a shelter." */
+  built?: boolean;
 }
 
 export type PlaceProblem = "water" | "edge" | "blocked";
@@ -63,11 +65,18 @@ export function placeProblem(
   x: number,
   z: number,
   obstacles: Obstacles[],
-  keepClear: ReadonlyArray<{ x: number; z: number; r: number }>
+  keepClear: ReadonlyArray<{ x: number; z: number; r: number }>,
+  gates: WorldGates = CLOSED_GATES
 ): PlaceProblem | null {
   const r = FOOTPRINT[type];
   if (z + r > shoreZ(x) - 1.2) return "water";
-  if (x - r < BOUNDS.x0 + 0.5 || x + r > BOUNDS.x1 - 0.5 || z - r < BOUNDS.z0 + 0.4) return "edge";
+  if (Math.hypot(x - POND.x, z - POND.z) < POND.r + r + 0.25) return "water";
+  if (Math.abs(x - STREAM.x) < STREAM.width * 0.5 + r && z > STREAM.z0 - r && z < STREAM.z1 + r) return "water";
+
+  // Keep both gates and their approaches unobstructed in every state.
+  if (Math.abs(x - FALLEN_TREE.x) < 2.5 + r && Math.abs(z - FALLEN_TREE.z) < 2.2 + r) return "blocked";
+  if (Math.abs(x - BRIDGE.x) < 4 + r && Math.abs(z - BRIDGE.z) < 2.2 + r) return "blocked";
+  if (!isWalkable(x, z, gates, r + 0.4)) return "edge";
   if (overlaps(x, z, r, obstacles)) return "blocked";
   if (keepClear.some((c) => Math.hypot(c.x - x, c.z - z) < c.r + r)) return "blocked";
   return null;

@@ -10,6 +10,60 @@ import * as THREE from "three";
 export const flatMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
 export const smoothMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 
+const losUniforms = {
+  targetView: { value: new THREE.Vector3() },
+  radius: { value: 0 }
+};
+
+/**
+ * Shared world material with a screen-door opening around the camera-to-player
+ * line. Keeping the effect in one material means instanced and merged scenery
+ * can clear the view without being split into extra draw calls.
+ */
+export const occluderMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+occluderMat.onBeforeCompile = (shader) => {
+  shader.uniforms.uLosTargetView = losUniforms.targetView;
+  shader.uniforms.uLosRadius = losUniforms.radius;
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      "#include <common>",
+      `#include <common>
+uniform vec3 uLosTargetView;
+uniform float uLosRadius;`
+    )
+    .replace(
+      "#include <clipping_planes_fragment>",
+      `#include <clipping_planes_fragment>
+if (uLosRadius > 0.0) {
+  vec3 losPoint = -vViewPosition;
+  float cameraDistance = length(losPoint);
+  float losLengthSq = max(dot(uLosTargetView, uLosTargetView), 0.0001);
+  float losAlong = dot(losPoint, uLosTargetView) / losLengthSq;
+  vec3 losNearest = uLosTargetView * clamp(losAlong, 0.0, 1.0);
+  float losDistance = length(losPoint - losNearest);
+  float visibility = smoothstep(2.9, 3.2, cameraDistance);
+  if (losAlong > -0.04 && losAlong < 1.04) {
+    float capsuleVisibility = smoothstep(uLosRadius * 0.82, uLosRadius, losDistance);
+    visibility = min(visibility, capsuleVisibility);
+  }
+  if (visibility <= 0.0) discard;
+  if (visibility < 1.0) {
+    float screenDoor = fract(52.9829189 * fract(dot(floor(gl_FragCoord.xy), vec2(0.06711056, 0.00583715))));
+    if (screenDoor > visibility) discard;
+  }
+}`
+    );
+};
+occluderMat.customProgramCacheKey = () => "line-of-sight-screen-door-v2";
+
+/** Update the shared line-of-sight capsule after the follow camera has moved. */
+export function updateOccluderFade(camera: THREE.Camera, target: THREE.Vector3, enabled: boolean): void {
+  losUniforms.radius.value = enabled ? 1.55 : 0;
+  if (!enabled) return;
+  camera.updateMatrixWorld(true);
+  losUniforms.targetView.value.copy(target).applyMatrix4(camera.matrixWorldInverse);
+}
+
 let glow: THREE.CanvasTexture | null = null;
 /** Soft radial dot (beacons, embers, blob shadows, sparkles). */
 export function glowTexture(): THREE.CanvasTexture {

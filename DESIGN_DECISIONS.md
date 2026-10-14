@@ -185,3 +185,247 @@ roughly x −36…36, z −4…24.
   director file holds everything.
 - **Test hook** `window.__si` (only with `?e2e=1`) and browser stubs for TTS,
   SpeechRecognition and the microphone. Playwright drives the real UI.
+
+## 2026-10-13 — Phase 2 (Exploration) design
+
+Phase 2 adds the forest, the stream and broken bridge, the pond, the stone axe,
+the shelter, the water container, the fishing rod, cooking, and a basic
+day/night cycle with sleeping. It also re-sequences Days 2 and 3. These
+decisions were frozen before implementation started, and the workers build
+against them.
+
+### Story
+
+Every day's checklist now ends with **Sleep**. When every other step of the
+day is done, evening falls, Kai says it is time to sleep, and sleeping ends
+the day. The day-end card appears after sleeping, not after the last task.
+Rejected: ending the day on the last task, which leaves "I want to sleep."
+(a brief example) with no place in the story.
+
+- **Day 1: Survive** is unchanged up to the fire. After the celebration, Kai
+  says "It's late. Let's sleep." and the student says **"I want to sleep."**
+  at once, by the fire. There is no shelter yet: the cold sand is the reason
+  for Day 2. The Day 1 card's "keep playing at dusk" button becomes "Day 2".
+- **Day 2: Make Camp** (the brief's Day 2, without the campfire, which Day 1
+  already made). Morning talk: "Brr! The sand was cold. Let's make a
+  shelter." / "Leaves are in the forest. But a big tree is in the way." /
+  Kai asks **"Can you make a stone axe?"**. Yes → "Show me!"; No → he gives a
+  stone. Then he unlocks the axe recipe (2 wood + 1 stone). Steps:
+  1. Make a stone axe.
+  2. Cut the big tree: at the fallen palm in the forest gap, **"Cut the
+     tree."**. This needs the axe, gives +2 wood and opens the forest.
+  3. Get leaves (4). Forest bushes, **"Get the leaves."**, +2 per bush. The
+     first leaves trigger a self line, "Leaves! I can make a shelter!", and
+     unlock the shelter recipe. The student discovers the recipe by using
+     "I can ___".
+  4. Get wood (4). Standing forest trees need the axe ("Cut the tree.", +2
+     wood, the tree becomes a stump that regrows). Driftwood and forest logs
+     still give +1 without the axe. The brief's axe purpose, "cut wood
+     faster", is now real.
+  5. Make a shelter (4 wood + 4 leaves).
+  6. Build the shelter: place it with the preview, then say **"Build a
+     shelter."** at the frame and the roof goes on. This mirrors the
+     campfire (craft, place, "Make a fire.").
+  7. Sleep in the shelter.
+- **Day 3: Explore** (the brief's Day 3, plus the brief's Day 1 "find
+  water", which needs the pond). Morning: "I'm thirsty. The pond has water
+  and fish. But the bridge is broken." / Kai asks **"What do you want to
+  do?"** → "I want to get water." (he gives a coconut and talks about the
+  container first) or "I want to catch a fish." (he talks about the rod
+  first; if the crate is still closed he says "Open the box on the beach.
+  There is rope!" and lights it up). Both answers unlock both recipes and
+  end with "You need four wood for the bridge." Steps:
+  1. Build the bridge: at the broken bridge with 4 wood, **"Build a
+     bridge."**.
+  2. Make a water container (1 coconut + 2 leaves).
+  3. Get water: at the pond shore, with the container, **"Get some
+     water."**.
+  4. Drink water: **"Drink the water."** (from the bag, like eating).
+  5. Make a fishing rod (2 wood + 1 rope).
+  6. Catch a fish: at a fishing spot, with the rod, **"Catch a fish."**.
+     Cast, a short wait, the fish jumps, +1 fish.
+  7. Cook the fish: at a lit campfire, **"Cook the fish."**. Raw fish
+     becomes grilled fish ("Eat the fish." eats it).
+  8. Sleep in the shelter.
+- **After Day 3** the card says the cave is next (Phase 3) and "Keep
+  playing" starts Day 4 as free play: no checklist ("Explore the
+  island!"), and the clock runs.
+- **World facts are sticky and the world gates actions, not the
+  checklist** (as in Phase 1). A student who builds the bridge on Day 2
+  finds it already ticked on Day 3. Recipes unlock in story order (axe and
+  shelter on Day 2, container and rod on Day 3), so a student cannot skip
+  far ahead.
+
+### Day and night
+
+- **The clock runs, but the sun waits.** Time of day advances with live play
+  (sunrise to late afternoon in about 7 minutes) and at least as fast as the
+  checklist (each finished step pushes it on, as in Phase 1). While the day
+  has open steps other than Sleep, it never passes late afternoon (golden
+  hour). When only Sleep is left, evening falls over about 30 s and night
+  follows. This keeps the brief's "basic day/night cycle" without the risk
+  Phase 1 rejected: night never arrives in the middle of a task in a 45-minute
+  lesson.
+- **Night lasts until you sleep**, in the story and in free play. Night is
+  dark blue moonlight with stars and lit fires glowing, and it is never black
+  or scary. Stamina recovers at half speed at night, except near a lit fire.
+  Nothing harms you at night. In free play the evening comes from the clock
+  alone (about 7 minutes of day).
+- **Where you sleep:** in a built shelter. If no shelter exists (Day 1), by
+  a lit campfire. Asking to sleep in daytime gets "It's not night yet!". By
+  day a built shelter acts like a fire for stamina (resting near it
+  recovers faster). The brief says "Shelter restores stamina".
+- **Sleeping:** "I want to sleep." → the player lies down, the screen fades
+  through a starry night, and morning comes. Stamina is full, HP is full,
+  and food drops by 20 but never below 30, so you wake hungry and never
+  starving. The day number goes up, Kai's morning talk starts the new day,
+  and the day's title shows briefly.
+- **"I want to sleep." is also an "I need…" choice at night.** It lights the
+  shelter (or the fire).
+- **The faint penalty** (the brief's "small time penalty") moves the clock
+  forward a little. It never pushes past the sun-wait cap.
+
+### English added in Phase 2
+
+New sentences: "Cut the tree.", "Get the leaves.", "Build a shelter.",
+"Build a bridge.", "Get some water.", "Drink the water.", "Catch a fish.",
+"Cook the fish.", "Eat the fish.", "I want to sleep.", "I need leaves.",
+"I want to get water.", "I want to catch a fish.", and Kai's questions "Can
+you make a stone axe?" and "What do you want to do?". The rules from Phase 1
+still hold: the first success makes the action quick, key words with
+variants, mic-free picture + 3 sentences, and Kai's questions have no wrong
+answer.
+
+- **"Build" and "drink" and "cut" come from the brief's verb list.**
+  **"Catch" and "cook" do not.** Fishing and cooking have no natural verb in
+  the list, and "Get a fish." does not say what the rod is for. The speech
+  judge also accepts "get" for catch, and "make/fix" for build.
+- **"Build a bridge.", not "Fix the bridge."** "Build" is in the list, and
+  the student is building a new bridge with their own wood.
+- **The "I need…" menu shows at most 4 choices**, chosen by relevance: at
+  night "I want to sleep." comes first, then "I'm hungry.", then the needs of
+  the open steps (wood / stone / leaves / water). "I need water." lights the
+  pond's water spots. If the bridge is still broken, it lights the bridge
+  instead. "I need leaves." lights bushes. If the forest is closed, it lights
+  the fallen tree.
+
+### World (layout extends the Phase 1 island)
+
+Approximate positions. The world worker may move things by a few metres for
+looks and play, and records the final numbers here.
+
+- **Forest:** north of the beach, about x −27…27, z −3…−42, entered only
+  through the forest gap (x −9). Mixed jungle trees: the dense background ones
+  are decoration, and a smaller, recognisable kind is choppable. It also has
+  leaf bushes, fallen logs, a few stones, and paths that read as walkable.
+- **Stream:** along the west side of the forest, about x −30, from the
+  northern hills down to the west headland rocks behind the beach tree line.
+  It never crosses the beach, and it cannot be waded.
+- **Broken bridge:** about (−30, −22). Broken: two posts and a gap. Built:
+  planks across, walkable.
+- **Pond:** a clearing west of the stream, around (−46, −24), with water
+  about 8 m across. It has water spots on the shore, two fishing spots (a
+  flat rock and a small plank dock) with fish shadows, stones and reeds.
+- **Cave mouth** (NE hillside, around (22, −44)) and **cliff path** (north,
+  climbing toward the signal tower, blocked at its foot by a rockfall) are
+  visible but closed until Phase 3. Each has a sign.
+- **Walkable area is a set of regions plus gates**, not one box. The gates
+  are the fallen palm (open after "Cut the tree.") and the bridge (open after
+  "Build a bridge."). Placement uses the same walkability, so buildings can
+  go in the forest too, but not in water or on the stream.
+- **Chromebook budget for the worst view** (SwiftShader at 1024×768): at
+  most about 120 draw calls and 200k triangles. Trees, bushes and stumps are
+  instanced. There is still one shared fire point light, and fog hides the
+  far plane.
+- **Line-of-sight fading now applies to all large scenery occluders.** This
+  generalises the Phase 1 decision that palms fade when they block the camera:
+  a shared Lambert screen-door capsule clears decorative and choppable trees,
+  bushes, rocks, hills, cliffs and buildings between the follow camera and the
+  player without adding draw calls. The player, Kai, ground and water never
+  fade. Terrain is the exception to the old "do not pull the camera in" rule:
+  because the camera cannot dither through the ground, it eases upward and, if
+  needed, inward until its position and view ray clear the land.
+
+Final world coordinates:
+
+- Fallen tree interaction (-9, -3.6); bridge centre (-30.25, -22), east-west,
+  with its forest-side build point at (-27.2, -22).
+- Stream centre x=-30.5 from z=-44…-3, 4 m wide; pond centre (-45.5, -24),
+  radius 4.2.
+- Water spots (-40.8, -24), (-45.5, -18.9), (-49.1, -27.8); fishing rock
+  (-49.5, -28.1); dock (-40.8, -22).
+- Cave sign (21, -40); cliff sign (6, -40).
+
+Cave mouth and cliff-path terrain remain north of the walkable forest edge at
+z=-42; the signal tower stays at its existing (26, 25, -78), supported by the
+steep closed clifftop terrain beyond that edge.
+
+The walkable world is a union of separately inset beach, gap, forest, bridge
+and pond-clearing regions. Their overlaps form the only connections: the gap
+corridor exists only after the fallen tree is cleared, and the pond region and
+deck exist only after both gates are open. The deliberate 4 m break between
+forest and pond regions is the stream, so neither end can be walked around.
+
+### Beacons in a bigger world
+
+Beacons can point at places (the bridge, the water, the fallen tree, the
+shelter) as well as resource nodes. A beacon that is off screen or behind fog
+shows an arrow at the screen edge while it lasts. Kai's hints and "I need…"
+use them. Rejected for now: a minimap, which adds HUD weight. Revisit after
+the classroom trial if students get lost.
+
+### Saves
+
+The save goes to `si.save.v2`. A valid v1 save is migrated: it maps 1:1 to
+Day 1, and the new fields get defaults. A v1 save with Day 1 complete
+resumes at Day 1 night with Sleep open. Anything else that does not validate
+is still discarded whole.
+
+### Still deferred
+
+Classroom mode (Phase 3) will tune the counts and the clock speed.
+Everything that takes those numbers keeps them in one place
+(recipes, step goals, clock constants). Wild fruit and the forest animal wait
+for Phase 4 (events and ambience). The cave, the clifftop, the torch, metal
+and the signal fire wait for Phase 3.
+
+## 2026-10-14 — Phase 2 decisions made while building (world, Days 1–2)
+
+- **The cave mouth sits in a level notch** cut into the northern climb
+  (`groundY`), so the ramp never rises in front of the opening, and the hill
+  resumes behind the rock face. **The far hills stay north of the walkable
+  area**: placed any closer, they poked through the forest floor.
+- **Night falls during the Day 1 celebration.** The clock jumps to night when
+  the fire is lit (as the Phase 1 light did), so "It's late. Let's sleep."
+  is true when Kai says it. On later days the evening comes from the clock.
+- **One id space for everything the game points at** (`flow/places.ts`):
+  nodes, the fallen palm, the bridge, water and fishing spots, signs and
+  buildings. Beacons, focus labels, edge arrows and the test hook all use it.
+  The bridge is marked at its forest-side end, where it is built from.
+- **"I need…" never lights something you cannot reach.** If every source is
+  behind a closed gate, the gate is lit instead (the fallen palm for anything
+  in the forest; for water, the palm and then the bridge). This generalises
+  the design's "I need leaves." rule.
+- **Edge arrows:** a beacon off screen gets an arrow at the screen edge,
+  inside a margin that keeps clear of the hint and the bag. A beacon on screen
+  but more than 60 m away (in the fog) gets a marker over it, pointing down.
+  The arrow is a block arrow with a shaft. A bare triangle was tried and read
+  the wrong way at some angles. Only the arrow turns, so the button's shadow
+  stays below it.
+- **A built shelter always says "Sleep in the shelter"**; by day it answers
+  "It's not night yet!". A lit fire offers sleep only at sleep time and only
+  while there is no built shelter, so the camp does not nag by day.
+- **"NEW" on the day card only means something next to old sentences.** On
+  Day 1 everything is new, so no badges are shown; from Day 2 on, the day's
+  first-ever sentences are marked.
+- **Waking up:** the player wakes lying beside the shelter (or the fire), and
+  Kai stands beside the camp, so the morning talk is framed there. Kai's
+  position is not saved; from Day 2 on, resuming puts him at the camp.
+- **Kai's evening line waits for a free moment.** It never cuts into an open
+  prompt or a conversation.
+- **The building preview cannot be placed before its first check.** A stale
+  "fits" from the previous placement could put a building at an old position.
+- **F eats the first food in the bag** (hotbar order). Water is drunk, not
+  eaten (Day 3).
+- **Kai's repeatable "What do you need?" offers leaves instead of food** once
+  leaves matter (the forest is open or the shelter recipe is known).

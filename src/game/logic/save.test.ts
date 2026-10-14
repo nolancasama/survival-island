@@ -4,7 +4,7 @@ import { START_QUEST } from "./quest";
 import { START_STATS } from "./stats";
 
 const sample = (): SaveData => ({
-  v: 1,
+  v: 2,
   savedAt: 1,
   quest: { ...START_QUEST, done: ["eat", "kai"] },
   bag: { wood: 2, coconut: 1 },
@@ -21,6 +21,14 @@ const sample = (): SaveData => ({
   player: { x: 1, z: 2, yaw: 0.5 },
   light: 0.8,
   said: ["hungry", "getWood"]
+  ,t: 0.2,
+  pathCleared: false,
+  bridgeBuilt: false,
+  gotWater: 0,
+  drank: 0,
+  caught: 0,
+  cooked: 0,
+  sleptDay: 0
 });
 
 describe("save", () => {
@@ -32,7 +40,7 @@ describe("save", () => {
   it("discards other versions, junk and missing fields whole", () => {
     expect(parseSave(null)).toBeNull();
     expect(parseSave("not json")).toBeNull();
-    expect(parseSave(JSON.stringify({ ...sample(), v: 2 }))).toBeNull();
+    expect(parseSave(JSON.stringify({ ...sample(), v: 3 }))).toBeNull();
     const broken = sample() as unknown as Record<string, unknown>;
     delete broken.stats;
     expect(parseSave(JSON.stringify(broken))).toBeNull();

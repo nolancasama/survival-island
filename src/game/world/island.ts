@@ -18,8 +18,8 @@ const smooth = (t: number) => {
   return c * c * (3 - 2 * c);
 };
 
-/** Ground height. Low dunes inland, a ramp into the sea, rising toward the forest. */
-export function groundY(x: number, z: number): number {
+/** Phase 1 beach height. Keep this exact: saved placements rely on it. */
+function beachGroundY(x: number, z: number): number {
   const d = z - shoreZ(x);
   const inland = 0.4;
   let y: number;
@@ -28,6 +28,35 @@ export function groundY(x: number, z: number): number {
   const dunes = 0.16 * Math.sin(x * 0.23 + z * 0.11) + 0.1 * Math.sin(x * 0.07 - z * 0.31 + 1.3);
   y += dunes * (1 - smooth((d + 10) / 6));
   if (z < 1) y += Math.pow(1 - z, 1.3) * 0.05;
+  return y;
+}
+
+/** Where the cave opening stands, at the north end of the path past CAVE_SIGN (closed until Phase 3). */
+export const CAVE_MOUTH = { x: 22, z: -43.1 };
+
+/**
+ * Ground height across the island. The Phase 1 beach (z >= BOUNDS.z0) is
+ * untouched; north of it the forest rises gently before the clifftop climb.
+ */
+export function groundY(x: number, z: number): number {
+  if (z >= -2.4) return beachGroundY(x, z);
+
+  const north = -2.4 - z;
+  let y = beachGroundY(x, -2.4) + north * 0.047;
+  y += (0.18 * Math.sin(x * 0.17 + z * 0.12) + 0.11 * Math.sin(x * 0.31 - z * 0.09)) * smooth(north / 5);
+
+  // The pond and stream sit in shallow basins, while the closed northern
+  // country climbs steeply enough to carry the signal tower at y=25.
+  const pondD = Math.hypot(x + 45.5, z + 24);
+  y -= 0.75 * (1 - smooth((pondD - 2.8) / 2.2));
+  const streamD = Math.abs(x + 30.5);
+  if (z < -3 && z > -44) y -= 0.65 * (1 - smooth((streamD - 0.7) / 1.5));
+  if (z < -42) {
+    // The cave mouth sits in a level notch cut into the climb, so the ramp
+    // never rises in front of the opening; the hill resumes behind the rock face.
+    const notch = (1 - smooth((Math.abs(x - CAVE_MOUTH.x) - 2.4) / 1.4)) * (1 - smooth((-44 - z) / 1.2));
+    y += (-42 - z) * 0.58 * (1 - notch);
+  }
   return y;
 }
 
@@ -46,7 +75,7 @@ export interface NodeDef {
   rot: number;
 }
 
-export const RESPAWN_S: Record<NodeKind, number> = { wood: 60, stone: 75, coconut: 50 };
+export const RESPAWN_S: Record<NodeKind, number> = { wood: 60, stone: 75, coconut: 50, leaves: 60, tree: 90 };
 
 /** Driftwood lies a few metres above the waterline. */
 const driftwood = (id: string, x: number, rot: number, inset = 3.6): NodeDef => ({ id, kind: "wood", x, z: shoreZ(x) - inset, rot });
@@ -69,7 +98,39 @@ export const NODES: NodeDef[] = [
   { id: "coconut-3", kind: "coconut", x: -5.1, z: 13.1, rot: 2 },
   { id: "coconut-4", kind: "coconut", x: -19, z: 5.3, rot: 0.5 },
   { id: "coconut-5", kind: "coconut", x: -27, z: 11.3, rot: 1.5 },
-  { id: "coconut-6", kind: "coconut", x: 16.9, z: 5.2, rot: 2.5 }
+  { id: "coconut-6", kind: "coconut", x: 16.9, z: 5.2, rot: 2.5 },
+
+  // Forest resources. Paths remain open through the centre and to the bridge.
+  { id: "leaves-1", kind: "leaves", x: -17, z: -8, rot: 0.2 },
+  { id: "leaves-2", kind: "leaves", x: -4, z: -9, rot: 1.1 },
+  { id: "leaves-3", kind: "leaves", x: 8, z: -7, rot: 2.3 },
+  { id: "leaves-4", kind: "leaves", x: 20, z: -10, rot: 0.7 },
+  { id: "leaves-5", kind: "leaves", x: -22, z: -16, rot: 1.8 },
+  { id: "leaves-6", kind: "leaves", x: -10, z: -18, rot: 2.8 },
+  { id: "leaves-7", kind: "leaves", x: 4, z: -17, rot: 0.4 },
+  { id: "leaves-8", kind: "leaves", x: 18, z: -21, rot: 1.4 },
+  { id: "leaves-9", kind: "leaves", x: -18, z: -30, rot: 2.1 },
+  { id: "leaves-10", kind: "leaves", x: 12, z: -31, rot: 0.9 },
+  { id: "tree-1", kind: "tree", x: -21, z: -10, rot: 0.5 },
+  { id: "tree-2", kind: "tree", x: -2, z: -12, rot: 1.7 },
+  { id: "tree-3", kind: "tree", x: 14, z: -11, rot: 2.4 },
+  { id: "tree-4", kind: "tree", x: -18, z: -22, rot: 0.1 },
+  { id: "tree-5", kind: "tree", x: -7, z: -25, rot: 2.9 },
+  { id: "tree-6", kind: "tree", x: 13, z: -25, rot: 1.2 },
+  { id: "tree-7", kind: "tree", x: -20, z: -36, rot: 2.2 },
+  { id: "tree-8", kind: "tree", x: 17, z: -36, rot: 0.8 },
+  { id: "log-1", kind: "wood", x: -13, z: -14, rot: 0.3 },
+  { id: "log-2", kind: "wood", x: 8, z: -20, rot: 1.5 },
+  { id: "log-3", kind: "wood", x: -15, z: -34, rot: 2.4 },
+  { id: "log-4", kind: "wood", x: 22, z: -29, rot: 0.9 },
+
+  // Pond-clearing resources (three leaf bushes and three stones).
+  { id: "leaves-11", kind: "leaves", x: -51, z: -19, rot: 0.6 },
+  { id: "leaves-12", kind: "leaves", x: -52, z: -27, rot: 1.9 },
+  { id: "leaves-13", kind: "leaves", x: -40, z: -30, rot: 2.7 },
+  { id: "stone-7", kind: "stone", x: -50, z: -20.5, rot: 0.5 },
+  { id: "stone-8", kind: "stone", x: -51.5, z: -24.5, rot: 1.6 },
+  { id: "stone-9", kind: "stone", x: -48, z: -30, rot: 2.4 }
 ];
 
 export interface Palm {
@@ -134,6 +195,23 @@ export const LEAN_TO = { x: -16, z: 0.2, r: 1.5 };
 
 /** Gap in the tree line toward the forest (Phase 2), closed by a fallen palm. */
 export const FOREST_GAP = { x: -9, z: -2.2, sign: { id: "sign", x: -7.2, z: -1.2 } };
+
+/** Phase 2 place anchors. Rotations use the usual y-axis radians. */
+export const FALLEN_TREE = { id: "fallenTree", x: -9, z: -3.6 };
+export const BRIDGE = { id: "bridge", x: -30.25, z: -22, rot: 0, beachSide: { x: -27.2, z: -22 } };
+export const STREAM = { x: -30.5, z0: -44, z1: -3, width: 4 };
+export const POND = { x: -45.5, z: -24, r: 4.2 };
+export const WATER_SPOTS = [
+  { id: "water-1", x: -40.8, z: -24 },
+  { id: "water-2", x: -45.5, z: -18.9 },
+  { id: "water-3", x: -49.1, z: -27.8 }
+];
+export const FISH_SPOTS = [
+  { id: "fish-1", x: -49.5, z: -28.1, yaw: Math.PI * 0.25 },
+  { id: "fish-2", x: -40.8, z: -22, yaw: -Math.PI * 0.5 }
+];
+export const CAVE_SIGN = { id: "caveSign", x: 21, z: -40 };
+export const CLIFF_SIGN = { id: "cliffSign", x: 6, z: -40 };
 
 export const SPAWN = { x: 10.5, z: 13, yaw: -2.4 };
 

@@ -1,65 +1,82 @@
 # Current State
 
 ## Status
-Phase 1 vertical slice is playable end to end: the beach, Day 1 ("Survive"),
-from waking up to lighting the campfire, by speech or by tapping. Not yet in
-git (no repository, no commits).
+Phase 1 (beach, Day 1) is done and committed (`125a6e3`, pushed to
+`origin/main`, which is private). **Phase 2 (Exploration): the world, the
+logic and story slice A (Days 1–2 with day/night and sleeping) are done and
+uncommitted.** Story slice B (Day 3) is next. The design is in
+DESIGN_DECISIONS.md under "2026-10-13 — Phase 2 (Exploration) design" plus
+"2026-10-14 — Phase 2 decisions made while building". Read those first.
 
-## What Exists
-- **World:** the handcrafted beach (shipwreck, crate, palms, driftwood, stone
-  piles, coconuts), Kai's camp, the closed forest gap with a sign, an animated
-  sea with foam, a tree line, and the far hills with the signal tower. Story
-  light runs from midday to dusk as Day 1 progresses.
-- **Player:** third-person movement (keys / joystick, Shift or toggle to run),
-  collision, walk/run/gather/eat/craft animations, a steady follow camera
-  (drag to turn, wheel to zoom), and palms that fade when they block the view.
-- **Survival:** HP / Stamina / Food (food shown as a meter that empties). Stats
-  pause during English and menus. Fainting returns you to camp with full health
-  and nothing lost.
-- **English layer** (`src/game/flow/ask.ts`): command and choice prompts, tap to
-  talk, interim acceptance, one success = one action, the help ladder (try
-  again → read again → choices), mic-free choices with distractors, and an
-  automatic switch to tapping when the mic is blocked. The phrase bank and
-  variant tables are in `src/game/logic/english.ts`.
-- **Day 1:** "I'm hungry." (beacons) → get and eat a coconut → Kai ("What do you
-  need?" / "Can you make a fire?", and the answers change his gift) → 3 wood +
-  2 stones (first of each spoken, then quick) → craft ("I want to make a
-  campfire.") → ghost-preview placement → "Make a fire." → celebration →
-  day-end card listing the English used → free play at dusk.
-- **Also:** "I need…" beacons (Q), the crate ("Open the box." → rope), resource
-  respawn, save/resume (localStorage `si.save.v1`), Settings (mic, music/SFX
-  volume, Japanese help, slow voice, camera speed), procedural audio.
-- **Tests:** 74 unit tests; 9 Playwright e2e tests. The harness was checked
-  with a deliberate known-bad build (known actions stop being quick), which the
-  save/resume test and the full-loop test both caught.
-- **Deploy workflow** in `.github/workflows/deploy-pages.yml`. Nothing has been
-  pushed.
-
-## Known Issues / Unverified
-- **Real speech recognition is untested.** Only the stubbed recogniser was
-  used. The variant tables need a classroom trial with real Japanese-accented
-  speech.
-- **Sound has not been listened to.** It is all synthesised and was checked
-  only for errors.
-- **Real Chromebook GPU performance is unmeasured.** Under SwiftShader:
-  about 50–65 draw calls and about 80k triangles per frame.
-- Touch was checked by emulation at 1024×768. Phone portrait is not tuned.
-- The console shows a `THREE.Clock` deprecation warning from React Three Fiber
-  internals (harmless).
+## Phase 2: done (uncommitted, reviewed)
+- **World slice (accepted visually):** forest, stream, broken/built bridge,
+  pond with dock and fish spots, cave mouth, cliff path rockfall, signs,
+  regions and gates (`pathCleared` / `bridgeBuilt`), forest nodes, shelter
+  frame/built model, stars and moonlight, line-of-sight dither fade. Perf in
+  the Day 1–2 playthrough: 40–79 draw calls, ≤62k triangles.
+- **Logic slice:** Days 1–3 quest data plus free-play days, the clock
+  (`logic/clock.ts`), night/shelter stamina, `afterSleep`, `consume`,
+  `cookFish`, `BRIDGE_NEEDS`, the new phrases, save v2 with v1 migration.
+- **Story slice A (done this session, Claude direct; Codex was out of quota):**
+  - `flow/places.ts`: `targetPosition(id)` / `targetReachable` for nodes,
+    places (fallen tree, bridge, crate, water/fish spots, signs) and
+    buildings. Used by beacons (`scene/Nodes.tsx`), focus, edge arrows and
+    the e2e hook.
+  - `flow/days.ts` (new): Day 1 `celebrate()` → "It's late. Let's sleep." →
+    the "I want to sleep." prompt; `eveningCue()` for Day 2+; `trySleep` /
+    `sleepTonight` (starry overlay, `afterSleep`, `sleptDay`, card);
+    `nextDay()` (morning, day title, Kai's talk); `sleepPlace`,
+    `canSleepNow`, `placeKaiAtCamp`.
+  - `session.ts`: the clock drives the light and the music (`LIGHT_STEPS`
+    removed), storyFloor on quest change, night/shelter stamina, faint wakes
+    at shelter > fire > Kai, the clock is saved, resuming a finished day goes
+    to `nextDay`. `showBeacons` takes several kinds, only lights reachable
+    nodes, and falls back to the fallen palm; `showPlaces(ids)`.
+  - `kai.ts`: Day 2 morning talk ("Can you make a stone axe?"), Day 2 hints
+    per step with beacons, bedtime lines, a generic morning for later days.
+  - `actions.ts`: trees need the axe (chop, +2 wood), leaves (+2, the first
+    teaches the shelter), the fallen palm (camera shot, "Wow! The forest!"),
+    building the shelter, sleeping at a shelter or lit fire, the three
+    signs, relevance-ordered "I need…" (max 4, incl. sleep and water), F eats
+    the first food.
+  - UI: dynamic day-end card ("Day N+1 →", today's English, NEW badges),
+    `DayTitle`, `SleepOverlay`, edge arrows in `WorldOverlay`, icons `tree`
+    and `moon`, Day 2 hints, free-play objective.
+  - e2e hook: `startDay(n)`, `setClock(t)`, `reachable(id)`, reachable
+    `nodes()`, goTo for places, more state (day, clock, isNight, sleptDay,
+    daySaid, dayNew, toasts, placeOk…).
+- **Verified:** typecheck, `npm test` (94), `npm run e2e` (12: 9 Day 1 +
+  3 new Day 2). The Day 2 spec was checked to fail on a broken build (sleep
+  allowed by day). `npm run shots` plays Days 1–2 (54 shots in .tmp/shots);
+  reviewed: sleep prompt, starry sleep, both day cards, Day 2 title, axe
+  question, palm cut and forest shot, edge arrows, leaves discovery, chop,
+  shelter frame/built, evening, night, sleep label.
 
 ## Next Steps
-1. Playtest Phase 1 with real speech on a school Chromebook, and tune the
-   variant tables and pacing (food drain, gather counts).
-2. Phase 2 (Exploration): open the forest gap after Day 1; add the leaves
-   resource; stone axe ("Cut the tree."); the stream and broken bridge (repair
-   with wood); the pond with water (water container) and fish (rod: wood +
-   rope; the crate's rope is already in the bag); the shelter plus a real
-   day/night cycle with sleeping ("I want to sleep."). Re-sequence Days 2–3
-   around these.
-3. Phase 3: cave (torch), clifftop, signal fire, rescue ending, classroom mode
-   (see DESIGN_DECISIONS).
-4. Phase 4: polish, scripted events, Free Survival mode.
-5. Create the GitHub repository and enable Pages when the user wants it public.
+1. **Story slice B.** The work order is `.ai/story-b.json` (Day 3: bridge,
+   water and drinking, fishing, cooking, Kai's water/fish choice, the
+   after-Day-3 card, free play, README). Route it:
+   `node ~/.claude/workers/bin/route.js .ai/story-b.json`. Update its brief
+   first: slice A now exists (`flow/days.ts`, `flow/places.ts`, the e2e
+   `startDay`), Kai's Day 3 morning replaces the generic one in
+   `morningTalk`, "I need water." already lights water/bridge/palm, and
+   `DAY_DONE` in `ui/Screens.tsx` needs a Day 3 entry.
+2. Acceptance after slice B: `npm run e2e`, `npm run shots`, `npm run
+   shots:world` (shots need `npx vite preview --port 5287`; it binds to
+   `localhost`, so pass `http://localhost:5287/` to the script).
+3. Commit Phase 2 when the user asks.
+
+## Known Issues / Unverified
+- Real speech recognition, sound and Chromebook GPU are untested (as in
+  Phase 1). SwiftShader fps is low (4–7), which is expected.
+- Night at clock 0.95 reads grey-blue rather than deep blue on the beach; it
+  is the accepted world lighting, but worth a look on a real screen.
+- The dither fade can still show a light stipple at the edges of near
+  canopies. `THREE.Clock` deprecation warning (harmless).
 
 ## Codex / Delegated Work
-None. Phase 1 was built by Claude directly, at the user's request.
+No run is in flight. Codex was in a usage-limit window (until about
+2026-10-14 22:58 local) when slice A was routed, so the router assigned it to
+Claude. Work orders and results are in `.ai/` (gitignored), incl.
+`story-a2.json` (the completion order) and `snapshot-pre-a2/` (a copy of the
+tree before slice A was finished).
