@@ -1,10 +1,8 @@
 # Current State
 
 ## Status
-**Phase 2 is feature-complete: Days 1–3 and free play from Day 4.** Phase 1
-and Phase 2 slice A (world, logic, Days 1–2) are on `main` and pushed
-(`3a1953e`; the repo is private). **Slice B (Day 3) is reviewed and
-accepted but uncommitted** in the working tree. The design is in
+**Phase 2 is complete: Days 1–3 and free play from Day 4, all on `main`
+and pushed** (Day 3 is `2077199`; the repo is private). The design is in
 DESIGN_DECISIONS.md: "2026-10-13 — Phase 2 (Exploration) design",
 "2026-10-14 — Phase 2 decisions made while building" and "2026-10-15 —
 Phase 2 story slice B decisions". Read those first.
@@ -24,7 +22,7 @@ Phase 2 story slice B decisions". Read those first.
   `actions.ts`, the dynamic day card, day title, sleep overlay, edge arrows,
   relevance-ordered "I need…", and the e2e hook (`startDay(n)`, `setClock`,
   `reachable`, `goTo` for places).
-- **Story slice B (Day 3, Codex, uncommitted):** Kai's morning with "What do
+- **Story slice B (Day 3, Codex):** Kai's morning with "What do
   you want to do?" (water → coconut + container first; fish → rod first,
   plus a crate beacon if the rope box is closed); "Build a bridge." at the
   bridge with 4 wood; the water container, "Get some water." at the water
@@ -49,11 +47,10 @@ Phase 2 story slice B decisions". Read those first.
   Day 4 free play.
 
 ## Next Steps
-1. Commit slice B when the user asks (then push to the private repo).
-2. Not yet looked at: the second fishing spot (the flat rock, `fish-1`) in a
+1. Not yet looked at: the second fishing spot (the flat rock, `fish-1`) in a
    screenshot, and `npm run shots:world` after slice B (no world changes,
    so low risk).
-3. Phase 3 (the cave, the clifftop, the torch, metal, the signal fire, and
+2. Phase 3 (the cave, the clifftop, the torch, metal, the signal fire, and
    classroom mode, which tunes counts and clock speed) has no design yet.
    It starts with a design pass like "2026-10-13 — Phase 2 (Exploration)
    design", frozen before any worker builds it.
