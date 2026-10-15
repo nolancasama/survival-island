@@ -81,7 +81,7 @@ await page.goto(`${base}?e2e=1&seed=3`);
 await page.waitForFunction(() => Boolean(window.__si), null, { timeout: 20_000 });
 await call("showWorld");
 await requireState("world view did not open", (s) => s.screen === "game" && s.mode === "explore");
-await call("setLight", 0.95);
+await call("setClock", 0.05);
 await call("setGates", { pathCleared: false, bridgeBuilt: false });
 await call("setBuildings", []);
 const world = await call("world");
@@ -154,15 +154,16 @@ await shot("shelter-built");
 
 const fire = { id: "shot-fire", type: "campfire", x: 2, z: 7, rot: 0, lit: true };
 await call("setBuildings", [{ ...shelter, built: true }, fire]);
-await call("setLight", 0.08);
-await requireState("night lighting or lit fire was not staged", (s, id) => s.light <= 0.1 && s.buildings.some((b) => b.id === id && b.lit), fire.id);
+// Light follows the day clock, so stage night through the clock rather than setLight.
+await call("setClock", 1);
+await requireState("night lighting or lit fire was not staged", (s, id) => s.isNight && s.light <= 0.15 && s.buildings.some((b) => b.id === id && b.lit), fire.id);
 await frame(0, 13, 0, 6, 0.34, 10.5);
 await settle(0.5);
 await shot("camp-at-night-lit-fire");
 await perfAt("camp at night");
 
 // High authored camera verifies the complete landform and its spatial relationships.
-await call("setLight", 0.95);
+await call("setClock", 0.05);
 await call("setCameraShot", { x: 8, y: 100, z: 58 }, { x: -7, y: 0, z: -22 });
 await settle(0.35);
 await shot("overview-high-above");
