@@ -88,7 +88,7 @@ export function CameraRig() {
       let hit = firstTerrainHit(wantLook.current, want.current);
       if (hit) {
         const baseY = want.current.y;
-        for (const extra of [1.5, 3, 5, 8]) {
+        for (const extra of g.inCave ? [] : [1.5, 3, 5, 8]) {
           want.current.y = baseY + extra;
           hit = firstTerrainHit(wantLook.current, want.current);
           if (!hit) break;
@@ -96,7 +96,7 @@ export function CameraRig() {
         if (hit) {
           probe.subVectors(want.current, wantLook.current);
           const distance = probe.length();
-          const safeDistance = Math.max(2.6, hit.distance - 0.9);
+          const safeDistance = Math.max(g.inCave ? 0.6 : 2.6, hit.distance - 0.9);
           want.current.copy(wantLook.current).addScaledVector(probe, safeDistance / distance);
           want.current.y += terrainLift(wantLook.current, want.current);
         }

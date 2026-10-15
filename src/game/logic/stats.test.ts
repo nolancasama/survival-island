@@ -23,6 +23,13 @@ describe("stats", () => {
     expect(w).toBeGreaterThan(r);
   });
 
+  it("applies the classroom food drain multiplier when supplied", () => {
+    const base = { hp: 100, stamina: 100, food: 80 };
+    const normal = tickStats(base, idle).stats.food;
+    const classroom = tickStats(base, { ...idle, foodMultiplier: 0.6 }).stats.food;
+    expect(80 - classroom).toBeCloseTo((80 - normal) * 0.6);
+  });
+
   it("a full food bar lasts several minutes of walking", () => {
     expect(100 / RATES.foodWalk).toBeGreaterThan(8 * 60);
   });

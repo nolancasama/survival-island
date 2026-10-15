@@ -8,6 +8,8 @@ import { Kai, Player } from "./Characters";
 import { Buildings } from "./Buildings";
 import { Celebration } from "./Effects";
 import { CameraRig } from "./CameraRig";
+import { useGame } from "../game/store";
+import { Phase3World } from "./Phase3World";
 
 /** Renderer stats for the test hook (draw calls / triangles per frame). */
 export const perf = { calls: 0, triangles: 0, fps: 0 };
@@ -35,16 +37,20 @@ function Clock() {
 
 function World() {
   const seaMat = useSeaMaterial();
+  const inCave = useGame((s) => s.inCave);
   return (
     <>
       <Clock />
       <SkyAndLights seaMat={seaMat} />
-      <Terrain />
-      <Ocean seaMat={seaMat} />
-      <Vegetation />
-      <Landmarks />
+      <group visible={!inCave}>
+        <Terrain />
+        <Ocean seaMat={seaMat} />
+        <Vegetation />
+        <Landmarks />
+        <Crate />
+      </group>
+      <Phase3World />
       <ResourceNodes />
-      <Crate />
       <Beacons />
       <Buildings />
       <Player />

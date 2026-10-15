@@ -31,8 +31,8 @@ describe("Phase 2 survival", () => {
   it("cooks fish once", () => { expect(cookFish({ fish: 1 })).toEqual({ grilledFish: 1 }); expect(cookFish({})).toBeNull(); });
 });
 describe("v1 migration", () => {
-  it("loads a valid v1 into v2 defaults, including completed Day 1 at night", () => {
+  it("loads a valid v1 into v3 defaults, including completed Day 1 at night", () => {
     const old = { v: 1, savedAt: 1, quest: { day: 1, done: ["eat", "kai", "wood", "stone", "craft", "place", "light"], complete: true }, bag: {}, stats: { hp: 1, stamina: 2, food: 3 }, known: [], unlocked: [], crafted: [], buildings: [], taken: {}, crateOpened: false, metKai: false, ate: 0, kai: {}, player: { x: 0, z: 0, yaw: 0 }, light: .5, said: [] };
-    const got = loadSaveText(null, JSON.stringify(old)); expect(got?.v).toBe(2); expect(got?.t).toBe(1); expect(got?.quest.done).not.toContain("sleep"); expect(loadSaveText(JSON.stringify({ v: 99 }), JSON.stringify({}))).toBeNull();
+    const got = loadSaveText(null, JSON.stringify(old)); expect(got?.v).toBe(3); expect(got?.t).toBe(1); expect(got?.quest.done).not.toContain("sleep"); expect(loadSaveText(JSON.stringify({ v: 99 }), JSON.stringify({}))).toBeNull();
   });
 });

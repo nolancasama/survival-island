@@ -36,7 +36,13 @@ const W = {
   catch: ["catch", "catches", "caught", "cash", "ketch", "get", "gets", "got", "getting"],
   fish: ["fish", "fishes", "fishing", "fist", "fresh", "feesh"],
   cook: ["cook", "cooks", "cooked", "cooking", "cuke", "kook", "coke"],
-  sleep: ["sleep", "sleeps", "sleepy", "slept", "sleeping", "slip", "sheep"]
+  sleep: ["sleep", "sleeps", "sleepy", "slept", "sleeping", "slip", "sheep"],
+  go: ["go", "goes", "going", "went", "goal", "gold", "goh"],
+  cave: ["cave", "caves", "cape", "cafe", "kev", "cage"],
+  metal: ["metal", "metals", "medal", "middle", "meadow", "iron", "metaru"],
+  have: ["have", "has", "had", "half", "hab"],
+  radio: ["radio", "radios", "rajio", "radial", "video"],
+  help: ["help", "helps", "helped", "health", "hell", "herb", "heap"]
 } as const;
 
 export type PhraseId =
@@ -73,7 +79,13 @@ export type PhraseId =
   | "needLeaves"
   | "wantWater"
   | "wantFish"
-  | "getMetal";
+  | "getMetal"
+  | "goCave"
+  | "haveRadio"
+  | "haveMetal"
+  | "canHelp"
+  | "needHelp"
+  | "needMetal";
 
 export interface Phrase {
   id: PhraseId;
@@ -100,7 +112,7 @@ export const PHRASES: Record<PhraseId, Phrase> = {
     distractors: ["craftAxe", "craftTorch"]
   },
   craftAxe: { id: "craftAxe", en: "I want to make a stone axe.", keys: [[...W.want, ...W.make], ["axe", "axes", "ax", "acts", "ox"]] },
-  craftTorch: { id: "craftTorch", en: "I want to make a torch.", keys: [[...W.want, ...W.make], ["torch", "torches", "touch", "torch's"]] },
+  craftTorch: { id: "craftTorch", en: "I want to make a torch.", keys: [[...W.want, ...W.make], ["torch", "torches", "touch", "torch's"]], distractors: ["craftCampfire", "craftAxe"] },
   craftRod: {
     id: "craftRod",
     en: "I want to make a fishing rod.",
@@ -121,7 +133,8 @@ export const PHRASES: Record<PhraseId, Phrase> = {
   craftSignalFire: {
     id: "craftSignalFire",
     en: "I want to make a signal fire.",
-    keys: [[...W.want, ...W.make], ["signal", "signals", "signalfire", "single", "signo"]]
+    keys: [[...W.want, ...W.make], ["signal", "signals", "signalfire", "single", "signo"]],
+    distractors: ["craftTorch", "craftAxe"]
   },
   hungry: { id: "hungry", en: "I'm hungry.", keys: [W.hungry], distractors: ["needWood", "needStone"] },
   needWood: { id: "needWood", en: "I need wood.", keys: [W.need, W.wood] },
@@ -142,7 +155,13 @@ export const PHRASES: Record<PhraseId, Phrase> = {
   sleep: { id: "sleep", en: "I want to sleep.", keys: [W.want, W.sleep], distractors: ["hungry", "needLeaves"] },
   needLeaves: { id: "needLeaves", en: "I need leaves.", keys: [W.need, W.leaves], distractors: ["needWood", "needWater"] },
   wantWater: { id: "wantWater", en: "I want to get water.", keys: [[...W.want, ...W.get], W.water], distractors: ["wantFish", "needWater"] },
-  getMetal: { id: "getMetal", en: "Get the metal.", keys: [W.get, ["metal", "metals", "medal", "middle", "meadow", "iron"]], distractors: ["getStone", "openBox"] },
+  getMetal: { id: "getMetal", en: "Get the metal.", keys: [W.get, W.metal], distractors: ["getStone", "openBox"] },
+  goCave: { id: "goCave", en: "Go in the cave.", keys: [W.go, W.cave], distractors: ["openBox", "getMetal"] },
+  haveRadio: { id: "haveRadio", en: "I have a radio.", keys: [W.have, W.radio] },
+  haveMetal: { id: "haveMetal", en: "I have metal.", keys: [W.have, W.metal] },
+  canHelp: { id: "canHelp", en: "Can you help me?", keys: [W.help], distractors: ["cutTree", "getStone"] },
+  needHelp: { id: "needHelp", en: "I need help.", keys: [W.need, W.help], distractors: ["needWater", "sleep"] },
+  needMetal: { id: "needMetal", en: "I need metal.", keys: [W.need, W.metal], distractors: ["needWood", "needStone"] },
   wantFish: { id: "wantFish", en: "I want to catch a fish.", keys: [[...W.want, ...W.catch], W.fish], distractors: ["wantWater", "needWater"] }
 };
 

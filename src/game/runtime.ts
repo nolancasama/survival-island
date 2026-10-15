@@ -62,6 +62,7 @@ export const rt = {
     z: KAI_HOME.z,
     yaw: KAI_HOME.yaw,
     walkTo: null as null | { x: number; z: number; face: { x: number; z: number } },
+    route: [] as Array<{ x: number; z: number }>,
     talking: false,
     speed: 0,
     step: 0
@@ -98,6 +99,12 @@ export const rt = {
   /** When the fallen palm was cut / the bridge was built (-1 = not yet, or already done before load). */
   pathClearedT0: -1,
   bridgeBuiltT0: -1,
+  cliffOpenT0: -1,
+  caveBoxOpenT0: -1,
+  signalLitT0: -1,
+  rescueT0: -1,
+  /** Actual flame position, shared by the held prop and the fixed fire light. */
+  torchTip: { x: 0, y: 0, z: 0 },
   /** Building id -> time a shelter was built (roof animation). */
   builtT0: new Map<string, number>(),
   floaters: [] as Floater[],
@@ -140,6 +147,8 @@ export function resetRuntime() {
   rt.kai.z = KAI_HOME.z;
   rt.kai.yaw = KAI_HOME.yaw;
   rt.kai.walkTo = null;
+  rt.kai.route = [];
+  rt.kai.speed = rt.kai.step = 0;
   rt.kai.talking = false;
   rt.taken.clear();
   rt.fishing = null;
@@ -153,6 +162,10 @@ export function resetRuntime() {
   rt.crateOpenT0 = -1;
   rt.pathClearedT0 = -1;
   rt.bridgeBuiltT0 = -1;
+  rt.cliffOpenT0 = -1;
+  rt.caveBoxOpenT0 = -1;
+  rt.signalLitT0 = -1;
+  rt.rescueT0 = -1;
   rt.builtT0.clear();
   rt.floaters = [];
   rt.celebrateT0 = -100;

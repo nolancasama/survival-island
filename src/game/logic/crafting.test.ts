@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { RECIPES, RECIPE_ORDER, checkCraft, craft } from "./crafting";
 import { PHRASES } from "./english";
 import { count } from "./inventory";
+import { pace, recipeNeeds } from "./pace";
 
 describe("crafting", () => {
   it("campfire needs three wood and two stones (the Phase 1 task)", () => {
@@ -37,5 +38,18 @@ describe("crafting", () => {
   it("recipes that share ingredients differ in amounts", () => {
     expect(RECIPES.axe.needs).not.toEqual(RECIPES.campfire.needs);
     expect(RECIPES.torch.needs).not.toEqual(RECIPES.shelter.needs);
+  });
+
+  it("uses the classroom recipe and bridge counts through the pace table", () => {
+    expect(recipeNeeds("campfire", true)).toEqual({ wood: 2, stone: 1 });
+    expect(recipeNeeds("signalFire", true)).toEqual({ wood: 2, leaves: 2, metal: 1 });
+    expect(pace(true).bridgeNeeds).toEqual({ wood: 2 });
+    expect(pace(false).bridgeNeeds).toEqual({ wood: 4 });
+  });
+
+  it("checks and consumes classroom recipe counts without changing normal crafting", () => {
+    expect(checkCraft({ wood: 2, stone: 1 }, "campfire", ["campfire"], true)).toBe("ok");
+    expect(craft({ wood: 2, stone: 1 }, "campfire", ["campfire"], true)).toEqual({ campfire: 1 });
+    expect(checkCraft({ wood: 2, stone: 1 }, "campfire", ["campfire"])).toBe("missing");
   });
 });

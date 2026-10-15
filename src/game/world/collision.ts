@@ -1,4 +1,5 @@
-import { BOULDERS, BOUNDS, BRIDGE, CRATE, KAI_HOME, LEAN_TO, NODES, PALMS, POND, WRECK, maxZ } from "./island";
+import { BOULDERS, BOUNDS, BRIDGE, CAVE_MOUTH, CRATE, KAI_HOME, LEAN_TO, NODES, PALMS, POND, WRECK, maxZ } from "./island";
+import { CAVE_BOX, CAVE_CHAMBER, CAVE_CORRIDOR, CLIFF_PATH, CLIFF_PATH_R, CLIFFTOP, nearestOnSegment } from "./phase3";
 
 export interface Circle {
   x: number;
@@ -23,15 +24,22 @@ export interface Obstacles {
 export interface WorldGates {
   pathCleared: boolean;
   bridgeBuilt: boolean;
+  /** Omitted by legacy callers/fixtures: the cliff stays closed. Live sources pass the store fact. */
+  cliffOpen?: boolean;
 }
 
-export const CLOSED_GATES: Readonly<WorldGates> = { pathCleared: false, bridgeBuilt: false };
+export const CLOSED_GATES: Readonly<WorldGates> = { pathCleared: false, bridgeBuilt: false, cliffOpen: false };
 export const PLAYER_R = 0.35;
 
 const FOREST = { x0: -28, x1: 27, z0: -42, z1: -3.1 };
 const GAP = { x0: -11.2, x1: -6.8, z0: -5.5, z1: -1.5 };
 const BRIDGE_DECK = { x0: BRIDGE.x - 3.6, x1: BRIDGE.x + 3.6, z0: BRIDGE.z - 1.4, z1: BRIDGE.z + 1.4 };
 const POND_CLEARING = { x: -45.5, z: -24, rx: 12.5, rz: 11 };
+const CAVE_NOTCH = { x0: CAVE_MOUTH.x - 1.8, x1: CAVE_MOUTH.x + 1.8, z0: -43.5, z1: -40.5 };
+const CAVE_ROOM = {
+  x0: CAVE_CHAMBER.x - CAVE_CHAMBER.width / 2, x1: CAVE_CHAMBER.x + CAVE_CHAMBER.width / 2,
+  z0: CAVE_CHAMBER.z - CAVE_CHAMBER.depth / 2, z1: CAVE_CHAMBER.z + CAVE_CHAMBER.depth / 2
+};
 
 /** Fixed obstacles. Buildings and Kai are added at runtime. */
 export const STATIC_OBSTACLES: Obstacles = {
@@ -42,7 +50,10 @@ export const STATIC_OBSTACLES: Obstacles = {
     { x: LEAN_TO.x, z: LEAN_TO.z, r: LEAN_TO.r },
     { x: KAI_HOME.x - 1.2, z: KAI_HOME.z + 1.3, r: 0.55 }
   ],
-  rects: [WRECK, { x: CRATE.x, z: CRATE.z, hw: CRATE.half, hd: CRATE.half, rot: CRATE.rot }]
+  rects: [
+    WRECK, { x: CRATE.x, z: CRATE.z, hw: CRATE.half, hd: CRATE.half, rot: CRATE.rot },
+    { x: CAVE_BOX.x, z: CAVE_BOX.z, hw: 0.85, hd: 0.6, rot: CAVE_BOX.rot }
+  ]
 };
 
 function inRect(x: number, z: number, rect: { x0: number; x1: number; z0: number; z1: number }, margin: number): boolean {
@@ -64,12 +75,21 @@ export function isPondWater(x: number, z: number, margin = 0): boolean {
 
 /** True when the whole requested radius fits a currently reachable land region. */
 export function isWalkable(x: number, z: number, gates: WorldGates = CLOSED_GATES, margin = 0): boolean {
+  if (inRect(x, z, CAVE_ROOM, margin) || inRect(x, z, CAVE_CORRIDOR, margin)) return true;
   const beach = x >= BOUNDS.x0 + margin && x <= BOUNDS.x1 - margin && z >= BOUNDS.z0 + margin && z <= maxZ(x) - margin;
   if (beach) return true;
   if (!gates.pathCleared) return false;
-  if (inRect(x, z, GAP, margin) || inRect(x, z, FOREST, margin)) return true;
+  if (inRect(x, z, GAP, margin) || inRect(x, z, FOREST, margin) || inRect(x, z, CAVE_NOTCH, margin)) return true;
+  if (gates.cliffOpen && (inCliffPath(x, z, margin) || Math.hypot(x - CLIFFTOP.x, z - CLIFFTOP.z) <= CLIFFTOP.r - margin)) return true;
   if (!gates.bridgeBuilt) return false;
   return inRect(x, z, BRIDGE_DECK, margin) || inPondClearing(x, z, margin);
+}
+
+function inCliffPath(x: number, z: number, margin: number): boolean {
+  for (let i = 1; i < CLIFF_PATH.length; i++) {
+    if (nearestOnSegment(x, z, CLIFF_PATH[i - 1], CLIFF_PATH[i]).d <= CLIFF_PATH_R - margin) return true;
+  }
+  return false;
 }
 
 function toLocal(r: Rect, x: number, z: number): { lx: number; lz: number } {
@@ -131,8 +151,23 @@ export function clampToWalkable(x: number, z: number, r = 0, gates: WorldGates =
 
   const bx = Math.max(BOUNDS.x0 + r, Math.min(BOUNDS.x1 - r, x));
   const candidates = [{ x: bx, z: Math.max(BOUNDS.z0 + r, Math.min(maxZ(bx) - r, z)) }];
+  candidates.push(clampRect(x, z, r, CAVE_ROOM), clampRect(x, z, r, CAVE_CORRIDOR));
   if (gates.pathCleared) {
-    candidates.push(clampRect(x, z, r, GAP), clampRect(x, z, r, FOREST));
+    candidates.push(clampRect(x, z, r, GAP), clampRect(x, z, r, FOREST), clampRect(x, z, r, CAVE_NOTCH));
+    if (gates.cliffOpen) {
+      for (let i = 1; i < CLIFF_PATH.length; i++) {
+        const p = nearestOnSegment(x, z, CLIFF_PATH[i - 1], CLIFF_PATH[i]);
+        const d = Math.hypot(x - p.x, z - p.z);
+        const radius = Math.max(0, CLIFF_PATH_R - r);
+        const scale = d > radius ? radius / d : 1;
+        candidates.push({ x: p.x + (x - p.x) * scale, z: p.z + (z - p.z) * scale });
+      }
+      const dx = x - CLIFFTOP.x;
+      const dz = z - CLIFFTOP.z;
+      const d = Math.hypot(dx, dz);
+      const scale = d > CLIFFTOP.r - r ? (CLIFFTOP.r - r) / d : 1;
+      candidates.push({ x: CLIFFTOP.x + dx * scale, z: CLIFFTOP.z + dz * scale });
+    }
     if (gates.bridgeBuilt) candidates.push(clampRect(x, z, r, BRIDGE_DECK), clampPondClearing(x, z, r));
   }
 

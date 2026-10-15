@@ -5,6 +5,7 @@ import { rt } from "../game/runtime";
 import { getGame, setGame, useGame } from "../game/store";
 import { ITEMS } from "../game/types";
 import { CRATE, NODES, groundY } from "../game/world/island";
+import { SIGNAL_PAD } from "../game/world/phase3";
 import { STATIC_OBSTACLES } from "../game/world/collision";
 import { FOOTPRINT, buildingObstacles, cameraForwardYaw, placeProblem, previewSpot, type PlacedBuilding } from "../game/world/placement";
 import { audio } from "../audio/audio";
@@ -144,13 +145,23 @@ function FireLight() {
   useFrame(() => {
     const l = light.current;
     if (!l) return;
-    const lit = getGame().buildings.filter((b) => b.lit);
+    const g = getGame();
+    const p = rt.player;
+    if (g.inCave) {
+      l.position.set(rt.torchTip.x, rt.torchTip.y, rt.torchTip.z);
+      l.intensity = 12 * (1 + Math.sin(rt.time * 11) * 0.07 + Math.sin(rt.time * 19) * 0.04);
+      l.distance = 13;
+      audio.setFire(0.25);
+      return;
+    }
+    const lit = g.buildings.filter((b) => b.lit);
+    const signalNear = g.signalLit && Math.hypot(p.x - SIGNAL_PAD.x, p.z - SIGNAL_PAD.z) < 20;
+    if (signalNear) lit.push({ id: "signalPad", type: "campfire", x: SIGNAL_PAD.x, z: SIGNAL_PAD.z, rot: 0, lit: true });
     if (!lit.length) {
       l.intensity = 0;
       audio.setFire(0);
       return;
     }
-    const p = rt.player;
     let best = lit[0];
     let bd = Infinity;
     for (const b of lit) {
@@ -160,8 +171,8 @@ function FireLight() {
         best = b;
       }
     }
-    const t0 = rt.fireT0.get(best.id) ?? -10;
-    const grow = Math.min(1, (rt.time - t0) / 0.8);
+    const t0 = best.id === "signalPad" ? rt.signalLitT0 : rt.fireT0.get(best.id) ?? -1;
+    const grow = t0 < 0 ? 1 : Math.min(1, (rt.time - t0) / 0.8);
     const night = 1 - rt.light;
     l.position.set(best.x, groundY(best.x, best.z) + 1.1, best.z);
     l.intensity = grow * (4 + night * 14) * (1 + Math.sin(rt.time * 13) * 0.06 + Math.sin(rt.time * 7.3) * 0.05);
@@ -215,7 +226,7 @@ function Preview({
       spot.z,
       [STATIC_OBSTACLES, buildingObstacles(g.buildings)],
       keepClear,
-      { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt }
+      { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt, cliffOpen: g.cliffOpen }
     );
     rt.place.x = spot.x;
     rt.place.z = spot.z;

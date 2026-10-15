@@ -3,8 +3,9 @@ import { rt, resetRuntime } from "../runtime";
 import { evaluate, newlyDone, currentStep, dayDef, readyToSleep, isStoryDay, type Facts } from "../logic/quest";
 import { tickStats, afterFaint, RUN_AGAIN_AT, type Stats } from "../logic/stats";
 import { advanceClock, storyFloor, lightAt, isNight, faintPenalty, CAP } from "../logic/clock";
-import { SAVE_KEY, V1_SAVE_KEY, SAVE_VERSION, loadSaveText, serialize, type SaveData } from "../logic/save";
+import { SAVE_KEY, V2_SAVE_KEY, V1_SAVE_KEY, SAVE_VERSION, loadSaveText, serialize, type SaveData } from "../logic/save";
 import { checkCraft } from "../logic/crafting";
+import { pace } from "../logic/pace";
 import { NODE_BY_ID, NODES, FALLEN_TREE, FISH_SPOTS } from "../world/island";
 import { resolveCollisions, PLAYER_R, STATIC_OBSTACLES } from "../world/collision";
 import { isReachable } from "../world/reach";
@@ -24,7 +25,7 @@ export const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r
 
 export function hasSaved(): boolean {
   try {
-    return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V1_SAVE_KEY)) !== null;
+    return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V2_SAVE_KEY), localStorage.getItem(V1_SAVE_KEY)) !== null;
   } catch {
     return false;
   }
@@ -62,7 +63,14 @@ export function save() {
     drank: g.drank,
     caught: g.caught,
     cooked: g.cooked,
-    sleptDay: g.sleptDay
+    sleptDay: g.sleptDay,
+    enteredCave: g.enteredCave,
+    caveBoxOpened: g.caveBoxOpened,
+    cliffOpen: g.cliffOpen,
+    reachedClifftop: g.reachedClifftop,
+    signalLit: g.signalLit,
+    rescued: g.rescued,
+    kaiStage: g.kaiStage
   };
   try {
     localStorage.setItem(SAVE_KEY, serialize(data));
@@ -122,7 +130,7 @@ export async function newGame() {
 export async function continueGame() {
   const data = (() => {
     try {
-      return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V1_SAVE_KEY));
+      return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V2_SAVE_KEY), localStorage.getItem(V1_SAVE_KEY));
     } catch {
       return null;
     }
@@ -155,6 +163,13 @@ export async function continueGame() {
     caught: data.caught,
     cooked: data.cooked,
     sleptDay: data.sleptDay,
+    enteredCave: data.enteredCave,
+    caveBoxOpened: data.caveBoxOpened,
+    cliffOpen: data.cliffOpen,
+    reachedClifftop: data.reachedClifftop,
+    signalLit: data.signalLit,
+    rescued: data.rescued,
+    kaiStage: data.kaiStage,
     t: data.t,
     stats: roundStats(data.stats),
     fade: 0,
@@ -274,7 +289,15 @@ export function facts(): Facts {
     drank: g.drank,
     caught: g.caught,
     cooked: g.cooked,
-    sleptDay: g.sleptDay
+    sleptDay: g.sleptDay,
+    enteredCave: g.enteredCave,
+    caveBoxOpened: g.caveBoxOpened,
+    kaiHave: g.kai.have,
+    cliffOpen: g.cliffOpen,
+    reachedClifftop: g.reachedClifftop,
+    signalLit: g.signalLit,
+    rescued: g.rescued,
+    classroom: g.settings.classroom
   };
 }
 
@@ -299,7 +322,7 @@ export function refreshQuest() {
     }
   }
   const now = getGame();
-  const craftable = now.unlocked.some((id) => !now.crafted.includes(id) && checkCraft(now.bag, id, now.unlocked) === "ok");
+  const craftable = now.unlocked.some((id) => !now.crafted.includes(id) && checkCraft(now.bag, id, now.unlocked, now.settings.classroom) === "ok");
   if (craftable && !now.craftPulse) setGame({ craftPulse: true });
   updateHint();
   save();
@@ -411,7 +434,8 @@ export function tick(dt: number) {
   const live = g.screen === "game" && (g.mode === "explore" || g.mode === "place") && !g.settingsOpen;
   if (!live) return;
   rt.simTime += dt;
-  rt.clock = advanceClock(rt.clock, dt, { capped: clockCapped() });
+  const gamePace = pace(g.settings.classroom);
+  rt.clock = advanceClock(rt.clock, dt, { capped: clockCapped() }, gamePace.daySeconds, gamePace.eveningSeconds);
   setMood(moodAt(rt.clock));
 
   // Resources grow back, but never right in front of the player.
@@ -438,7 +462,8 @@ export function tick(dt: number) {
     running: moving && p.running,
     nearFire: litFireNear(p.x, p.z, 3.5),
     night: isNight(rt.clock),
-    nearShelter: builtShelterNear(p.x, p.z, 3.5)
+    nearShelter: builtShelterNear(p.x, p.z, 3.5),
+    foodMultiplier: gamePace.foodDrainMultiplier
   });
   rt.stats = stats;
   if (stats.stamina <= 0.5) p.exhausted = true;

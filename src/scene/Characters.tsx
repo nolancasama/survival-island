@@ -14,6 +14,7 @@ import { tts } from "../audio/tts";
 import { smoothMat, shadowMaterial } from "./materials";
 import { KAI_OUTFIT, PLAYER_OUTFIT, armGeometry, bodyGeometry, legGeometry, type Outfit } from "./models/people";
 import { PartBuilder } from "./partBuilder";
+import { Torch } from "./Torch";
 
 const WALK = 4.2;
 const RUN = 6.8;
@@ -74,7 +75,7 @@ function cupGeometry(): THREE.BufferGeometry {
   return b.build();
 }
 
-function KidMesh({ outfit, rig, scale = 1 }: { outfit: Outfit; rig: Rig; scale?: number }) {
+function KidMesh({ outfit, rig, scale = 1, torch = false }: { outfit: Outfit; rig: Rig; scale?: number; torch?: boolean }) {
   const g = useKid(outfit);
   const axe = useMemo(() => axeGeometry(), []);
   const rod = useMemo(() => rodGeometry(), []);
@@ -96,6 +97,7 @@ function KidMesh({ outfit, rig, scale = 1 }: { outfit: Outfit; rig: Rig; scale?:
           </group>
           <group ref={rig.armR} position={[0.27, 0.98, 0]} rotation={[0, 0, 0.12]}>
             <mesh geometry={g.arm} material={smoothMat} />
+            {torch && <group position={[0, -0.37, 0.035]}><Torch /></group>}
             <group ref={rig.axe} position={[0, -0.37, 0.01]} visible={false}>
               <mesh geometry={axe} material={smoothMat} />
             </group>
@@ -266,7 +268,8 @@ export function Player() {
       for (let i = 0; i < steps; i++) {
         const r = resolveCollisions(p.x + (p.vx * dt) / steps, p.z + (p.vz * dt) / steps, PLAYER_R, obstacles, {
           pathCleared: g.pathCleared,
-          bridgeBuilt: g.bridgeBuilt
+          bridgeBuilt: g.bridgeBuilt,
+          cliffOpen: g.cliffOpen
         });
         p.x = r.x;
         p.z = r.z;
@@ -328,6 +331,7 @@ export function Player() {
         bend = 0.25;
       }
     }
+    if (g.inCave) armRx = -1.15;
     const activeKind: string | undefined = act?.kind;
     if (rig.axe.current) rig.axe.current.visible = activeKind === "chop" && act !== null && (rt.time - act.t0) / 0.75 < 1;
     if (rig.cup.current) rig.cup.current.visible = activeKind === "drink" && p.action !== null;
@@ -380,7 +384,7 @@ export function Player() {
 
   return (
     <group>
-      <KidMesh outfit={PLAYER_OUTFIT} rig={rig} />
+      <KidMesh outfit={PLAYER_OUTFIT} rig={rig} torch />
       <FishingTackle rig={rig} />
     </group>
   );
@@ -419,7 +423,25 @@ export function Kai() {
     const p = rt.player;
     const g = getGame();
     let moving = 0;
-    if (k.walkTo) {
+    if (k.route.length && !g.inCave) {
+      let remaining = WALK * dt;
+      while (remaining > 0 && k.route.length) {
+        const point = k.route[0];
+        const ax = point.x - k.x;
+        const az = point.z - k.z;
+        const d = Math.hypot(ax, az);
+        const step = Math.min(remaining, d);
+        if (d > 0.0001) {
+          k.x += ax / d * step;
+          k.z += az / d * step;
+          k.yaw = Math.atan2(ax, az);
+          moving = 1;
+        }
+        remaining -= step;
+        if (d <= step + 0.0001) k.route.shift();
+        else break;
+      }
+    } else if (k.walkTo && !g.inCave) {
       const ax = k.walkTo.x - k.x;
       const az = k.walkTo.z - k.z;
       const d = Math.hypot(ax, az);
@@ -430,7 +452,8 @@ export function Kai() {
         const v = Math.min(2.8, d * 3) * dt;
         const r = resolveCollisions(k.x + (ax / d) * v, k.z + (az / d) * v, 0.35, [STATIC_OBSTACLES, buildingObstacles(g.buildings)], {
           pathCleared: g.pathCleared,
-          bridgeBuilt: g.bridgeBuilt
+          bridgeBuilt: g.bridgeBuilt,
+          cliffOpen: g.cliffOpen
         });
         k.x = r.x;
         k.z = r.z;
@@ -448,6 +471,7 @@ export function Kai() {
         k.yaw += d * Math.min(1, dt * 3);
       }
     }
+    k.speed = moving ? (k.walkTo ? 2.8 : WALK) : 0;
     k.step += dt * (moving ? 7.5 : 0);
     const swing = Math.sin(k.step) * 0.55 * moving;
     const wave = !g.metKai && !k.talking && g.screen === "game" && Math.hypot(p.x - k.x, p.z - k.z) < 30;
@@ -469,11 +493,12 @@ export function Kai() {
     }
     const y = groundY(k.x, k.z);
     if (rig.root.current) {
+      rig.root.current.visible = !g.inCave;
       rig.root.current.position.set(k.x, y, k.z);
       rig.root.current.rotation.y = k.yaw;
     }
     if (bang.current) {
-      bang.current.visible = !g.metKai && !k.talking && g.screen === "game";
+      bang.current.visible = !g.inCave && !g.metKai && !k.talking && g.screen === "game";
       bang.current.position.set(k.x, y + 2.25 + Math.sin(rt.time * 3) * 0.08, k.z);
     }
   });

@@ -16,6 +16,7 @@ import {
   stumpGeometry
 } from "./models/nature";
 import { crateBodyGeometry, crateLidGeometry } from "./models/props";
+import { metalGeometry } from "./models/metal";
 
 /**
  * Collectible resources. Each node is its own small mesh so it can vanish when
@@ -30,8 +31,7 @@ export function ResourceNodes() {
       coconut: coconutGeometry(),
       leaves: leafBushGeometry(),
       tree: choppableTreeGeometry(),
-      // Placeholder until the Phase 3 world slice models the ship parts.
-      metal: stonePileGeometry()
+      metal: metalGeometry(0)
     }),
     []
   );
@@ -42,6 +42,10 @@ export function ResourceNodes() {
   const shadows = useRef<THREE.InstancedMesh>(null);
   const treeRoots = useRef<Array<THREE.Group | null>>([]);
   const treeCrowns = useRef<Array<THREE.Mesh | null>>([]);
+  const metalRoots = useRef<Array<THREE.Mesh | null>>([]);
+  const metalNodes = useMemo(() => NODES.filter((n) => n.kind === "metal"), []);
+  const metalGeos = useMemo(() => [geos.metal, metalGeometry(1), metalGeometry(2)], [geos]);
+  const metalMat = useMemo(() => new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 65, specular: "#d2e5e9", side: THREE.DoubleSide }), []);
   const glints = useRef<THREE.Points>(null);
   const treeNodes = useMemo(() => NODES.filter((n) => n.kind === "tree"), []);
   const shadow = useMemo(() => shadowMaterial(0.22), []);
@@ -62,7 +66,8 @@ export function ResourceNodes() {
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
   useFrame(() => {
-    const focus = getGame().focus;
+    const g = getGame();
+    const focus = g.focus;
     const scaleFor = (id: string, focused: boolean) => {
       const regrow = rt.regrown.get(id);
       let s = 1;
@@ -77,6 +82,7 @@ export function ResourceNodes() {
       const mesh = instances.current.get(kind);
       const nodes = byKind.get(kind);
       if (!mesh || !nodes) continue;
+      mesh.visible = !g.inCave;
       nodes.forEach((n, i) => {
         const focused = focus?.kind === "node" && focus.id === n.id;
         const s = rt.taken.has(n.id) ? 0.001 : scaleFor(n.id, focused);
@@ -93,11 +99,20 @@ export function ResourceNodes() {
       const root = treeRoots.current[i];
       const crown = treeCrowns.current[i];
       if (!root || !crown) return;
+      root.visible = !g.inCave;
       const taken = rt.taken.has(n.id);
       root.position.y = groundY(n.x, n.z);
       root.scale.setScalar(taken ? 1 : scaleFor(n.id, focus?.kind === "node" && focus.id === n.id));
       crown.visible = !taken;
       root.children[1].visible = taken;
+    });
+    metalNodes.forEach((n, i) => {
+      const mesh = metalRoots.current[i];
+      if (!mesh) return;
+      const focused = focus?.kind === "node" && focus.id === n.id;
+      mesh.visible = g.inCave && !rt.taken.has(n.id);
+      mesh.scale.setScalar(scaleFor(n.id, focused));
+      mesh.position.y = groundY(n.x, n.z) + (focused ? 0.05 + Math.sin(rt.time * 5) * 0.04 : 0);
     });
     if (shadows.current) {
       NODES.forEach((n, i) => {
@@ -139,6 +154,10 @@ export function ResourceNodes() {
           <mesh ref={(el) => void (treeCrowns.current[i] = el)} geometry={geos.tree} material={occluderMat} />
           <mesh geometry={stump} material={occluderMat} visible={false} />
         </group>
+      ))}
+      {metalNodes.map((n, i) => (
+        <mesh key={n.id} ref={(el) => void (metalRoots.current[i] = el)} geometry={metalGeos[i % 3]} material={metalMat}
+          position={[n.x, groundY(n.x, n.z), n.z]} rotation={[0, n.rot, 0]} visible={false} />
       ))}
       <instancedMesh ref={shadows} args={[undefined, shadow, NODES.length]} frustumCulled={false}>
         <planeGeometry args={[1, 1]} />

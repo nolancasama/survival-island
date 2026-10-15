@@ -1,4 +1,6 @@
 import { CAVE_SIGN, CLIFF_SIGN, CRATE, BRIDGE, FALLEN_TREE, FISH_SPOTS, FOREST_GAP, NODE_BY_ID, WATER_SPOTS } from "../world/island";
+import { CAVE_BOX, CAVE_EXIT, CLIFFTOP, ROCKFALL, SIGNAL_PAD, isCaveInterior } from "../world/phase3";
+import { CAVE_MOUTH } from "../world/island";
 import { isReachable } from "../world/reach";
 import type { WorldGates } from "../world/collision";
 import { getGame } from "../store";
@@ -19,6 +21,12 @@ const FIXED = new Map<string, { x: number; z: number }>([
   [FOREST_GAP.sign.id, { x: FOREST_GAP.sign.x, z: FOREST_GAP.sign.z }],
   [CAVE_SIGN.id, { x: CAVE_SIGN.x, z: CAVE_SIGN.z }],
   [CLIFF_SIGN.id, { x: CLIFF_SIGN.x, z: CLIFF_SIGN.z }],
+  ["caveMouth", CAVE_MOUTH],
+  [CAVE_BOX.id, CAVE_BOX],
+  [CAVE_EXIT.id, CAVE_EXIT],
+  [ROCKFALL.id, ROCKFALL],
+  [SIGNAL_PAD.id, SIGNAL_PAD],
+  [CLIFFTOP.id, CLIFFTOP],
   ...WATER_SPOTS.map((s) => [s.id, { x: s.x, z: s.z }] as const),
   ...FISH_SPOTS.map((s) => [s.id, { x: s.x, z: s.z }] as const)
 ]);
@@ -37,11 +45,11 @@ export function targetPosition(id: string): { x: number; z: number } | null {
 /** The world gates as they stand now. */
 export function currentGates(): WorldGates {
   const g = getGame();
-  return { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt };
+  return { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt, cliffOpen: g.cliffOpen };
 }
 
 /** The player can get within reach of this target with the gates as they are. */
 export function targetReachable(id: string, gates: WorldGates = currentGates()): boolean {
   const p = targetPosition(id);
-  return p !== null && isReachable(p.x, p.z, gates);
+  return p !== null && isCaveInterior(p.x, p.z) === getGame().inCave && isReachable(p.x, p.z, gates);
 }

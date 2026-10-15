@@ -21,6 +21,8 @@ export interface Activity {
   night?: boolean;
   /** Close to a built shelter during the day. */
   nearShelter?: boolean;
+  /** Classroom mode drains food more slowly. */
+  foodMultiplier?: number;
 }
 
 export type StatEvent = "hungry" | "starving" | "tired" | "faint";
@@ -54,7 +56,7 @@ export function tickStats(s: Stats, a: Activity): { stats: Stats; events: StatEv
   const events: StatEvent[] = [];
   const dt = a.dt;
   const foodRate = a.running ? RATES.foodRun : a.moving ? RATES.foodWalk : RATES.foodIdle;
-  const food = clamp(s.food - foodRate * dt);
+  const food = clamp(s.food - foodRate * dt * (a.foodMultiplier ?? 1));
 
   let stamina = s.stamina;
   if (a.running) {

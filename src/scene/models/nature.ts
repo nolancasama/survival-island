@@ -216,9 +216,7 @@ export function farIslandGeometry(): THREE.BufferGeometry {
     [86, -24, 18, 7, "#5a9a52"]
   ];
   hills.forEach(([x, z, r, h, c], i) => b.add(rockGeometry(r, h, 20 + i, 1), c, [x, -1, z]));
-  // Clifftop for the signal tower (north-east), grey rock face.
-  b.add(rockGeometry(16, 26, 40, 1), "#8f8a7f", [26, -2, -78]);
-  b.add(rockGeometry(12, 12, 41, 1), "#4a8a45", [26, 14, -78]);
+  // The walkable northern terrain now carries the signal tower plateau.
   // Headlands at both ends of the beach.
   b.add(rockGeometry(9, 6, 50, 1), "#8f8a7f", [-46, -1, 10]);
   b.add(rockGeometry(7, 9, 51, 1), "#4f8f4a", [-48, 1.5, -2]);

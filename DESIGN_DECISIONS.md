@@ -668,3 +668,17 @@ follows when both are accepted.
    automatic hints, e2e for Days 4–5 and classroom mode, and the shots
    script.
 
+## 2026-10-15 - Phase 3 world slice decisions
+
+Final coordinates (x, z; heights in metres):
+
+- Cave chamber centre (1000, 980), floor y=0, 12 × 16 m; entrance bend x=992…998, z=984…1000. Entry (994, 995), facing north; exit (994, 998), radius 0.9; old box (1002, 974); metal nodes (996, 981), (1003, 984), (999, 976).
+- Existing cave mouth (22, -43.1) stays fixed; outside arrival (22, -41.7), facing south. Its small walkable notch ends at z=-43.5.
+- Rockfall interaction (7, -41). Cliff path waypoints (x, z, y): (7, -41, 3), (7, -49, 7), (3, -54, 10), (18, -63, 16), (24, -71, 25), (26, -74, 25); walkable radius 2.2 m.
+- Plateau centre and existing tower (26, -78), y=25, radius 7 m; signal pad (22, -79), radius 1.3 m; helicopter landing (30, -75), y=25. Rescue shot position (43, 34, -56), target (26, 28, -77); flight lasts 12 s.
+- Kai approaches via (-12, 3), (-9, 0), (-9, -5), (-5, -15), (1, -29), (5.5, -40.5), then follows the cliff path and waits at (23, -77) beside the pad.
+
+The cave is a disconnected walkable set beyond the island's far plane. Target reachability also checks `inCave`, so beacons cannot point to the other place. The south cave walls stay low and the ceiling is raised to 13.5 m; the north and side walls preserve the chamber silhouette. The follow camera shortens its distance before crossing a cave wall. Crystals use emissive materials without extra lights. While inside, fixed warm ambient/hemisphere values override the island rig and the shared point light follows the torch; `rt.light` and `rt.lightTarget` remain owned by the clock/story.
+
+The cliff path is a union of overlapping capsules, joined to a circular plateau, open only with both `pathCleared` and `cliffOpen`. Smooth terrain blends carry its authored climb into the old hillside, beginning strictly north of z=-42 and away from the unchanged cave notch. Plateau walkability is inset behind its low edge rocks. The cave notch is the only new island walkability without the cliff gate; the rock face behind it stays closed.
+

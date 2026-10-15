@@ -1,12 +1,14 @@
-import { freshGameData, getGame, setGame } from "./store";
+import { freshGameData, getGame, setGame, type GameState } from "./store";
 import { resetRuntime, rt } from "./runtime";
+import { walkKaiRoute } from "./kaiRoute";
 import { seedChoices } from "./flow/ask";
 import { syncStats } from "./flow/session";
 import { nextDay } from "./flow/days";
-import { currentGates, targetPosition } from "./flow/places";
+import { currentGates, targetPosition, targetReachable } from "./flow/places";
 import { findFocus } from "./flow/focus";
 import {
   BRIDGE,
+  CAVE_MOUTH,
   CAVE_SIGN,
   CLIFF_SIGN,
   CRATE,
@@ -20,8 +22,12 @@ import {
   SPAWN,
   WATER_SPOTS
 } from "./world/island";
+import {
+  CAVE_ENTRY, CAVE_EXIT, CAVE_OUTSIDE, CAVE_BOX, CAVE_CHAMBER,
+  ROCKFALL, CLIFF_PATH, CLIFFTOP, SIGNAL_PAD, HELICOPTER_PAD,
+  KAI_ROUTES, RESCUE_SECONDS, RESCUE_SHOT
+} from "./world/phase3";
 import { isWalkable, overlaps, resolveCollisions, PLAYER_R, STATIC_OBSTACLES } from "./world/collision";
-import { isReachable } from "./world/reach";
 import { buildingObstacles, type PlacedBuilding } from "./world/placement";
 import { currentStep, DAYS } from "./logic/quest";
 import { isNight, lightAt } from "./logic/clock";
@@ -56,7 +62,7 @@ export function installE2eHook(seed: number) {
       z,
       PLAYER_R,
       [STATIC_OBSTACLES, buildingObstacles(g.buildings)],
-      { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt }
+      { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt, cliffOpen: g.cliffOpen }
     );
     rt.player.x = p.x;
     rt.player.z = p.z;
@@ -114,6 +120,13 @@ export function installE2eHook(seed: number) {
         beacons: rt.time < rt.beacons.until ? rt.beacons.ids : [],
         pathCleared: g.pathCleared,
         bridgeBuilt: g.bridgeBuilt,
+        cliffOpen: g.cliffOpen,
+        inCave: g.inCave,
+        signalLit: g.signalLit,
+        rescued: g.rescued,
+        kaiStage: g.kaiStage,
+        caveBoxOpened: g.caveBoxOpened,
+        reachedClifftop: g.reachedClifftop,
         light: rt.light,
         lightTarget: rt.lightTarget,
         time: rt.time,
@@ -128,7 +141,20 @@ export function installE2eHook(seed: number) {
         sleeping: g.sleeping,
         toasts: g.toasts.map((t) => t.en),
         counters: { gotWater: g.gotWater, drank: g.drank, caught: g.caught, cooked: g.cooked },
-        kaiAt: { x: rt.kai.x, z: rt.kai.z }
+        kaiAt: { x: rt.kai.x, z: rt.kai.z },
+        kaiRouteEmpty: rt.kai.route.length === 0,
+        kaiRoute: rt.kai.route.map((p) => ({ ...p })),
+        worldAnimation: {
+          cliffOpenT0: rt.cliffOpenT0,
+          caveBoxOpenT0: rt.caveBoxOpenT0,
+          signalLitT0: rt.signalLitT0,
+          rescueT0: rt.rescueT0
+        },
+        rescue: {
+          phase: rt.rescueT0 < 0 ? "none" : rt.time - rt.rescueT0 >= RESCUE_SECONDS ? "landed" : "flight",
+          elapsed: rt.rescueT0 < 0 ? 0 : Math.max(0, rt.time - rt.rescueT0),
+          duration: RESCUE_SECONDS
+        }
       };
     },
     /** Stand next to a node / the crate / Kai / a sign / a place / a building, facing it. */
@@ -233,14 +259,13 @@ export function installE2eHook(seed: number) {
     nodes(kind?: string) {
       const gates = currentGates();
       const p = rt.player;
-      return NODES.filter((n) => (!kind || n.kind === kind) && !rt.taken.has(n.id) && isReachable(n.x, n.z, gates))
+      return NODES.filter((n) => (!kind || n.kind === kind) && !rt.taken.has(n.id) && targetReachable(n.id, gates))
         .sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))
         .map((n) => n.id);
     },
     /** Whether a node or place can be reached with the gates as they are. */
     reachable(id: string) {
-      const at = targetPosition(id);
-      return at !== null && isReachable(at.x, at.z, currentGates());
+      return targetReachable(id);
     },
     setStats(s: Partial<{ hp: number; stamina: number; food: number }>) {
       rt.stats = { ...rt.stats, ...s };
@@ -291,14 +316,42 @@ export function installE2eHook(seed: number) {
       rt.player.lying = rt.player.lyingTarget = 0;
       rt.walked = Math.max(rt.walked, 10);
     },
-    setGates(next: { pathCleared?: boolean; bridgeBuilt?: boolean }) {
+    setGates(next: { pathCleared?: boolean; bridgeBuilt?: boolean; cliffOpen?: boolean }) {
       const g = getGame();
       const pathCleared = next.pathCleared ?? g.pathCleared;
       const bridgeBuilt = next.bridgeBuilt ?? g.bridgeBuilt;
+      const cliffOpen = next.cliffOpen ?? g.cliffOpen;
       if (pathCleared !== g.pathCleared) rt.pathClearedT0 = pathCleared ? rt.time : -1;
       if (bridgeBuilt !== g.bridgeBuilt) rt.bridgeBuiltT0 = bridgeBuilt ? rt.time : -1;
-      setGame({ pathCleared, bridgeBuilt });
-      return { pathCleared, bridgeBuilt };
+      if (cliffOpen !== g.cliffOpen) rt.cliffOpenT0 = cliffOpen ? rt.time : -1;
+      setGame({ pathCleared, bridgeBuilt, cliffOpen });
+      return { pathCleared, bridgeBuilt, cliffOpen };
+    },
+    setWorldFacts(next: Partial<Pick<GameState, "signalLit" | "rescued" | "kaiStage" | "caveBoxOpened">>) {
+      const g = getGame();
+      if (next.signalLit !== undefined && next.signalLit !== g.signalLit) rt.signalLitT0 = next.signalLit ? rt.time : -1;
+      if (next.caveBoxOpened !== undefined && next.caveBoxOpened !== g.caveBoxOpened) rt.caveBoxOpenT0 = next.caveBoxOpened ? rt.time : -1;
+      setGame(next);
+    },
+    setInCave(on: boolean) {
+      setGame({ inCave: on });
+      const at = on ? CAVE_ENTRY : CAVE_OUTSIDE;
+      const p = place(at.x, at.z, at.x + Math.sin(at.yaw), at.z + Math.cos(at.yaw));
+      rt.camera.mode = "follow";
+      rt.camera.shot = null;
+      rt.camera.yaw = at.yaw + Math.PI;
+      rt.camera.snap = true;
+      return p;
+    },
+    startRescue() {
+      rt.rescueT0 = rt.time;
+      return rt.rescueT0;
+    },
+    kaiRoute(name: keyof typeof KAI_ROUTES) {
+      const points = KAI_ROUTES[name];
+      if (!points) throw new Error(`no Kai route ${name}`);
+      void walkKaiRoute(points);
+      return rt.kai.route.length;
     },
     setLight(light: number, target = light) {
       rt.light = Math.max(0, Math.min(1, light));
@@ -336,6 +389,23 @@ export function installE2eHook(seed: number) {
         fishSpots: FISH_SPOTS.map((p) => ({ ...p })),
         caveSign: { ...CAVE_SIGN },
         cliffSign: { ...CLIFF_SIGN },
+        caveMouth: { ...CAVE_MOUTH },
+        caveEntry: { ...CAVE_ENTRY },
+        caveExit: { ...CAVE_EXIT },
+        caveOutside: { ...CAVE_OUTSIDE },
+        caveBox: { ...CAVE_BOX },
+        caveChamber: { ...CAVE_CHAMBER },
+        rockfall: { ...ROCKFALL },
+        cliffPath: CLIFF_PATH.map((p) => ({ ...p })),
+        clifftop: { ...CLIFFTOP },
+        signalPad: { ...SIGNAL_PAD },
+        helicopterPad: { ...HELICOPTER_PAD },
+        rescueShot: { pos: { ...RESCUE_SHOT.pos }, target: { ...RESCUE_SHOT.target } },
+        rescueSeconds: RESCUE_SECONDS,
+        kaiRoutes: {
+          toRockfall: KAI_ROUTES.toRockfall.map((p) => ({ ...p })),
+          toClifftop: KAI_ROUTES.toClifftop.map((p) => ({ ...p }))
+        },
         nodes: NODES.map((n) => ({ ...n }))
       };
     },

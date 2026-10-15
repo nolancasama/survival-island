@@ -1,6 +1,7 @@
 import type { Bag, CraftId } from "../types";
 import type { PhraseId } from "./english";
 import { addItem, hasAll, removeAll } from "./inventory";
+import { pace, recipeNeeds } from "./pace";
 
 export interface Recipe {
   id: CraftId;
@@ -26,22 +27,22 @@ export const RECIPES: Record<CraftId, Recipe> = {
 };
 
 /** The bridge is repaired in the world, not crafted into the bag. */
-export const BRIDGE_NEEDS = { wood: 4 } as const;
+export const BRIDGE_NEEDS = pace(false).bridgeNeeds;
 
 /** Recipes shown in the Craft menu, in this order, once unlocked. */
 export const RECIPE_ORDER: CraftId[] = ["campfire", "axe", "rod", "container", "shelter", "torch", "signalFire"];
 
 export type CraftCheck = "ok" | "locked" | "missing";
 
-export function checkCraft(bag: Bag, id: CraftId, unlocked: readonly CraftId[]): CraftCheck {
+export function checkCraft(bag: Bag, id: CraftId, unlocked: readonly CraftId[], classroom = false): CraftCheck {
   if (!unlocked.includes(id)) return "locked";
-  return hasAll(bag, RECIPES[id].needs) ? "ok" : "missing";
+  return hasAll(bag, recipeNeeds(id, classroom)) ? "ok" : "missing";
 }
 
 /** Consume the ingredients and add the made thing. Null if it cannot be made. */
-export function craft(bag: Bag, id: CraftId, unlocked: readonly CraftId[]): Bag | null {
-  if (checkCraft(bag, id, unlocked) !== "ok") return null;
-  const after = removeAll(bag, RECIPES[id].needs);
+export function craft(bag: Bag, id: CraftId, unlocked: readonly CraftId[], classroom = false): Bag | null {
+  if (checkCraft(bag, id, unlocked, classroom) !== "ok") return null;
+  const after = removeAll(bag, recipeNeeds(id, classroom));
   if (!after) return null;
   return addItem(after, id, 1, Infinity).bag;
 }

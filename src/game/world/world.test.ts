@@ -20,10 +20,14 @@ import {
 } from "./island";
 import { PLAYER_R, STATIC_OBSTACLES, isWalkable, overlaps, resolveCollisions, type WorldGates } from "./collision";
 import { FOOTPRINT, buildingObstacles, placeProblem, previewSpot } from "./placement";
+import { CAVE_BOX, CAVE_CHAMBER, CAVE_ENTRY, CAVE_EXIT, CAVE_OUTSIDE, CLIFF_PATH, CLIFFTOP, HELICOPTER_PAD, KAI_ROUTES, METAL_NODES, ROCKFALL, SIGNAL_PAD, isOnClifftop } from "./phase3";
+import { CAVE_MOUTH } from "./island";
+import { isReachable } from "./reach";
 
-const closed: WorldGates = { pathCleared: false, bridgeBuilt: false };
-const forestOpen: WorldGates = { pathCleared: true, bridgeBuilt: false };
-const allOpen: WorldGates = { pathCleared: true, bridgeBuilt: true };
+const closed: WorldGates = { pathCleared: false, bridgeBuilt: false, cliffOpen: false };
+const forestOpen: WorldGates = { pathCleared: true, bridgeBuilt: false, cliffOpen: false };
+const allOpen: WorldGates = { pathCleared: true, bridgeBuilt: true, cliffOpen: false };
+const cliffOpen: WorldGates = { ...allOpen, cliffOpen: true };
 
 const PHASE_1_NODES = [
   ["wood-1", "wood", -29, 13.929580297626595, 0.4],
@@ -46,13 +50,13 @@ const PHASE_1_NODES = [
   ["coconut-6", "coconut", 16.9, 5.2, 2.5]
 ] as const;
 
-function reachableWithin(point: { x: number; z: number }): boolean {
+function reachableWithin(point: { x: number; z: number }, gates = allOpen): boolean {
   for (let d = 0; d <= INTERACT_RANGE; d += 0.2) {
     for (let i = 0; i < 32; i++) {
       const a = (i / 32) * Math.PI * 2;
       const x = point.x + Math.cos(a) * d;
       const z = point.z + Math.sin(a) * d;
-      if (isWalkable(x, z, allOpen, PLAYER_R) && !overlaps(x, z, PLAYER_R, [STATIC_OBSTACLES])) return true;
+      if (isWalkable(x, z, gates, PLAYER_R) && !overlaps(x, z, PLAYER_R, [STATIC_OBSTACLES])) return true;
     }
   }
   return false;
@@ -78,6 +82,16 @@ describe("island layout", () => {
     expect(groundY(0, -2.4)).toBeCloseTo(0.6926704271131512, 10);
   });
 
+  it("preserves the Phase 2 forest, water basin and cave-notch heights", () => {
+    const samples = [
+      [0, -16, 1.2717946601508783], [7, -42, 2.800810274709176],
+      [-30.5, -22, 0.49113136190237683], [-45.5, -24, 1.2052115448443128],
+      [-51, -18, 1.4330625111697937], [22, -43.1, 2.0725907621271107],
+      [22, -44, 2.1109889456083244]
+    ];
+    for (const [x, z, y] of samples) expect(groundY(x, z), `${x},${z}`).toBeCloseTo(y, 10);
+  });
+
   it("opens the forest only after the fallen-tree gate", () => {
     expect(isWalkable(0, -16, closed, PLAYER_R)).toBe(false);
     expect(isWalkable(FALLEN_TREE.x, FALLEN_TREE.z, closed, PLAYER_R)).toBe(false);
@@ -93,7 +107,7 @@ describe("island layout", () => {
     for (let x = -33.4; x <= -27.4; x += 0.1) expect(isWalkable(x, BRIDGE.z, allOpen, PLAYER_R), `bridge x ${x}`).toBe(true);
   });
 
-  it("never permits the stream, pond water, cave interior or cliff path", () => {
+  it("never permits the stream, pond water, hillside behind the cave mouth or closed cliff path", () => {
     for (const z of [-6, -12, -31, -40]) expect(isWalkable(STREAM.x, z, allOpen, PLAYER_R), `stream z ${z}`).toBe(false);
     expect(isWalkable(POND.x, POND.z, allOpen, PLAYER_R)).toBe(false);
     expect(isWalkable(22, -45, allOpen, PLAYER_R)).toBe(false);
@@ -127,6 +141,86 @@ describe("island layout", () => {
     expect(forest.z).toBeGreaterThanOrEqual(BOUNDS.z0);
     const palm = resolveCollisions(5, 8.5, PLAYER_R, [STATIC_OBSTACLES]);
     expect(Math.hypot(palm.x - 5, palm.z - 8.5)).toBeGreaterThanOrEqual(0.42 + PLAYER_R - 1e-6);
+  });
+});
+
+describe("Phase 3 world", () => {
+  it("opens the entire cliff route and plateau only with both forest and cliff gates", () => {
+    for (let i = 1; i < CLIFF_PATH.length; i++) {
+      const a = CLIFF_PATH[i - 1];
+      const b = CLIFF_PATH[i];
+      for (let step = 0; step <= 20; step++) {
+        const x = a.x + (b.x - a.x) * step / 20;
+        const z = a.z + (b.z - a.z) * step / 20;
+        expect(isWalkable(x, z, cliffOpen, PLAYER_R), `${x},${z}`).toBe(true);
+        if (z < -42) expect(isWalkable(x, z, allOpen, PLAYER_R)).toBe(false);
+      }
+    }
+    expect(isWalkable(CLIFFTOP.x, CLIFFTOP.z, allOpen, PLAYER_R)).toBe(false);
+    expect(isWalkable(CLIFFTOP.x, CLIFFTOP.z, { ...cliffOpen, pathCleared: false }, PLAYER_R)).toBe(false);
+    expect(isWalkable(CLIFFTOP.x + CLIFFTOP.r + 0.1, CLIFFTOP.z, cliffOpen)).toBe(false);
+  });
+
+  it("keeps the plateau flat and defines its reached region inside the edge", () => {
+    for (const p of [CLIFFTOP, SIGNAL_PAD, HELICOPTER_PAD]) expect(groundY(p.x, p.z)).toBe(25);
+    expect(isOnClifftop(CLIFFTOP.x, CLIFFTOP.z)).toBe(true);
+    expect(isOnClifftop(CLIFFTOP.x + 6.5, CLIFFTOP.z)).toBe(true);
+    expect(isOnClifftop(CLIFFTOP.x + 7.1, CLIFFTOP.z)).toBe(false);
+    expect(isOnClifftop(CLIFF_PATH[1].x, CLIFF_PATH[1].z)).toBe(false);
+  });
+
+  it("climbs continuously along the authored path, including the forest join", () => {
+    for (let i = 1; i < CLIFF_PATH.length; i++) {
+      const a = CLIFF_PATH[i - 1];
+      const b = CLIFF_PATH[i];
+      const steps = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.1);
+      let previousY = groundY(a.x, a.z);
+      for (let step = 1; step <= steps; step++) {
+        const x = a.x + (b.x - a.x) * step / steps;
+        const z = a.z + (b.z - a.z) * step / steps;
+        const y = groundY(x, z);
+        expect(Math.abs(y - previousY), `${x},${z}`).toBeLessThan(0.16);
+        previousY = y;
+      }
+    }
+    for (const [x, z] of [[7, -42], [22, -43.1], [26, -71], [33, -78]]) {
+      expect(Math.abs(groundY(x, z - 0.001) - groundY(x, z + 0.001))).toBeLessThan(0.01);
+    }
+  });
+
+  it("has a walkable cave room and bend disconnected from the island", () => {
+    for (const p of [CAVE_ENTRY, CAVE_EXIT, CAVE_CHAMBER]) {
+      expect(isWalkable(p.x, p.z, closed, PLAYER_R)).toBe(true);
+      expect(groundY(p.x, p.z)).toBe(0);
+    }
+    expect(isWalkable(500, 500, cliffOpen)).toBe(false);
+    expect(isWalkable(CAVE_CHAMBER.x + 7, CAVE_CHAMBER.z, cliffOpen)).toBe(false);
+    expect(isWalkable(CAVE_OUTSIDE.x, CAVE_OUTSIDE.z, forestOpen, PLAYER_R)).toBe(true);
+    expect(isWalkable(CAVE_MOUTH.x, -44.5, cliffOpen)).toBe(false);
+    expect(overlaps(CAVE_BOX.x, CAVE_BOX.z, PLAYER_R, [STATIC_OBSTACLES])).toBe(true);
+  });
+
+  it("keeps every new anchor and metal source within interaction range", () => {
+    for (const p of [CAVE_ENTRY, CAVE_EXIT, CAVE_BOX, CAVE_OUTSIDE, CAVE_MOUTH, ROCKFALL, CLIFFTOP, SIGNAL_PAD, ...METAL_NODES]) {
+      expect(isReachable(p.x, p.z, cliffOpen), `${p.x},${p.z}`).toBe(true);
+      expect(reachableWithin(p, cliffOpen), `${p.x},${p.z}`).toBe(true);
+    }
+    expect(METAL_NODES.map((n) => n.id)).toEqual(["metal-1", "metal-2", "metal-3"]);
+  });
+
+  it("authors Kai's route points and connecting segments on open ground", () => {
+    for (const [name, points] of Object.entries(KAI_ROUTES)) {
+      const gates = name === "toRockfall" ? forestOpen : cliffOpen;
+      for (let i = 0; i < points.length; i++) {
+        expect(isWalkable(points[i].x, points[i].z, gates, PLAYER_R)).toBe(true);
+        if (!i) continue;
+        const a = points[i - 1];
+        const b = points[i];
+        for (let step = 0; step <= 20; step++) {
+          expect(isWalkable(a.x + (b.x - a.x) * step / 20, a.z + (b.z - a.z) * step / 20, gates, PLAYER_R)).toBe(true);
+        }
+      }
+    }
   });
 });
 

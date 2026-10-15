@@ -1,4 +1,4 @@
-// Phase 2 world visual check. Saves deterministic views to .tmp/shots/world.
+// Phase 2–3 world visual check. Saves deterministic views to .tmp/shots/world.
 // Usage: node scripts/shots-world.mjs [baseUrl] [viewport WxH]
 import { chromium } from "@playwright/test";
 import fs from "node:fs";
@@ -82,7 +82,9 @@ await page.waitForFunction(() => Boolean(window.__si), null, { timeout: 20_000 }
 await call("showWorld");
 await requireState("world view did not open", (s) => s.screen === "game" && s.mode === "explore");
 await call("setClock", 0.05);
-await call("setGates", { pathCleared: false, bridgeBuilt: false });
+await call("setGates", { pathCleared: false, bridgeBuilt: false, cliffOpen: false });
+await call("setInCave", false);
+await call("setWorldFacts", { signalLit: false, rescued: false, kaiStage: "camp", caveBoxOpened: false });
 await call("setBuildings", []);
 const world = await call("world");
 
@@ -167,6 +169,82 @@ await call("setClock", 0.05);
 await call("setCameraShot", { x: 8, y: 100, z: 58 }, { x: -7, y: 0, z: -22 });
 await settle(0.35);
 await shot("overview-high-above");
+
+// Phase 3 starts after the original fifteen views, with independent world facts.
+await call("setGates", { pathCleared: true, bridgeBuilt: true, cliffOpen: false });
+await requireState("Phase 3 island gates were not staged", (s) => s.pathCleared && s.bridgeBuilt && !s.cliffOpen && !s.inCave);
+await frame(world.caveOutside.x, world.caveOutside.z + 1.3, world.caveMouth.x, world.caveMouth.z, 0.4, 8);
+await shot("phase3-cave-mouth");
+
+await call("setInCave", true);
+await requireState("cave entry teleport did not complete", (s, p) => s.inCave && Math.hypot(s.player.x - p.x, s.player.z - p.z) < 0.5, world.caveEntry);
+await frame(world.caveEntry.x, world.caveEntry.z, world.caveChamber.x, world.caveChamber.z, 0.38, 7);
+await shot("cave-entry");
+const metal = world.nodes.filter((n) => n.kind === "metal");
+if (metal.length !== 3) throw new Error("HARNESS_PRECONDITION_FAILED: expected three cave metal nodes");
+for (const node of metal) await call("setTaken", node.id, false);
+await requireState("cave metal nodes were not restored", (s, ids) => ids.every((id) => !s.taken.includes(id)), metal.map((n) => n.id));
+await frame(world.caveChamber.x, world.caveChamber.z + 4, world.caveBox.x, world.caveBox.z, 0.48, 9);
+await shot("cave-chamber-metal-and-box");
+await perfAt("cave chamber");
+await call("goTo", world.caveBox.id);
+const boxPlayer = (await state()).player;
+await call("setCameraFollow", Math.atan2(world.caveBox.x - boxPlayer.x, world.caveBox.z - boxPlayer.z) + Math.PI + 0.6, 0.5, 6.2);
+await call("setWorldFacts", { caveBoxOpened: true });
+await requireState("old box did not finish opening", (s) => s.inCave && s.caveBoxOpened && s.time >= s.worldAnimation.caveBoxOpenT0 + 1.5);
+await shot("cave-box-open");
+
+await call("setInCave", false);
+await requireState("cave exit teleport did not complete", (s, p) => !s.inCave && Math.hypot(s.player.x - p.x, s.player.z - p.z) < 0.5, world.caveOutside);
+await frame(world.rockfall.x, world.rockfall.z + 3.5, world.rockfall.x, world.rockfall.z - 4, 0.42, 9.5);
+await requireState("closed rockfall was not staged", (s) => !s.cliffOpen);
+await shot("rockfall-closed");
+await perfAt("rockfall closed");
+await call("setGates", { cliffOpen: true });
+await requireState("rockfall did not finish clearing", (s) => s.cliffOpen && s.time >= s.worldAnimation.cliffOpenT0 + 2);
+await shot("rockfall-cleared");
+await perfAt("rockfall cleared");
+
+const halfway = world.cliffPath[Math.floor(world.cliffPath.length / 2)];
+const uphill = world.cliffPath[Math.min(world.cliffPath.length - 1, Math.floor(world.cliffPath.length / 2) + 1)];
+if (!halfway || !uphill) throw new Error("HARNESS_PRECONDITION_FAILED: no cliff path waypoints");
+await frame(halfway.x, halfway.z, uphill.x, uphill.z, 0.44, 10);
+await requireState("halfway cliff path was not reached", (s, p) => s.cliffOpen && Math.hypot(s.player.x - p.x, s.player.z - p.z) < 1, halfway);
+await shot("halfway-up-cliff-path");
+await perfAt("halfway up the path");
+
+await frame(world.clifftop.x, world.clifftop.z + 1, 0, -10, 0.44, 10);
+await requireState("clifftop camera subject was not reached", (s, p) => s.cliffOpen && Math.hypot(s.player.x - p.x, s.player.z - p.z) < p.r, world.clifftop);
+await shot("clifftop-looking-over-island");
+await perfAt("clifftop looking over the island");
+await frame(world.signalPad.x, world.signalPad.z + 4, world.signalPad.x, world.signalPad.z, 0.4, 9.2);
+await requireState("empty signal pad was not staged", (s) => !s.signalLit && !s.inCave && s.cliffOpen);
+await shot("signal-pad-empty");
+await call("setClock", 1);
+await call("setWorldFacts", { signalLit: true });
+await requireState("signal fire did not grow in at night", (s) => s.signalLit && s.isNight && s.time >= s.worldAnimation.signalLitT0 + 3);
+await shot("signal-fire-burning-smoke");
+await perfAt("lit signal fire");
+
+await call("setClock", 0.05);
+await call("setCameraShot", world.rescueShot.pos, world.rescueShot.target);
+await call("startRescue");
+await requireState("rescue helicopter did not reach mid-flight", (s) => s.rescue.phase === "flight" && s.rescue.elapsed >= 5 && s.rescue.elapsed < s.rescue.duration - 1);
+await shot("rescue-helicopter-mid-flight");
+await perfAt("helicopter landing approach");
+await requireState("rescue helicopter did not land", (s) => s.rescue.phase === "landed");
+await shot("rescue-helicopter-landed");
+await perfAt("helicopter landed");
+
+await call("setWorldFacts", { kaiStage: "camp" });
+const kaiStart = (await state()).kaiAt;
+await call("kaiRoute", "toRockfall");
+await requireState("Kai route did not start", (s) => !s.kaiRouteEmpty);
+await requireState("Kai did not walk partway to the rockfall", (s, p) => !s.kaiRouteEmpty && Math.hypot(s.kaiAt.x - p.x, s.kaiAt.z - p.z) >= 8, kaiStart);
+const kai = (await state()).kaiAt;
+await frame(kai.x + 2, kai.z + 4, kai.x, kai.z, 0.4, 8);
+await requireState("Kai route ended before its partway view", (s) => !s.kaiRouteEmpty);
+await shot("kai-walking-to-rockfall");
 
 console.log(logs.length ? logs.join("\n") : "no console errors");
 await browser.close();

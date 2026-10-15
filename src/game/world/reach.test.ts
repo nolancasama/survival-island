@@ -3,9 +3,9 @@ import { BRIDGE, FALLEN_TREE, NODES, WATER_SPOTS } from "./island";
 import type { WorldGates } from "./collision";
 import { isReachable } from "./reach";
 
-const closed: WorldGates = { pathCleared: false, bridgeBuilt: false };
-const forestOpen: WorldGates = { pathCleared: true, bridgeBuilt: false };
-const allOpen: WorldGates = { pathCleared: true, bridgeBuilt: true };
+const closed: WorldGates = { pathCleared: false, bridgeBuilt: false, cliffOpen: false };
+const forestOpen: WorldGates = { pathCleared: true, bridgeBuilt: false, cliffOpen: false };
+const allOpen: WorldGates = { pathCleared: true, bridgeBuilt: true, cliffOpen: false };
 
 function node(id: string): { x: number; z: number } {
   const result = NODES.find((candidate) => candidate.id === id);
@@ -39,7 +39,7 @@ describe("isReachable", () => {
 
   it("opens pond targets only when both routes to them are open", () => {
     const water = WATER_SPOTS[0];
-    const bridgeWithoutPath: WorldGates = { pathCleared: false, bridgeBuilt: true };
+    const bridgeWithoutPath: WorldGates = { pathCleared: false, bridgeBuilt: true, cliffOpen: false };
     expect(isReachable(water.x, water.z, forestOpen)).toBe(false);
     expect(isReachable(water.x, water.z, bridgeWithoutPath)).toBe(false);
     expect(isReachable(water.x, water.z, allOpen)).toBe(true);

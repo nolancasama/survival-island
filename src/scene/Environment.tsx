@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { rt } from "../game/runtime";
-import { useGame } from "../game/store";
+import { getGame, useGame } from "../game/store";
 import {
   BOULDERS,
   BRIDGE,
@@ -45,7 +45,6 @@ import {
   forestGapGeometry,
   kaiCampGeometry,
   pondDetailsGeometry,
-  rockfallGeometry,
   signPostGeometry,
   wreckGeometry
 } from "./models/props";
@@ -127,8 +126,10 @@ function Stars() {
 /** Sky dome, sun, and the fixed light set (hemisphere + sun + ambient). */
 export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) {
   const { scene, gl } = useThree();
+  const inCave = useGame((s) => s.inCave);
   const hemi = useRef<THREE.HemisphereLight>(null);
   const sun = useRef<THREE.DirectionalLight>(null);
+  const ambient = useRef<THREE.AmbientLight>(null);
   const sunDisc = useRef<THREE.Mesh>(null);
   const last = useRef(-1);
   const dome = useMemo(() => {
@@ -144,9 +145,39 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
   }, [scene]);
 
   useFrame(() => {
+    const cave = getGame().inCave;
     const l = rt.light;
-    if (Math.abs(l - last.current) < 0.0015) return;
-    last.current = l;
+    const key = cave ? -2 : l;
+    if (Math.abs(key - last.current) < 0.0015) return;
+    last.current = key;
+    if (cave) {
+      if (scene.fog) {
+        const fog = scene.fog as THREE.Fog;
+        fog.color.set("#272936");
+        fog.near = 20;
+        fog.far = 48;
+      }
+      gl.setClearColor("#272936");
+      if (hemi.current) {
+        hemi.current.color.set("#d3b99b");
+        hemi.current.groundColor.set("#68617b");
+        hemi.current.intensity = 0.52;
+      }
+      if (ambient.current) {
+        ambient.current.color.set("#efd8ba");
+        ambient.current.intensity = 0.22;
+      }
+      if (sun.current) sun.current.intensity = 0;
+      return;
+    }
+    if (scene.fog) {
+      (scene.fog as THREE.Fog).near = 60;
+      (scene.fog as THREE.Fog).far = 230;
+    }
+    if (ambient.current) {
+      ambient.current.color.set("#ffffff");
+      ambient.current.intensity = 0.18;
+    }
     const s = sample(l);
     // Dome gradient: horizon colour near y = 0, top colour overhead.
     const pos = dome.attributes.position;
@@ -183,14 +214,16 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
 
   return (
     <group>
-      <mesh geometry={dome} material={domeMat} renderOrder={-10} />
-      <Stars />
-      <mesh ref={sunDisc} material={discMat} renderOrder={-9}>
-        <circleGeometry args={[14, 24]} />
-      </mesh>
+      <group visible={!inCave}>
+        <mesh geometry={dome} material={domeMat} renderOrder={-10} />
+        <Stars />
+        <mesh ref={sunDisc} material={discMat} renderOrder={-9}>
+          <circleGeometry args={[14, 24]} />
+        </mesh>
+      </group>
       <hemisphereLight ref={hemi} args={["#d8ecff", "#b8a070", 1.1]} />
       <directionalLight ref={sun} color="#ffffff" intensity={2.3} position={[-40, 50, 20]} />
-      <ambientLight color="#ffffff" intensity={0.18} />
+      <ambientLight ref={ambient} color="#ffffff" intensity={0.18} />
     </group>
   );
 }
@@ -696,7 +729,6 @@ function ClosedNorth() {
     shape.closePath();
     return new THREE.ShapeGeometry(shape, 12);
   }, []);
-  const rockfall = useMemo(rockfallGeometry, []);
   const post = useMemo(signPostGeometry, []);
   const caveLabel = useMemo(() => new THREE.MeshLambertMaterial({ map: labelTexture("CAVE") }), []);
   const cliffLabel = useMemo(() => new THREE.MeshLambertMaterial({ map: labelTexture("CLIFF") }), []);
@@ -704,12 +736,10 @@ function ClosedNorth() {
   // The threshold stands in the level notch groundY cuts for it; the terrain
   // rises sharply behind the rock face.
   const caveY = groundY(CAVE_MOUTH.x, CAVE_MOUTH.z);
-  const cliffY = groundY(CLIFF_SIGN.x, CLIFF_SIGN.z - 2.2);
   return (
     <group>
       <mesh geometry={cave} material={occluderMat} position={[CAVE_MOUTH.x, caveY, CAVE_MOUTH.z - 0.58]} userData={{ cameraCollider: true }} />
       <mesh geometry={caveOpening} material={dark} position={[CAVE_MOUTH.x, caveY + 0.03, CAVE_MOUTH.z]} />
-      <mesh geometry={rockfall} material={occluderMat} position={[CLIFF_SIGN.x + 1.2, cliffY, CLIFF_SIGN.z - 2.2]} rotation={[0, -0.3, 0]} userData={{ cameraCollider: true }} />
       <group position={[CAVE_SIGN.x, groundY(CAVE_SIGN.x, CAVE_SIGN.z), CAVE_SIGN.z]} rotation={[0, -0.12, 0]}>
         <mesh geometry={post} material={flatMat} />
         <mesh material={caveLabel} position={[0, 1.46, 0.101]}><planeGeometry args={[1.32, 0.42]} /></mesh>

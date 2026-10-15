@@ -1,4 +1,5 @@
 import type { NodeKind } from "../types";
+import { cliffGroundY, isCaveInterior, METAL_NODES } from "./phase3";
 
 /**
  * The handcrafted island (Phase 1: the beach). +x is east, +z is south toward
@@ -39,6 +40,7 @@ export const CAVE_MOUTH = { x: 22, z: -43.1 };
  * untouched; north of it the forest rises gently before the clifftop climb.
  */
 export function groundY(x: number, z: number): number {
+  if (isCaveInterior(x, z)) return 0;
   if (z >= -2.4) return beachGroundY(x, z);
 
   const north = -2.4 - z;
@@ -57,7 +59,7 @@ export function groundY(x: number, z: number): number {
     const notch = (1 - smooth((Math.abs(x - CAVE_MOUTH.x) - 2.4) / 1.4)) * (1 - smooth((-44 - z) / 1.2));
     y += (-42 - z) * 0.58 * (1 - notch);
   }
-  return y;
+  return cliffGroundY(x, z, y);
 }
 
 /** Walkable area of the Phase 1 beach. */
@@ -130,7 +132,8 @@ export const NODES: NodeDef[] = [
   { id: "leaves-13", kind: "leaves", x: -40, z: -30, rot: 2.7 },
   { id: "stone-7", kind: "stone", x: -50, z: -20.5, rot: 0.5 },
   { id: "stone-8", kind: "stone", x: -51.5, z: -24.5, rot: 1.6 },
-  { id: "stone-9", kind: "stone", x: -48, z: -30, rot: 2.4 }
+  { id: "stone-9", kind: "stone", x: -48, z: -30, rot: 2.4 },
+  ...METAL_NODES
 ];
 
 export interface Palm {
