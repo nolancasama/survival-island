@@ -26,6 +26,8 @@ export interface Settings {
   japanese: boolean;
   slowVoice: boolean;
   cameraSensitivity: number;
+  /** Classroom pace: smaller counts, a faster clock, automatic hints. A teacher setting. */
+  classroom: boolean;
 }
 
 export type MicState = "unknown" | "ready" | "blocked" | "unsupported";
@@ -122,7 +124,14 @@ export interface KaiMemory {
   canAxe?: boolean;
   /** "What do you want to do?" on Day 3: get water or catch a fish. */
   want?: "water" | "fish";
+  /** "Can you make a torch?" on Day 4. */
+  canTorch?: boolean;
+  /** "What do you have?" on Day 4: the radio or the metal. */
+  have?: "radio" | "metal";
 }
+
+/** Where Kai is in the Day 5 story (he walks between these). */
+export type KaiStage = "camp" | "rockfall" | "clifftop";
 
 export interface GameState {
   screen: Screen;
@@ -164,6 +173,21 @@ export interface GameState {
   cooked: number;
   /** Most recent day completed by sleeping. */
   sleptDay: number;
+  /** Phase 3 world facts (saved). The player has been inside the cave. */
+  enteredCave: boolean;
+  /** The old box in the cave has been opened (the radio taken). */
+  caveBoxOpened: boolean;
+  /** Kai helped clear the rockfall: the cliff path is open (a world gate). */
+  cliffOpen: boolean;
+  /** The player has stood on the clifftop plateau. */
+  reachedClifftop: boolean;
+  /** The signal fire is on the pad and burning. */
+  signalLit: boolean;
+  /** "I need help." was said on the radio: the rescue has happened. */
+  rescued: boolean;
+  kaiStage: KaiStage;
+  /** The player is in the cave interior (transient: a save resumes at the cave mouth). */
+  inCave: boolean;
   /** Time through the day, from sunrise (0) to held night (1). */
   t: number;
   /** Large transient title shown between morning wake-up and Kai's talk. */
@@ -194,7 +218,8 @@ export const DEFAULT_SETTINGS: Settings = {
   sfx: 0.75,
   japanese: true,
   slowVoice: false,
-  cameraSensitivity: 1
+  cameraSensitivity: 1,
+  classroom: false
 };
 
 function loadSettings(): Settings {
@@ -238,6 +263,14 @@ export function freshGameData() {
     caught: 0,
     cooked: 0,
     sleptDay: 0,
+    enteredCave: false,
+    caveBoxOpened: false,
+    cliffOpen: false,
+    reachedClifftop: false,
+    signalLit: false,
+    rescued: false,
+    kaiStage: "camp" as KaiStage,
+    inCave: false,
     t: 0.05,
     dayTitle: null as number | null,
     sleeping: false

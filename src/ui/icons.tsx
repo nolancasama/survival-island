@@ -144,6 +144,15 @@ const P: Record<IconId, ReactElement> = {
       <path d="M24 11 Q29 17 27 21 L21 21 Q19 17 24 11 Z" fill="#ffe066" stroke="none" />
     </g>
   ),
+  radio: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <path d="M30 16 L36 4" fill="none" strokeLinecap="round" />
+      <rect x="6" y="16" width="36" height="24" rx="4" fill="#5f8f6a" />
+      <circle cx="17" cy="28" r="6" fill="#3d4a44" />
+      <rect x="27" y="22" width="10" height="5" rx="1.5" fill="#f2e3b3" />
+      <circle cx="32" cy="34" r="2.4" fill="#e8483f" />
+    </g>
+  ),
   campfire: (
     <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
       <ellipse cx="24" cy="36" rx="18" ry="6" fill="#d8c29a" />

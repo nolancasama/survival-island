@@ -75,7 +75,7 @@ export interface NodeDef {
   rot: number;
 }
 
-export const RESPAWN_S: Record<NodeKind, number> = { wood: 60, stone: 75, coconut: 50, leaves: 60, tree: 90 };
+export const RESPAWN_S: Record<NodeKind, number> = { wood: 60, stone: 75, coconut: 50, leaves: 60, tree: 90, metal: 75 };
 
 /** Driftwood lies a few metres above the waterline. */
 const driftwood = (id: string, x: number, rot: number, inset = 3.6): NodeDef => ({ id, kind: "wood", x, z: shoreZ(x) - inset, rot });

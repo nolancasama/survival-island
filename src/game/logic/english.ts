@@ -72,7 +72,8 @@ export type PhraseId =
   | "sleep"
   | "needLeaves"
   | "wantWater"
-  | "wantFish";
+  | "wantFish"
+  | "getMetal";
 
 export interface Phrase {
   id: PhraseId;
@@ -141,6 +142,7 @@ export const PHRASES: Record<PhraseId, Phrase> = {
   sleep: { id: "sleep", en: "I want to sleep.", keys: [W.want, W.sleep], distractors: ["hungry", "needLeaves"] },
   needLeaves: { id: "needLeaves", en: "I need leaves.", keys: [W.need, W.leaves], distractors: ["needWood", "needWater"] },
   wantWater: { id: "wantWater", en: "I want to get water.", keys: [[...W.want, ...W.get], W.water], distractors: ["wantFish", "needWater"] },
+  getMetal: { id: "getMetal", en: "Get the metal.", keys: [W.get, ["metal", "metals", "medal", "middle", "meadow", "iron"]], distractors: ["getStone", "openBox"] },
   wantFish: { id: "wantFish", en: "I want to catch a fish.", keys: [[...W.want, ...W.catch], W.fish], distractors: ["wantWater", "needWater"] }
 };
 

@@ -17,14 +17,15 @@ import { audio } from "../../audio/audio";
 import { UI } from "../../ui/i18n";
 
 /** What the student says to collect from a node, until it is known (then it is quick). */
-const GATHER: Record<NodeKind, PhraseId> = { wood: "getWood", stone: "getStone", coconut: "getCoconut", leaves: "getLeaves", tree: "cutTree" };
+const GATHER: Record<NodeKind, PhraseId> = { wood: "getWood", stone: "getStone", coconut: "getCoconut", leaves: "getLeaves", tree: "cutTree", metal: "getMetal" };
 const EAT: Partial<Record<ItemId, PhraseId>> = { coconut: "eatCoconut", grilledFish: "eatFish" };
 const GATHER_SOUND: Record<NodeKind, "wood" | "stone" | "coconut" | "leaves" | "chop"> = {
   wood: "wood",
   stone: "stone",
   coconut: "coconut",
   leaves: "leaves",
-  tree: "chop"
+  tree: "chop",
+  metal: "stone"
 };
 
 const canAct = () => {

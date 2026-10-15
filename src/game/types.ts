@@ -13,6 +13,7 @@ export type ItemId =
   | "rod"
   | "container"
   | "torch"
+  | "radio"
   | "campfire"
   | "shelter"
   | "signalFire";
@@ -27,7 +28,7 @@ export type BuildingId = "campfire" | "shelter" | "storage" | "cooking" | "fence
  * Collectible node kinds in the world. "wood" is driftwood or a fallen log
  * (no tool); "tree" is a standing tree that needs the stone axe.
  */
-export type NodeKind = "wood" | "stone" | "coconut" | "leaves" | "tree";
+export type NodeKind = "wood" | "stone" | "coconut" | "leaves" | "tree" | "metal";
 
 /** What one gather of a node gives. */
 export const NODE_YIELD: Record<NodeKind, { item: ItemId; n: number }> = {
@@ -35,7 +36,9 @@ export const NODE_YIELD: Record<NodeKind, { item: ItemId; n: number }> = {
   stone: { item: "stone", n: 1 },
   coconut: { item: "coconut", n: 1 },
   leaves: { item: "leaves", n: 2 },
-  tree: { item: "wood", n: 2 }
+  tree: { item: "wood", n: 2 },
+  /** Old ship parts in the cave (Phase 3). */
+  metal: { item: "metal", n: 1 }
 };
 
 export type Bag = Partial<Record<ItemId, number>>;
@@ -69,6 +72,8 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   rod: { id: "rod", en: "fishing rod", ja: "つりざお", kind: "tool" },
   container: { id: "container", en: "water container", ja: "みずいれ", kind: "tool" },
   torch: { id: "torch", en: "torch", ja: "たいまつ", kind: "tool" },
+  /** The old signal device from the cave (Phase 3). */
+  radio: { id: "radio", en: "radio", ja: "ラジオ", kind: "tool" },
   campfire: { id: "campfire", en: "campfire", ja: "たきび", kind: "building", places: "campfire" },
   shelter: { id: "shelter", en: "shelter", ja: "こや", kind: "building", places: "shelter" },
   signalFire: { id: "signalFire", en: "signal fire", ja: "のろし", kind: "building", places: "campfire" }
@@ -91,7 +96,8 @@ export const ITEM_ORDER: ItemId[] = [
   "axe",
   "rod",
   "container",
-  "torch"
+  "torch",
+  "radio"
 ];
 
 export interface Vec2 {

@@ -29,7 +29,9 @@ export function ResourceNodes() {
       stone: stonePileGeometry(),
       coconut: coconutGeometry(),
       leaves: leafBushGeometry(),
-      tree: choppableTreeGeometry()
+      tree: choppableTreeGeometry(),
+      // Placeholder until the Phase 3 world slice models the ship parts.
+      metal: stonePileGeometry()
     }),
     []
   );
