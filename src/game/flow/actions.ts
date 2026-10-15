@@ -14,6 +14,7 @@ import { refreshQuest, save, showBeacons, showPlaces, syncStats, updateHint, wai
 import { canSleepNow, sleepPlace, trySleep } from "./days";
 import { talkToKai } from "./kai";
 import { enterCave } from "./cave";
+import { clearRockfall, useSignalPad } from "./escape";
 import { CAVE_BOX } from "../world/phase3";
 import { focusPosition } from "./focus";
 import { audio } from "../../audio/audio";
@@ -57,6 +58,10 @@ export async function interact() {
       return enterCave();
     case "caveBox":
       return openCaveBox();
+    case "rockfall":
+      return clearRockfall();
+    case "signalPad":
+      return useSignalPad();
     case "kai":
       return talkToKai();
     case "campfire":

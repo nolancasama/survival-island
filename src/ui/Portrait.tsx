@@ -2,6 +2,19 @@ import type { Speaker } from "../game/store";
 
 /** Round character portraits for dialogue and prompts. */
 export function Portrait({ by, size = 64 }: { by: Speaker; size?: number }) {
+  if (by === "radio") {
+    return (
+      <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
+        <circle cx="32" cy="32" r="30" fill="#ffe3a0" stroke="#3b2a1c" strokeWidth="3" />
+        <path d="M40 22 L49 9" stroke="#3b2a1c" strokeWidth="3" strokeLinecap="round" />
+        <rect x="12" y="22" width="40" height="29" rx="5" fill="#607e72" stroke="#3b2a1c" strokeWidth="3" />
+        <circle cx="26" cy="37" r="9" fill="#30483e" stroke="#d9c594" strokeWidth="2" />
+        <path d="M21 34 H31 M21 38 H31 M23 42 H29" stroke="#d9c594" strokeWidth="2" strokeLinecap="round" />
+        <rect x="39" y="28" width="8" height="5" rx="1" fill="#f8e4a4" />
+        <circle cx="43" cy="42" r="4" fill="#e2a14d" stroke="#3b2a1c" strokeWidth="2" />
+      </svg>
+    );
+  }
   if (by === "game") {
     return (
       <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
@@ -39,4 +52,4 @@ export function Portrait({ by, size = 64 }: { by: Speaker; size?: number }) {
   );
 }
 
-export const SPEAKER_NAME: Record<Speaker, string> = { kai: "Kai", self: "You", game: "" };
+export const SPEAKER_NAME: Record<Speaker, string> = { kai: "Kai", self: "You", game: "", radio: "Radio" };

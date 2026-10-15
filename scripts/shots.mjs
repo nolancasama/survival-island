@@ -1,4 +1,4 @@
-// Visual check: plays Days 1–4 and a classroom Day 1 pass, saving screenshots to .tmp/shots.
+// Visual check: plays all five days, Day 6 and a classroom pass into .tmp/shots.
 // Usage: node scripts/shots.mjs [baseUrl] [viewport WxH] [--touch] [--tap]
 //   --tap: play in mic-free mode (tap the sentences)
 import { chromium } from "@playwright/test";
@@ -637,8 +637,140 @@ await stage("Day 4 complete card", () => window.__si.state().screen === "dayEnd"
 await page.waitForTimeout(1500);
 await shot("day4-end");
 
+/** Wait for the fade and the follow/shot camera to catch up before a new capture. */
+const settleStoryCamera = async (seconds = 1.5) => {
+  const started = (await st()).time;
+  await stage("story fade and camera settled", ([t, delay]) => {
+    const s = window.__si.state();
+    return s.fade === 0 && s.time >= t + delay;
+  }, [started, seconds]);
+};
+const escapeTarget = async (id) => {
+  await day3Target(id);
+  await settleStoryCamera();
+};
+
+// Day 5: the morning promise, Kai's actual walk and asking for help together.
+await page.getByTestId("next-day").click();
+await stage("Day 5 Escape title", () => window.__si.state().dayTitle === 5);
+await settleStoryCamera(1.1);
+await shot("day5-title");
+await stage("Day 5 morning promise", () => window.__si.state().line?.en === "Today we go home!");
+await settleStoryCamera();
+await shot("day5-morning");
+await next();
+await stage("Day 5 blocked path lesson", () => window.__si.state().line?.en === "Let's go to the clifftop. But rocks are on the path.");
+await next();
+await stage("Kai says meet you there", () => window.__si.state().line?.en === "I'll meet you there.");
+await next();
+await stage("Kai starts walking to rockfall", () => {
+  const s = window.__si.state();
+  return s.mode === "explore" && !s.kaiRouteEmpty && s.kaiStage === "camp";
+});
+await settleStoryCamera();
+await shot("day5-kai-walking");
+await escapeTarget("rockfall");
+await stage("Kai still coming to rockfall", () => !window.__si.state().kaiRouteEmpty && window.__si.state().kaiStage === "camp");
+await page.keyboard.press("KeyE");
+await stage("Kai is coming toast", () => window.__si.state().toasts.includes("Kai is coming!"));
+await shot("day5-kai-is-coming");
+await stage("Kai arrived at rockfall", () => {
+  const s = window.__si.state();
+  return s.kaiStage === "rockfall" && s.kaiRouteEmpty;
+}, null, 45000);
+await page.keyboard.press("KeyE");
+await stage("Can you help me command", () => window.__si.state().prompt?.sentences[0] === "Can you help me?");
+await shot("day5-can-you-help-me");
+await answer("can you help me", "canHelp");
+await stage("Kai agrees to push", () => window.__si.state().line?.en === "Yes, I can! One, two, three!");
+await next();
+await stage("rocks begin rolling aside", () => window.__si.state().cliffOpen && window.__si.state().worldAnimation.cliffOpenT0 >= 0);
+const rocksT0 = (await st()).worldAnimation.cliffOpenT0;
+await stage("rocks visibly rolling", (t0) => window.__si.state().time >= t0 + 0.45, rocksT0);
+await shot("day5-rocks-rolling-aside");
+await stage("Kai walks up opened path", () => window.__si.state().mode === "explore" && !window.__si.state().kaiRouteEmpty);
+
+// The summit is explored before crafting, so the pad's bag requirement is visible.
+const escapeWorld = await page.evaluate(() => window.__si.world());
+for (const point of escapeWorld.cliffPath.slice(1)) {
+  await page.evaluate((p) => window.__si.teleport(p.x, p.z), point);
+  await stage("player reaches next cliff waypoint", (p) => {
+    const at = window.__si.state().player;
+    return Math.hypot(at.x - p.x, at.z - p.z) < 0.5;
+  }, point);
+  await settleStoryCamera();
+  if (point === escapeWorld.cliffPath[3]) await shot("day5-climb");
+}
+await stage("clifftop arrival line", () => window.__si.state().reachedClifftop && window.__si.state().line?.en === "Wow! I can see the whole island!");
+await page.evaluate(() => window.__si.setCameraFollow(Math.PI, 0.42, 10));
+await settleStoryCamera();
+await shot("day5-clifftop-view");
+await next();
+await stage("clifftop arrival finished", () => window.__si.state().mode === "explore");
+await page.evaluate(() => window.__si.setCameraFollow(0.35, 0.42, 8));
+await escapeTarget("signalPad");
+await page.keyboard.press("KeyE");
+await stage("pad refuses without signal fire", () => window.__si.state().line?.en === "We need a signal fire.");
+await shot("day5-pad-refusal");
+await next();
+await stage("pad refusal finished", () => window.__si.state().mode === "explore");
+await storyGather("wood", "wood", 4, "get the wood", "getWood");
+await storyGather("leaves", "leaves", 3, "get the leaves", "getLeaves");
+await stage("Day 5 gather steps done", () => {
+  const done = window.__si.state().quest.done;
+  return done.includes("wood") && done.includes("leaves");
+});
+await page.keyboard.press("KeyC"); // the pulsing Make button is never stable to click
+await stage("signal fire recipe open", () => window.__si.state().craftOpen);
+await shot("day5-signal-fire-recipe");
+await page.getByTestId("make-signalFire").click();
+await answer("I want to make a signal fire", "craftSignalFire");
+await stage("signal fire is a bag item", () => window.__si.state().bag.signalFire === 1 && window.__si.state().mode === "explore" && !window.__si.state().placing);
+await escapeTarget("signalPad");
+await page.keyboard.press("KeyE");
+await stage("climax Make a fire prompt", () => window.__si.state().prompt?.sentences[0] === "Make a fire.");
+await shot("day5-make-a-fire");
+await answerForAnimation("make a fire", "makeFire");
+await stage("signal fire lit on pad", () => window.__si.state().signalLit && window.__si.state().worldAnimation.signalLitT0 >= 0);
+await settleStoryCamera(0.7);
+await shot("day5-signal-fire-smoke");
+await stage("Kai admires smoke", () => window.__si.state().line?.en === "Look at the smoke!");
+await next();
+await stage("radio asks what you need", () => window.__si.state().prompt?.question === "Hello? Hello? What do you need?");
+await shot("day5-radio-prompt");
+await answer("I need help", "needHelp");
+await stage("radio confirms rescue", () => window.__si.state().line?.en === "We see your smoke! We're coming!");
+await next();
+await stage("helicopter flight and rescue camera", () => {
+  const s = window.__si.state();
+  return s.rescued && s.rescue.phase === "flight" && s.mode === "busy";
+});
+await settleStoryCamera();
+await stage("helicopter approaches landing", () => {
+  const s = window.__si.state();
+  return s.rescue.phase === "flight" && s.rescue.elapsed >= 10;
+});
+await shot("day5-helicopter-landing");
+await stage("Kai cheers after landing", () => window.__si.state().rescue.phase === "landed" && window.__si.state().line?.en === "We did it! We're going home!");
+await settleStoryCamera();
+await shot("day5-kai-cheer");
+await next();
+await stage("Rescue card", () => window.__si.state().screen === "dayEnd" && window.__si.state().rescued);
+await settleStoryCamera();
+await shot("day5-rescue-card");
+await page.getByTestId("keep-exploring").click();
+await stage("Day 6 generic morning", () => window.__si.state().day === 6 && window.__si.state().line?.en === "Good morning! Let's explore the island!");
+await next();
+await stage("Day 6 free play with Kai at camp", () => {
+  const s = window.__si.state();
+  return s.day === 6 && s.freePlay && s.kaiStage === "camp" && s.worldAnimation.rescueT0 === -1 && s.mode === "explore" && s.step === null;
+});
+await settleStoryCamera();
+await shot("day6-free-play");
+
 // A separate Day 1 pass shows the teacher setting and the active smaller counts.
-await page.getByTestId("to-title").click();
+await page.getByTestId("btn-settings").click();
+await page.getByTestId("settings-title").click();
 await stage("title before classroom pass", () => window.__si.state().screen === "title");
 await page.getByTestId("mode-classroom").click();
 await stage("classroom teacher setting enabled", () => window.__si.state().classroom);

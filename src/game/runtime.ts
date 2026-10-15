@@ -100,6 +100,8 @@ export const rt = {
   pathClearedT0: -1,
   bridgeBuiltT0: -1,
   cliffOpenT0: -1,
+  /** Shared short push pose for both survivors at the rockfall. */
+  pushT0: -1,
   caveBoxOpenT0: -1,
   signalLitT0: -1,
   rescueT0: -1,
@@ -168,6 +170,7 @@ export function resetRuntime() {
   rt.pathClearedT0 = -1;
   rt.bridgeBuiltT0 = -1;
   rt.cliffOpenT0 = -1;
+  rt.pushT0 = -1;
   rt.caveBoxOpenT0 = -1;
   rt.signalLitT0 = -1;
   rt.rescueT0 = -1;

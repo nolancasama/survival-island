@@ -32,7 +32,7 @@ export interface Settings {
 
 export type MicState = "unknown" | "ready" | "blocked" | "unsupported";
 
-export type Speaker = "kai" | "self" | "game";
+export type Speaker = "kai" | "self" | "game" | "radio";
 
 export interface Choice {
   id: PhraseId;
@@ -72,7 +72,7 @@ export interface Line {
 
 export interface Focus {
   id: string;
-  kind: "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign" | "bridge" | "water" | "fish" | "caveMouth" | "caveBox";
+  kind: "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign" | "bridge" | "water" | "fish" | "caveMouth" | "caveBox" | "rockfall" | "signalPad";
   verb: string;
   noun: string;
   icon: IconId;
@@ -116,6 +116,12 @@ export type HintKey =
   | "metal"
   | "radio"
   | "showKai"
+  | "cliffWait"
+  | "cliff"
+  | "signalFire"
+  | "clifftop"
+  | "signal"
+  | "help"
   | "micBlocked"
   | null;
 
@@ -133,6 +139,8 @@ export interface KaiMemory {
   canTorch?: boolean;
   /** "What do you have?" on Day 4: the radio or the metal. */
   have?: "radio" | "metal";
+  /** Day 5's morning talk completed before Kai began walking. */
+  escapeMorning?: boolean;
 }
 
 /** Where Kai is in the Day 5 story (he walks between these). */

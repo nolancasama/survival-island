@@ -8,6 +8,7 @@
  */
 
 type Wave = OscillatorType;
+type MusicMood = "day" | "dusk" | "night" | "rescue";
 
 const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -36,6 +37,9 @@ export type SfxName =
   | "craft"
   | "place"
   | "ignite"
+  | "signalWhoosh"
+  | "rumble"
+  | "radioStatic"
   | "box"
   | "correct"
   | "error"
@@ -71,7 +75,8 @@ class AudioEngine {
   private daylight = 1;
   private seaNearness = 0.5;
   private musicTimer = 0;
-  private music: { next: number; step: number; mood: "day" | "dusk" | "night" } | null = null;
+  private music: { next: number; step: number; mood: MusicMood } | null = null;
+  private rotor: { source: AudioBufferSourceNode; pulse: OscillatorNode; hum: OscillatorNode; level: GainNode } | null = null;
 
   /** Must be called from a user gesture (Start button). */
   unlock() {
@@ -361,6 +366,27 @@ class AudioEngine {
         this.noiseBurst(t, { filter: "bandpass", freq: 300, to: 2400, q: 0.9, peak: 0.3, attack: 0.25, decay: 0.6 });
         this.noiseBurst(t + 0.2, { filter: "lowpass", freq: 900, peak: 0.18, attack: 0.1, decay: 0.8 });
         break;
+      case "signalWhoosh":
+        this.noiseBurst(t, { filter: "bandpass", freq: 180, to: 2800, q: 0.6, peak: 0.48, attack: 0.38, decay: 0.9 });
+        this.noiseBurst(t + 0.25, { filter: "lowpass", freq: 1000, to: 350, peak: 0.26, attack: 0.2, decay: 1.5 });
+        for (let i = 0; i < 12; i++) {
+          this.noiseBurst(t + 0.5 + i * 0.09, { filter: "highpass", freq: 1700 + Math.random() * 1900, peak: 0.07, attack: 0.002, decay: 0.045 });
+        }
+        break;
+      case "rumble":
+        this.noiseBurst(t, { filter: "lowpass", freq: 260, to: 85, peak: 0.45, attack: 0.12, decay: 1.6 });
+        for (let i = 0; i < 6; i++) {
+          const tt = t + i * 0.19;
+          this.tone(75 + Math.random() * 35, tt, { to: 40, peak: 0.18, attack: 0.01, decay: 0.25, type: "triangle" });
+          this.noiseBurst(tt, { filter: "bandpass", freq: 450 + Math.random() * 300, q: 1.3, peak: 0.12, attack: 0.005, decay: 0.15 });
+        }
+        break;
+      case "radioStatic":
+        for (let i = 0; i < 5; i++) {
+          this.noiseBurst(t + i * 0.14, { filter: "bandpass", freq: 1800 + Math.random() * 700, q: 0.8, peak: 0.13, attack: 0.004, decay: 0.06 + Math.random() * 0.08 });
+        }
+        this.tone(1450, t + 0.08, { to: 1100, peak: 0.035, attack: 0.006, decay: 0.18 });
+        break;
       case "box":
         this.tone(200, t, { peak: 0.2, decay: 0.08, type: "triangle" });
         this.noiseBurst(t, { filter: "bandpass", freq: 900, q: 2, peak: 0.15, decay: 0.12 });
@@ -549,6 +575,70 @@ class AudioEngine {
     this.fire = null;
   }
 
+  /** A distant rotor grows with the approach, then settles and fades at landing. */
+  startRotor(seconds = 12) {
+    if (!this.ready()) return;
+    this.stopRotor();
+    const ctx = this.ctx!;
+    const t = this.now;
+    const duration = Math.max(2, seconds);
+    const source = ctx.createBufferSource();
+    source.buffer = this.noise;
+    source.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 420;
+    const blade = ctx.createGain();
+    blade.gain.value = 0.55;
+    const pulse = ctx.createOscillator();
+    pulse.frequency.value = 18;
+    pulse.type = "sine";
+    const depth = ctx.createGain();
+    depth.gain.value = 0.4;
+    pulse.connect(depth).connect(blade.gain);
+    const hum = ctx.createOscillator();
+    hum.type = "triangle";
+    hum.frequency.setValueAtTime(53, t);
+    hum.frequency.linearRampToValueAtTime(47, t + duration);
+    const humLevel = ctx.createGain();
+    humLevel.gain.value = 0.13;
+    const level = ctx.createGain();
+    level.gain.setValueAtTime(0.0001, t);
+    level.gain.exponentialRampToValueAtTime(0.34, t + duration * 0.65);
+    level.gain.setValueAtTime(0.34, t + duration * 0.82);
+    level.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    source.connect(filter).connect(blade).connect(level);
+    hum.connect(humLevel).connect(level);
+    level.connect(this.ambBus);
+    this.rotor = { source, pulse, hum, level };
+    source.onended = () => {
+      if (this.rotor?.source === source) this.rotor = null;
+      source.disconnect();
+      pulse.disconnect();
+      hum.disconnect();
+      level.disconnect();
+    };
+    source.start(t);
+    pulse.start(t);
+    hum.start(t);
+    source.stop(t + duration + 0.1);
+    pulse.stop(t + duration + 0.1);
+    hum.stop(t + duration + 0.1);
+  }
+
+  /** Leaving the rescue shot never leaves a rotor playing over free play. */
+  stopRotor() {
+    if (!this.ctx || !this.rotor) return;
+    const { source, pulse, hum, level } = this.rotor;
+    const t = this.ctx.currentTime;
+    level.gain.cancelScheduledValues(t);
+    level.gain.setTargetAtTime(0.0001, t, 0.08);
+    source.stop(t + 0.4);
+    pulse.stop(t + 0.4);
+    hum.stop(t + 0.4);
+    this.rotor = null;
+  }
+
   // ------------------------------------------------------------------ music
 
   /** Quiet marimba tune. Dusk is slower; night is sparse and softer still. */
@@ -562,6 +652,14 @@ class AudioEngine {
     this.musicTimer = window.setInterval(() => this.scheduleMusic(), 60);
   }
 
+  /** A brighter, fuller tune for the flight, Kai's cheer and the Rescue card. */
+  startRescueMusic() {
+    if (!this.ctx) return;
+    this.stopMusic();
+    this.music = { next: this.ctx.currentTime + 0.08, step: 0, mood: "rescue" };
+    this.musicTimer = window.setInterval(() => this.scheduleMusic(), 60);
+  }
+
   stopMusic() {
     window.clearInterval(this.musicTimer);
     this.music = null;
@@ -571,7 +669,8 @@ class AudioEngine {
     const ctx = this.ctx;
     const m = this.music;
     if (!ctx || !m) return;
-    const eighth = m.mood === "day" ? 60 / 100 / 2 : m.mood === "dusk" ? 60 / 80 / 2 : 60 / 68 / 2;
+    const bpm = m.mood === "rescue" ? 112 : m.mood === "day" ? 100 : m.mood === "dusk" ? 80 : 68;
+    const eighth = 60 / bpm / 2;
     while (m.next < ctx.currentTime + 0.3) {
       this.playStep(m.step, m.next, eighth, m.mood);
       m.step++;
@@ -579,7 +678,11 @@ class AudioEngine {
     }
   }
 
-  private playStep(step: number, t: number, eighth: number, mood: "day" | "dusk" | "night") {
+  private playStep(step: number, t: number, eighth: number, mood: MusicMood) {
+    if (mood === "rescue") {
+      this.playRescueStep(step, t, eighth);
+      return;
+    }
     // 8 bars of 8 eighths. Melody: [step-in-bar, midi]; 0 = rest.
     const MELODY: Array<Array<[number, number]>> = [
       [[0, 72], [2, 74], [3, 77], [6, 74]],
@@ -609,6 +712,47 @@ class AudioEngine {
     }
     if (mood !== "night" && (s === 2 || s === 6)) {
       for (const n of [BASS[bar] + 7, BASS[bar] + 12]) this.tone(midi(n), t, { peak: 0.025 * soft, attack: 0.01, decay: 0.25, bus });
+    }
+  }
+
+  /** Rising major phrases and soft chords keep the celebration warm and gentle. */
+  private playRescueStep(step: number, t: number, eighth: number) {
+    const melody = [
+      [72, 0, 76, 79, 0, 76, 79, 84],
+      [83, 0, 79, 0, 76, 0, 74, 0],
+      [77, 0, 79, 81, 0, 79, 77, 76],
+      [79, 0, 0, 0, 74, 0, 0, 0],
+      [76, 0, 79, 84, 0, 83, 81, 79],
+      [81, 0, 84, 0, 79, 0, 76, 0],
+      [77, 0, 76, 74, 0, 72, 74, 79],
+      [84, 0, 0, 0, 0, 0, 0, 0]
+    ];
+    const chords = [
+      [48, 52, 55],
+      [43, 47, 50],
+      [41, 45, 48],
+      [43, 47, 50],
+      [48, 52, 55],
+      [45, 48, 52],
+      [41, 45, 48],
+      [48, 52, 55]
+    ];
+    const bar = Math.floor(step / 8) % 8;
+    const beat = step % 8;
+    const note = melody[bar][beat];
+    const bus = this.musicBus;
+    if (note) {
+      this.tone(midi(note), t, { peak: 0.22, attack: 0.008, decay: 0.75, bus, type: "triangle" });
+      this.tone(midi(note + 12), t, { peak: 0.035, attack: 0.004, decay: 0.22, bus });
+    }
+    if (beat === 0 || beat === 4) {
+      this.tone(midi(chords[bar][0] - 12), t, { peak: 0.16, attack: 0.025, decay: eighth * 3.5, bus, type: "triangle" });
+      for (const chordNote of chords[bar]) {
+        this.tone(midi(chordNote + 12), t, { peak: 0.045, attack: 0.08, decay: eighth * 3.5, bus });
+      }
+    }
+    if (beat === 2 || beat === 6) {
+      this.noiseBurst(t, { filter: "highpass", freq: 3500, peak: 0.025, attack: 0.004, decay: 0.07, bus });
     }
   }
 }

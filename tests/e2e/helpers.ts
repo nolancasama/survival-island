@@ -15,7 +15,7 @@ export interface SiState {
   crafted: string[];
   buildings: Array<{ id: string; type: string; x: number; z: number; lit?: boolean; built?: boolean }>;
   metKai: boolean;
-  kai: { need?: string; canFire?: boolean; canAxe?: boolean; canTorch?: boolean; want?: string; have?: string };
+  kai: { need?: string; canFire?: boolean; canAxe?: boolean; canTorch?: boolean; want?: string; have?: string; escapeMorning?: boolean };
   ate: number;
   crateOpened: boolean;
   focus: { id: string; kind: string } | null;
@@ -28,8 +28,10 @@ export interface SiState {
     sentences: string[];
     choices: string[];
     question: string | null;
+    questionBy: string | null;
+    questionJa: string | null;
   } | null;
-  line: { by: string; en: string } | null;
+  line: { by: string; en: string; ja?: string | null } | null;
   placing: { item: string; rot: number; problem: string | null } | null;
   placeOk: boolean;
   hint: string | null;
@@ -63,7 +65,15 @@ export interface SiState {
   time: number;
   craftOpen: boolean;
   settingsOpen: boolean;
-  worldAnimation: { caveBoxOpenT0: number };
+  cliffOpen: boolean;
+  reachedClifftop: boolean;
+  signalLit: boolean;
+  rescued: boolean;
+  kaiStage: "camp" | "rockfall" | "clifftop";
+  kaiRouteEmpty: boolean;
+  fade: number;
+  rescue: { phase: "none" | "flight" | "landed"; elapsed: number; duration: number };
+  worldAnimation: { caveBoxOpenT0: number; cliffOpenT0: number; signalLitT0: number; rescueT0: number };
 }
 
 /** Open the game with speech stubs, fast pacing and the test hook. Returns collected page errors. */

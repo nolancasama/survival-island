@@ -121,43 +121,51 @@ export function DayEndScreen() {
   const day = useGame((s) => s.quest.day);
   const daySaid = useGame((s) => s.daySaid);
   const dayNew = useGame((s) => s.dayNew);
+  const said = useGame((s) => s.said);
+  const rescued = useGame((s) => s.rescued);
   if (screen !== "dayEnd") return null;
+  const rescue = day === 5 && rescued;
+  const sentences = rescue ? said : daySaid;
   const done = DAY_DONE[day] ?? { en: "You explored the island.", ja: "しまを たんけんしたね！", icon: "moon" as IconId };
   const next = dayDef(day + 1);
   // "New" only means something next to sentences used before (on Day 1 everything is new).
-  const showNew = daySaid.some((id) => !dayNew.includes(id));
+  const showNew = rescue || daySaid.some((id) => !dayNew.includes(id));
   return (
-    <div className="dayend ui" data-testid="dayend">
+    <div className="dayend ui" data-testid="dayend" data-rescue={rescue || undefined}>
       <div className="dayend-card">
         <div className="dayend-badge">
-          <Icon id={done.icon} size={56} />
+          <Icon id={rescue ? "radio" : done.icon} size={56} />
         </div>
         <h2>
-          Day {day} complete!
-          <Ja>{day}にちめ クリア！</Ja>
+          {rescue ? "Rescued!" : `Day ${day} complete!`}
+          <Ja>{rescue ? "たすかった！" : `${day}にちめ クリア！`}</Ja>
         </h2>
         <p className="dayend-sub">
-          {done.en}
-          <Ja>{done.ja}</Ja>
+          {rescue ? "You and Kai made it home!" : done.en}
+          <Ja>{rescue ? "カイと いっしょに いえに かえれたね！" : done.ja}</Ja>
         </p>
         <h3>
-          English you used today <Ja>きょう つかった えいご</Ja>
+          {rescue ? "English you used on your adventure" : "English you used today"}
+          <Ja>{rescue ? "ぼうけんで つかった えいご" : "きょう つかった えいご"}</Ja>
         </h3>
         <ul className="said" data-testid="said">
-          {daySaid.map((id) => (
+          {sentences.map((id) => (
             <li key={id}>
               <Icon id="check" size={16} /> {PHRASES[id].en}
               {showNew && dayNew.includes(id) && <span className="new">NEW</span>}
             </li>
           ))}
         </ul>
-        <p className="next-day">
-          {`Next: ${next.steps.length ? next.en : `Day ${day + 1}`}`}
-          <Ja>{next.steps.length ? `つぎは ${next.ja}` : `つぎは ${day + 1}にちめ`}</Ja>
-        </p>
+        {!rescue && (
+          <p className="next-day">
+            {`Next: ${next.steps.length ? next.en : `Day ${day + 1}`}`}
+            <Ja>{next.steps.length ? `つぎは ${next.ja}` : `つぎは ${day + 1}にちめ`}</Ja>
+          </p>
+        )}
         <div className="title-buttons">
-          <button className="primary big" onClick={() => void nextDay()} data-testid="next-day">
-            {`Day ${day + 1} →`} <Ja>{`${day + 1}にちめへ`}</Ja>
+          <button className="primary big" onClick={() => void nextDay()} data-testid={rescue ? "keep-exploring" : "next-day"}>
+            {rescue ? "Keep exploring" : `Day ${day + 1} →`}
+            <Ja>{rescue ? "もっと たんけんする" : `${day + 1}にちめへ`}</Ja>
           </button>
           <button className="secondary big" onClick={() => toTitle()} data-testid="to-title">
             Title <Ja>タイトルへ</Ja>

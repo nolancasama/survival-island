@@ -79,6 +79,7 @@ export function installE2eHook(seed: number) {
       return {
         screen: g.screen,
         mode: g.mode,
+        fade: g.fade,
         micState: g.micState,
         stats: g.stats,
         live: { ...rt.stats },
@@ -109,10 +110,12 @@ export function installE2eHook(seed: number) {
               misses: g.prompt.misses,
               sentences: g.prompt.sentences.map((s) => s.en),
               choices: g.prompt.choices.map((c) => c.id),
-              question: g.prompt.question?.en ?? null
+              question: g.prompt.question?.en ?? null,
+              questionBy: g.prompt.question?.by ?? null,
+              questionJa: g.prompt.question?.ja ?? null
             }
           : null,
-        line: g.line ? { by: g.line.by, en: g.line.en } : null,
+        line: g.line ? { by: g.line.by, en: g.line.en, ja: g.line.ja ?? null } : null,
         placing: g.placing,
         /** The preview has been checked this placement and fits (E would place it). */
         placeOk: g.mode === "place" && rt.place.ok,
@@ -198,7 +201,7 @@ export function installE2eHook(seed: number) {
      * shelter from Day 3 on, and a typical bag. Returns at once; the morning
      * (title, Kai's talk) then plays as in a real game.
      */
-    startDay(n: number) {
+    startDay(n: number, classroom = getGame().settings.classroom) {
       const before = Math.max(1, n - 1);
       const known: PhraseId[] = [];
       const unlocked: CraftId[] = [];
@@ -219,6 +222,7 @@ export function installE2eHook(seed: number) {
       resetRuntime();
       setGame({
         ...freshGameData(),
+        settings: { ...getGame().settings, classroom },
         screen: "dayEnd",
         mode: "busy",
         micState: recognition.supported ? "ready" : "unsupported",

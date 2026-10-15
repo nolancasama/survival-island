@@ -44,6 +44,14 @@ describe("save", () => {
     expect(parseSave(serialize(s))).toEqual(s);
   });
 
+  it("preserves Escape morning completion and rejects a malformed completion flag", () => {
+    const s = sample();
+    s.quest = { day: 5, done: [], complete: false };
+    s.kai.escapeMorning = true;
+    expect(parseSave(serialize(s))?.kai.escapeMorning).toBe(true);
+    expect(parseSave(JSON.stringify({ ...s, kai: { ...s.kai, escapeMorning: "yes" } }))).toBeNull();
+  });
+
   it("discards other versions, junk and missing fields whole", () => {
     expect(parseSave(null)).toBeNull();
     expect(parseSave("not json")).toBeNull();

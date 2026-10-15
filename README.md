@@ -6,11 +6,11 @@ craft, build a camp, help Kai, and escape. English is how you act. You say
 "Get the wood." to pick up your first log, "I want to make a campfire." to
 craft it, and "I need water." when you are stuck.
 
-**Status:** Phase 3 story slice A implemented: Days 1–4, including the torch,
-cave exploration, metal, the old box and radio, Kai's inventory question,
-and classroom mode. Day 3 now leads into Day 4; Day 4 leads into a safe
-Day 5 start. Day 5's escape flow and rescue ending are the next slice;
-free play begins after the story on Day 6+. Executor acceptance is pending.
+**Status:** Phase 3 complete: the five-day story goes from shipwreck to a
+helicopter rescue, followed by free play from Day 6. Days 4–5 add the torch,
+cave, old radio, Kai's walk, clearing the cliff path together and the signal
+fire. Classroom mode plays the same story with smaller counts and automatic
+hints. Controller acceptance and final visual review are pending.
 See `CURRENT_STATE.md`.
 Design decisions and the reasons for them are in `DESIGN_DECISIONS.md`.
 
@@ -27,6 +27,9 @@ npm run dev          # http://localhost:5173
 - Click water in the bag to drink, or grilled fish to eat. Raw fish needs a lit campfire.
 - Enter the cave with **E** and a torch in the bag; walk into its entrance light to leave.
   The clock pauses inside. Saving there resumes at the cave mouth with discoveries kept.
+- On Day 5, ask Kai for help at the rockfall, climb the path, then use **E** at
+  the signal pad with a crafted signal fire in your bag. The signal fire goes
+  on this pad; it has no building preview or bag "Put down" action.
 - Speak: press **Space** (or the mic button) once, then say the sentence
 - Placing a building: walk to choose the spot, **R** turns it, **E** puts it down
 - Touch: left stick, the hand button to use things, the run toggle
@@ -55,7 +58,10 @@ npm run e2e          # build + Playwright: full Day 1 by speech and by tapping, 
                      # bridge/tool gates, water/fishing/cooking and night resume;
                      # Day 3-to-4 transition; Day 4 tapping, both torch and inventory answers,
                      # cave gates, metal/radio, cave save/resume and v2 migration;
-                     # classroom counts, Settings switching and automatic hint timing
+                     # Day 5 tapping, Kai's walk/wait, help command, gathering/crafting,
+                     # climb/pad gates, radio help/water answers, rescue and Day 6;
+                     # Day 5 stage saves and interrupted Kai walks;
+                     # classroom counts (including Day 5), Settings switching and automatic hints
 npm run shots        # screenshots of a whole playthrough into .tmp/shots (needs `npm run preview -- --port 5287`)
                      # options: node scripts/shots.mjs <url> 1024x768 --touch --tap
 ```
@@ -66,12 +72,17 @@ The read-only `state()` surface includes quest steps and counters, Kai's memory,
 `fishing.phase`, `fishRests` (live seconds left), `freePlay`, clock and sleep state,
 `inCave`, `enteredCave`, `caveBoxOpened`, `classroom`, `stepIdleSeconds` and
 `automaticHintCount`. These expose story and automatic-hint state for acceptance.
+Day 5 adds `kaiStage`, `kaiAt`, `kaiRouteEmpty`, `cliffOpen`, `reachedClifftop`,
+`signalLit`, `rescued`, animation timestamps and `rescue.phase` / `elapsed` /
+`duration`. Prompt speaker/gloss and screen fade are also readable.
 `startDay(3)`, `startDay(4)` and `startDay(5)` begin their real mornings with prior
-days' facts; `world()` supplies stable target IDs and cave entry/exit coordinates.
-The screenshot script covers Days 1–4, including cave entry/exit, metal, the
-box/radio, Kai's new question and the Day 4 card, plus a classroom Day 1 pass
-showing goals, recipe counts and an automatic hint. Final browser acceptance
-and visual review are performed by the executor.
+days' facts; `startDay(5, true)` selects classroom pace. `world()` supplies stable
+target IDs, cave entry/exit coordinates, Kai routes and the cliff/rescue points.
+The screenshot script covers all five days through the Rescue card and Day 6,
+including Kai walking, the rockfall, cliff climb, pad refusal, smoke, radio and
+helicopter landing, plus a classroom Day 1 pass showing goals, recipe counts
+and an automatic hint. Browser acceptance and screenshot execution belong to
+the controller; Claude performs final aesthetic review.
 
 ## Deploy
 

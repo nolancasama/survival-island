@@ -1243,6 +1243,25 @@ button.big .ja {
   gap: 6px;
 }
 
+/* The Rescue card lists the whole adventure's English: a wider card and a bounded
+   list keep its buttons on screen on a 768 px Chromebook. */
+.dayend[data-rescue] .dayend-card {
+  width: min(760px, calc(100vw - 32px));
+}
+
+.dayend[data-rescue] .said {
+  max-height: min(34vh, 290px);
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(31, 106, 53, 0.06);
+}
+
+.dayend[data-rescue] .said li {
+  font-size: 15px;
+  padding: 3px 9px;
+}
+
 .said li {
   display: inline-flex;
   align-items: center;

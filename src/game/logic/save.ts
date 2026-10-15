@@ -38,7 +38,7 @@ export interface SaveData {
   metKai: boolean;
   ate: number;
   /** Kai's answers so far (choices change what he says later). */
-  kai: { need?: "water" | "food" | "wood"; canFire?: boolean; canAxe?: boolean; want?: "water" | "fish"; canTorch?: boolean; have?: "radio" | "metal" };
+  kai: { need?: "water" | "food" | "wood"; canFire?: boolean; canAxe?: boolean; want?: "water" | "fish"; canTorch?: boolean; have?: "radio" | "metal"; escapeMorning?: boolean };
   player: { x: number; z: number; yaw: number };
   /** Story light, 1 = midday, 0 = night. */
   light: number;
@@ -94,6 +94,7 @@ export function validateSave(raw: unknown): SaveData | null {
   if (raw.daySaid !== undefined && !validPhrases(raw.daySaid)) return null;
   if (raw.dayNew !== undefined && !validPhrases(raw.dayNew)) return null;
   const k = raw.kai as Record<string, unknown>; if ((k.need !== undefined && !["water", "food", "wood"].includes(k.need as string)) || (k.canFire !== undefined && typeof k.canFire !== "boolean") || (k.canAxe !== undefined && typeof k.canAxe !== "boolean") || (k.want !== undefined && !["water", "fish"].includes(k.want as string)) || (k.canTorch !== undefined && typeof k.canTorch !== "boolean") || (k.have !== undefined && !["radio", "metal"].includes(k.have as string))) return null;
+  if (k.escapeMorning !== undefined && typeof k.escapeMorning !== "boolean") return null;
   if (!["enteredCave", "caveBoxOpened", "cliffOpen", "reachedClifftop", "signalLit", "rescued"].every(key => typeof raw[key] === "boolean") || !["camp", "rockfall", "clifftop"].includes(raw.kaiStage as string)) return null;
   return raw as unknown as SaveData;
 }

@@ -16,6 +16,7 @@ export function hints(classroom: boolean): Record<string, { keys: Bi; touch: Bi 
   const axe = recipeNeeds("axe", classroom);
   const container = recipeNeeds("container", classroom);
   const rod = recipeNeeds("rod", classroom);
+  const signalFire = recipeNeeds("signalFire", classroom);
   const bridgeWood = pace(classroom).bridgeNeeds.wood ?? 0;
   return {
     move: {
@@ -129,6 +130,30 @@ export function hints(classroom: boolean): Record<string, { keys: Bi; touch: Bi 
     showKai: {
       keys: { en: "Leave the cave and show Kai your radio. Press E near him.", ja: "どうくつを でて、カイに ラジオを みせよう。ちかくで E" },
       touch: { en: "Leave the cave and show Kai your radio. Tap the hand near him.", ja: "どうくつを でて、カイに ラジオを みせよう。ちかくで てを タップ" }
+    },
+    cliffWait: {
+      keys: { en: "Kai is walking to the rocks. Meet him there and wait.", ja: "カイが いわへ むかっているよ。いわの ところで まとう" },
+      touch: { en: "Kai is walking to the rocks. Meet him there and wait.", ja: "カイが いわへ むかっているよ。いわの ところで まとう" }
+    },
+    cliff: {
+      keys: { en: "Go to the rocks and ask Kai for help. Press E.", ja: "いわへ いって カイに てつだってもらおう。E を おそう" },
+      touch: { en: "Go to the rocks and ask Kai for help. Tap the hand.", ja: "いわへ いって カイに てつだってもらおう。てを タップ" }
+    },
+    signalFire: {
+      keys: { en: `Make a signal fire: ${signalFire.wood} wood + ${signalFire.leaves} leaves + ${signalFire.metal} metal. Press C.`, ja: `木 ${signalFire.wood}つ、はっぱ ${signalFire.leaves}つ、てつ ${signalFire.metal}つで のろしを つくろう。C キー` },
+      touch: { en: `Make a signal fire: ${signalFire.wood} wood + ${signalFire.leaves} leaves + ${signalFire.metal} metal. Tap the hammer.`, ja: `木 ${signalFire.wood}つ、はっぱ ${signalFire.leaves}つ、てつ ${signalFire.metal}つで のろしを つくろう。ハンマーを タップ` }
+    },
+    clifftop: {
+      keys: { en: "Follow the open path up to the clifftop.", ja: "ひらいた みちを のぼって がけの うえへ いこう" },
+      touch: { en: "Follow the open path up to the clifftop.", ja: "ひらいた みちを のぼって がけの うえへ いこう" }
+    },
+    signal: {
+      keys: { en: "Take the signal fire to the stone pad. Press E.", ja: "のろしを もって いしの わへ。E を おそう" },
+      touch: { en: "Take the signal fire to the stone pad. Tap the hand.", ja: "のろしを もって いしの わへ。てを タップ" }
+    },
+    help: {
+      keys: { en: "Listen to the radio and say what you need.", ja: "ラジオを きいて、ひつような ものを つたえよう" },
+      touch: { en: "Listen to the radio and choose what you need.", ja: "ラジオを きいて、ひつような ものを えらぼう" }
     },
     micBlocked: {
       keys: { en: "The microphone is off. Choose the sentences.", ja: "マイクが つかえないので、ぶんを えらんで こたえよう" },

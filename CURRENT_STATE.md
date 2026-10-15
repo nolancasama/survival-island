@@ -1,77 +1,70 @@
 # Current State
 
 ## Status
-**Phase 2 is complete: Days 1–3 and free play from Day 4, all on `main`
-and pushed** (Day 3 is `2077199`; the repo is private). The design is in
-DESIGN_DECISIONS.md: "2026-10-13 — Phase 2 (Exploration) design",
-"2026-10-14 — Phase 2 decisions made while building" and "2026-10-15 —
-Phase 2 story slice B decisions". Read those first.
+**Phase 3 is complete: the whole five-day story (Days 1–5), the helicopter
+rescue, the Rescue card, free play from Day 6, and classroom mode, all on
+`main`.** The design is in DESIGN_DECISIONS.md: "2026-10-15 — Phase 3 (Full
+Story) design" plus the Phase 3 logic, world, story slice A and story slice B
+decision sections after it. Read those first. Phase 2 sections still apply.
 
-## Phase 2
-- **World slice (accepted visually):** forest, stream, broken/built bridge,
-  pond with dock and fish spots, cave mouth, cliff path rockfall, signs,
-  regions and gates (`pathCleared` / `bridgeBuilt`), forest nodes, shelter,
-  stars and moonlight, line-of-sight dither fade (a cone). Perf in the
-  Day 1–2 playthrough: 40–79 draw calls, ≤62k triangles.
-- **Logic slice:** Days 1–3 quest data plus free-play days, the clock
-  (`logic/clock.ts`), night/shelter stamina, `afterSleep`, `consume`,
-  `cookFish`, `BRIDGE_NEEDS`, the phrases, save v2 with v1 migration.
-- **Story slice A (Days 1–2):** `flow/places.ts` (one id space for
-  everything the game points at), `flow/days.ts` (celebrate, evening cue,
-  sleeping, `nextDay`), clock-driven light and music, Day 2 in `kai.ts` and
-  `actions.ts`, the dynamic day card, day title, sleep overlay, edge arrows,
-  relevance-ordered "I need…", and the e2e hook (`startDay(n)`, `setClock`,
-  `reachable`, `goTo` for places).
-- **Story slice B (Day 3, Codex):** Kai's morning with "What do
-  you want to do?" (water → coconut + container first; fish → rod first,
-  plus a crate beacon if the rope box is closed); "Build a bridge." at the
-  bridge with 4 wood; the water container, "Get some water." at the water
-  spots, "Drink the water." (F or tapping water); the fishing rod, "Catch a
-  fish." (automatic cast → wait → bite → fish, each spot rests 15 s, saved);
-  "Cook the fish." at a lit fire, "Eat the fish."; Kai's evening thanks per
-  choice; Day 3 hints; the Day 3 card ("To be continued... Next time: the
-  cave!", "Keep playing"); free play from Day 4 (no checklist, free-day
-  sleep goes straight to the next morning); cave/cliff sign texts; sounds
-  (fill, gulp, cast, plop, fish splash, sizzle, bridge); fishing pose, rod,
-  line, bobber and jumping fish; README updated.
-  - Claude's fixes on review: the bobber now lands in open water toward the
-    pond's middle from where the player stands (it used to land on the
-    dock), the shots script waits for the Day 3 card's fade-in, the Day 3
-    save/resume spec holds the spot rest long (it was flaky on a slow
-    reload; `setTaken` in the e2e hook accepts fish spots), and the slice B
-    decisions moved to the end of DESIGN_DECISIONS.md.
-- **Verified for slice B:** typecheck, `npm test` (101), `npm run e2e` (16:
-  9 Day 1, 3 Day 2, 4 Day 3). `npm run shots` plays Days 1–3 and Day 4
-  (81 shots in .tmp/shots); reviewed: morning choice, bridge build and built
-  bridge, fishing with the bobber in the water, catch, cooking, Day 3 card,
-  Day 4 free play.
-
-- **Checked after slice B (2026-10-15):** the flat-rock fishing spot
-  (`fish-1`) casts into open water and catches. `npm run shots:world` passes
-  again: its night shot used `setLight`, which the clock overrides since
-  story slice A, so it now stages night with `setClock`.
+## Phase 3
+- **Logic:** Days 4–5 quest data (Day 5 has no Sleep; it ends on "Call for
+  help"), `LAST_STORY_DAY = 5`, the Phase 3 phrases, `logic/pace.ts` (normal
+  and classroom recipe/bridge counts, clock seconds, food drain, automatic
+  hint delay), `stepGoal`, save v3 with v2/v1 migration (a Phase 2 free-play
+  save resumes at the Day 4 morning).
+- **World:** the cave interior far off the map at (1000, 980), entered and
+  left by a fade (`flow/cave.ts`), torchlit rig, metal parts, old box; the
+  rockfall, cliff trail and clifftop plateau behind `cliffOpen`; signal pad
+  and fire with smoke; the rescue helicopter (`RESCUE_SECONDS`,
+  `RESCUE_SHOT`); Kai's Day 5 routes (`kaiRoute.ts`). All in
+  `world/phase3.ts`, `scene/Phase3World.tsx`, `scene/models/phase3.ts`,
+  `scene/models/cliffTrail.ts`.
+- **Story A (Day 4 + classroom):** torch question, "Go in the cave.",
+  metal, the box and the radio, "What do you have?" → "I have a radio." /
+  "I have metal.", the Day 3/4 cards, "I need metal.", classroom mode
+  (title + Settings toggle, pace-aware HUD/craft/hint counts, automatic
+  hints after 20 s of live idle play).
+- **Story B (Day 5 + ending, `flow/escape.ts`):** Kai walks to the rockfall,
+  "Can you help me?", the climb, "Wow! I can see the whole island!", "Make a
+  fire." at the pad, the radio's "What do you need?" (three answers, none
+  wrong), the helicopter landing, the Rescue card, Day 6 free play.
+- **Controller fixes on review:** quest.ts layout and doc comments restored
+  after the logic worker packed it; e2e and shots open the craft menu with C
+  (the pulsing Make button is never "stable" for a click); shots wait for
+  camera catch-up and card fades; the Rescue card's sentence list is bounded
+  so its buttons stay on a 768 px screen.
+- **Verified:** typecheck, `npm test` (123), `npm run e2e` (26, incl. Day 4,
+  Day 5 and classroom specs). `npm run shots` plays Days 1–5, the rescue and
+  Day 6 plus a classroom pass (118 shots, ~12 min, in .tmp/shots);
+  `npm run shots:world` 28 views. Perf worst view: clifftop, 98 draw calls,
+  106k triangles (budget 120 / 200k). Reviewed by eye: cave, cliff trail,
+  clifftop, signal fire, helicopter, every Day 4–5 story beat, Rescue card.
 
 ## Next Steps
-1. **Phase 3 design is written** ("2026-10-15 — Phase 3 (Full Story)
-   design" in DESIGN_DECISIONS.md): Day 4 (torch, cave interior, metal,
-   radio, "I have ___"), Day 5 (Kai at the rockfall, "Can you help me?",
-   clifftop path, signal fire, radio "I need help.", helicopter rescue,
-   Rescue card), classroom mode (whole story in one lesson), save v3. It is
-   waiting for the user's sign-off.
-2. Then build it in three slices: logic and world in parallel through the
-   router, then story. Freeze the place ids and fact names listed in the
-   build plan before dispatch.
+1. **Classroom trial.** The real check now is students: does classroom mode
+   fit the whole story in one 45-minute lesson (target 30–35 min of play),
+   and do they find the cave, the rockfall and the clifftop? Untested on real
+   Chromebooks, real speech recognition and real audio.
+2. Phase 4 (polish) per the brief: environmental events (rain, the fire
+   going out, an animal stealing food with the fence, Kai's missing tool),
+   character animation, music/SFX pass, Free Survival mode (camp expansion,
+   optional challenges, storage box, cooking station). It needs a design pass
+   frozen before any worker builds it, like Phases 2 and 3.
+3. Optional small polish seen in review: Kai half-hidden behind the CLIFF
+   sign while waiting at the rockfall; the pad beacon pillar sits in the
+   middle of the clifftop panorama on arrival.
 
 ## Known Issues / Unverified
-- Real speech recognition, sound and Chromebook GPU are untested (as in
-  Phase 1). SwiftShader fps is low (4–7), which is expected.
-- Night at clock 0.95 reads grey-blue rather than deep blue on the beach; it
-  is the accepted world lighting, but worth a look on a real screen.
+- Real speech recognition, sound and Chromebook GPU are untested.
+  SwiftShader fps is low (2–20), which is expected.
 - The dither fade can still show a light stipple at the edges of near
-  canopies, visible around the pond dock. `THREE.Clock` deprecation warning
+  canopies (pond dock, tower legs). `THREE.Clock` deprecation warning
   (harmless).
+- The full screenshot playthrough exceeds 10 minutes; run it in the
+  background.
 
 ## Codex / Delegated Work
-No run is in flight. Slice B (`.ai/story-b.json`) was built by Codex (Sol)
-and is reviewed and accepted; its first e2e run had one flaky failure, since
-fixed. Work orders and results are in `.ai/` (gitignored).
+No run is in flight, and none is pending review. Codex usage ran out on
+2026-10-15, after story slice B finished; the router checks availability
+itself. Phase 3 work orders and results are in `.ai/p3-*.json` (gitignored).

@@ -3,11 +3,12 @@ import { rt, floatText } from "../runtime";
 import { addItem, count } from "../logic/inventory";
 import { currentStep, readyToSleep } from "../logic/quest";
 import { pace, recipeNeeds } from "../logic/pace";
-import { BRIDGE, CRATE, FALLEN_TREE, FISH_SPOTS, WATER_SPOTS } from "../world/island";
+import { BRIDGE, CRATE, FALLEN_TREE, FISH_SPOTS, WATER_SPOTS, groundY } from "../world/island";
 import { CAVE_BOX } from "../world/phase3";
 import type { CraftId } from "../types";
 import { ask, say } from "./ask";
-import { refreshQuest, showBeacons, showPlaces } from "./session";
+import { refreshQuest, save, showBeacons, showPlaces, showStepTarget } from "./session";
+import { sendKaiAhead } from "./escape";
 import { sleepPlace } from "./days";
 import { audio } from "../../audio/audio";
 
@@ -32,10 +33,11 @@ function frameConversation() {
   // Right of the player's view direction.
   const rx = -uz;
   const rz = ux;
+  const y = groundY(p.x, p.z);
   rt.camera.mode = "shot";
   rt.camera.shot = {
-    pos: { x: p.x + ux * 3.4 + rx * 1.5, y: 2.6, z: p.z + uz * 3.4 + rz * 1.5 },
-    target: { x: (p.x + k.x) / 2 - ux * 0.4, y: 1.15, z: (p.z + k.z) / 2 - uz * 0.4 }
+    pos: { x: p.x + ux * 3.4 + rx * 1.5, y: y + 2.6, z: p.z + uz * 3.4 + rz * 1.5 },
+    target: { x: (p.x + k.x) / 2 - ux * 0.4, y: y + 1.15, z: (p.z + k.z) / 2 - uz * 0.4 }
   };
 }
 
@@ -64,6 +66,7 @@ export async function talkToKai() {
     else if (g.quest.day === 2) await helpDayTwo();
     else if (g.quest.day === 3) await helpDayThree();
     else if (g.quest.day === 4) await helpDayFour();
+    else if (g.quest.day === 5) await helpDayFive();
     else await whatDoYouNeed();
   } finally {
     endConversation();
@@ -80,6 +83,7 @@ export async function morningTalk(day: number) {
     if (day === 2) await dayTwoMorning();
     else if (day === 3) await dayThreeMorning();
     else if (day === 4) await dayFourMorning();
+    else if (day === 5) await dayFiveMorning();
     else await say("kai", "Good morning! Let's explore the island!", "おはよう！ しまを たんけんしよう！");
   } finally {
     endConversation();
@@ -234,6 +238,49 @@ async function dayFourMorning() {
   }
   unlock("torch", "torch", "たいまつ");
   showPlaces(["caveMouth"]);
+}
+
+async function dayFiveMorning() {
+  await say("kai", "Today we go home!", "きょうは いえに かえろう！");
+  await say("kai", "Let's go to the clifftop. But rocks are on the path.", "がけの うえへ いこう。 でも みちに いわが あるんだ。");
+  await say("kai", "I'll meet you there.", "そこで あおうね。");
+  setGame({ kai: { ...getGame().kai, escapeMorning: true } });
+  sendKaiAhead();
+  showPlaces(["rockfall"]);
+  save();
+}
+
+/** Repeatable Day 5 hints share their targets with classroom automatic help. */
+async function helpDayFive() {
+  const g = getGame();
+  showStepTarget();
+  switch (currentStep(g.quest)?.id) {
+    case "cliff":
+      await say("kai", "Ask me at the rocks: Can you help me?", "いわの ところで、たすけを たのんでね。");
+      return;
+    case "wood":
+      await say("kai", "Get wood for the signal fire!", "のろしの 木を あつめよう！");
+      return;
+    case "leaves":
+      await say("kai", "Get leaves for the signal fire!", "のろしの はっぱを あつめよう！");
+      return;
+    case "signalFire": {
+      const needs = recipeNeeds("signalFire", g.settings.classroom);
+      await say("kai", `Make a signal fire with ${numberWord(needs.wood!)} wood, ${numberWord(needs.leaves!)} leaves and ${numberWord(needs.metal!)} metal.`, `木 ${needs.wood}つ、はっぱ ${needs.leaves}つ、てつ ${needs.metal}つで のろしを つくろう。`, {
+        icons: [{ item: "wood", n: needs.wood! }, { item: "leaves", n: needs.leaves! }, { item: "metal", n: needs.metal! }]
+      });
+      return;
+    }
+    case "clifftop":
+      await say("kai", "Follow the path to the clifftop!", "みちを のぼって がけの うえへ いこう！");
+      return;
+    case "signal":
+      await say("kai", "Make a fire on the stone pad!", "いしの だいで 火を つけよう！");
+      return;
+    case "help":
+      await say("kai", "Use the radio. Tell them what you need!", "ラジオで、ひつような ものを つたえよう！");
+      return;
+  }
 }
 
 /** Before the radio is found, Kai points toward the cave's next discovery. */

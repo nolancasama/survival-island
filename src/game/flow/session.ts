@@ -13,8 +13,9 @@ import { buildingObstacles } from "../world/placement";
 import { count } from "../logic/inventory";
 import { ask, fastMode, say } from "./ask";
 import { currentGates, targetReachable } from "./places";
-import { celebrate, eveningCue, nextDay, placeKaiAtCamp, resumeDayFourMorning, sleepPlace } from "./days";
+import { celebrate, eveningCue, nextDay, placeKaiAtCamp, resumeDayFourMorning, resumeDayFiveMorning, sleepPlace } from "./days";
 import { checkCaveExit } from "./cave";
+import { checkEscapeArrivals, radioCall, restoreEscapeKai } from "./escape";
 import { audio } from "../../audio/audio";
 import { tts } from "../../audio/tts";
 import { recognition, requestMicPermission } from "../../audio/recognition";
@@ -192,20 +193,25 @@ export async function continueGame() {
   // The evening cue has already played for a day that is waiting for sleep.
   if (readyToSleep(data.quest)) rt.eveningDay = data.quest.day;
   if (data.quest.day > 1 || readyToSleep(data.quest)) placeKaiAtCamp();
+  if (data.quest.day === 5 && (data.kai.escapeMorning || data.kaiStage !== "camp" || data.cliffOpen)) restoreEscapeKai();
   enterGame();
   updateHint();
   // A day that ended with sleep (the card was showing) goes straight on to the next morning.
-  if (data.sleptDay >= data.quest.day) {
+  if (data.sleptDay >= data.quest.day || (data.quest.day === 5 && data.rescued)) {
     setGame({ mode: "busy" });
     void nextDay();
     return;
   }
   // Keep controls paused while an unfinished morning waits for microphone preparation.
-  const needsMorning = data.quest.day === 4 && (getGame().kai.canTorch === undefined || !getGame().unlocked.includes("torch"));
-  if (needsMorning) setGame({ mode: "busy" });
+  const needsMorning = (data.quest.day === 4 && (getGame().kai.canTorch === undefined || !getGame().unlocked.includes("torch")))
+    || (data.quest.day === 5 && !data.kai.escapeMorning && data.kaiStage === "camp" && !data.cliffOpen);
+  if (needsMorning || (data.quest.day === 5 && data.signalLit && !data.rescued)) setGame({ mode: "busy" });
   await prepareMic();
   if (needsMorning) {
-    await resumeDayFourMorning();
+    if (data.quest.day === 5) await resumeDayFiveMorning();
+    else await resumeDayFourMorning();
+  } else if (data.quest.day === 5 && data.signalLit && !data.rescued) {
+    await radioCall();
   }
 }
 
@@ -213,6 +219,7 @@ export function toTitle() {
   save();
   tts.cancel();
   audio.stopFire();
+  audio.stopRotor();
   setGame({ screen: "title", settingsOpen: false, mode: "busy", prompt: null, line: null, craftOpen: false, placing: null, hasSave: hasSaved(), toasts: [], dayTitle: null, sleeping: false });
 }
 
@@ -295,6 +302,7 @@ export function showStepTarget(): boolean {
     if (!ids.length) return false;
     if (g.inCave && ids.some((id) => !targetReachable(id))) showPlaces(["caveExit"]);
     else if (!g.pathCleared && ids.some((id) => !targetReachable(id))) showPlaces([FALLEN_TREE.id]);
+    else if (!g.cliffOpen && ids.some((id) => id === "clifftop" || id === "signalPad")) showPlaces(["rockfall"]);
     else if (!g.bridgeBuilt && ids.some((id) => !targetReachable(id))) showPlaces([BRIDGE.id]);
     else showPlaces(ids);
     return true;
@@ -360,6 +368,13 @@ export function showStepTarget(): boolean {
       return g.inCave ? point([CAVE_BOX.id]) : point(["caveMouth"]);
     case "showKai":
       return point(["kai"]);
+    case "cliff":
+      return point(["rockfall"]);
+    case "clifftop":
+      return point(["clifftop"]);
+    case "signal":
+    case "help":
+      return point(["signalPad"]);
     case "sleep": {
       const bed = sleepPlace();
       return bed ? point([bed.id]) : false;
@@ -491,7 +506,14 @@ export function updateHint() {
       case "metal":
       case "radio":
       case "showKai":
+      case "signalFire":
+      case "clifftop":
+      case "signal":
+      case "help":
         hint = step.id;
+        break;
+      case "cliff":
+        hint = g.kaiStage === "rockfall" && !rt.kai.route.length ? "cliff" : "cliffWait";
         break;
     }
   }
@@ -546,6 +568,7 @@ export function tick(dt: number) {
   if (!g.inCave) rt.clock = advanceClock(rt.clock, dt, { capped: clockCapped() }, gamePace.daySeconds, gamePace.eveningSeconds);
   setMood(moodAt(rt.clock));
   checkCaveExit();
+  checkEscapeArrivals();
   const hintDelay = gamePace.automaticHintDelay;
   if (hintDelay !== null && rt.stepIdleSeconds >= hintDelay && rt.simTime - rt.lastAutomaticHintAt >= hintDelay
     && g.mode === "explore" && !g.prompt && !g.line && !g.craftOpen && !g.placing && !g.sleeping && getGame().mode === "explore") {

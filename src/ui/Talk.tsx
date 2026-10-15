@@ -133,7 +133,7 @@ export function PromptPanel() {
   );
 }
 
-/** A line of dialogue (Kai, your thoughts, the story). */
+/** A line of dialogue (Kai, the radio, your thoughts, or the story). */
 export function DialoguePanel() {
   const line = useGame((s) => s.line);
   const touch = useGame((s) => s.touch);

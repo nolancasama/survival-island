@@ -76,7 +76,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   radio: { id: "radio", en: "radio", ja: "ラジオ", kind: "tool" },
   campfire: { id: "campfire", en: "campfire", ja: "たきび", kind: "building", places: "campfire" },
   shelter: { id: "shelter", en: "shelter", ja: "こや", kind: "building", places: "shelter" },
-  signalFire: { id: "signalFire", en: "signal fire", ja: "のろし", kind: "building", places: "campfire" }
+  signalFire: { id: "signalFire", en: "signal fire", ja: "のろし", kind: "building" }
 };
 
 /** Order of items in the hotbar. */

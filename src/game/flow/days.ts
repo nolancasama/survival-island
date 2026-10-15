@@ -45,6 +45,7 @@ export function placeKaiAtCamp() {
   rt.kai.x = spot.x;
   rt.kai.z = spot.z;
   rt.kai.walkTo = null;
+  rt.kai.route = [];
   rt.kai.yaw = bed ? Math.atan2(bed.x - spot.x, bed.z - spot.z) : KAI_HOME.yaw;
 }
 
@@ -154,6 +155,13 @@ export async function nextDay() {
   advancing = true;
   try {
     const previousDay = getGame().quest.day;
+    if (previousDay === 5 && getGame().rescued) {
+      rt.rescueT0 = -1;
+      audio.stopRotor();
+      rt.stats = afterSleep(rt.stats);
+      syncStats();
+      setGame({ kaiStage: "camp" });
+    }
     const q = advanceDay(getGame().quest, facts());
     rt.clock = dayStartT(q.day);
     rt.light = rt.lightTarget = lightAt(rt.clock);
@@ -178,7 +186,7 @@ export async function nextDay() {
       fade: 1
     });
     wakeAtCamp();
-    setMood("day");
+    setMood("day", true);
     save();
     await wait(500);
     audio.play("morning");
@@ -207,6 +215,19 @@ export async function resumeDayFourMorning() {
   rt.player.lyingTarget = 0;
   await wait(900);
   await morningTalk(4);
+  refreshQuest();
+}
+
+/** An interrupted Escape introduction replays at camp, before Kai starts his walk. */
+export async function resumeDayFiveMorning() {
+  setGame({ mode: "busy", focus: null, dayTitle: 5, daySaid: [], dayNew: [] });
+  wakeAtCamp();
+  audio.play("morning");
+  await wait(2600);
+  setGame({ dayTitle: null });
+  rt.player.lyingTarget = 0;
+  await wait(900);
+  await morningTalk(5);
   refreshQuest();
 }
 

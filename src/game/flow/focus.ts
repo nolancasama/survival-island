@@ -4,7 +4,7 @@ import { rt } from "../runtime";
 import { getGame, type Focus } from "../store";
 import { targetPosition, targetReachable } from "./places";
 import { CAVE_MOUTH } from "../world/island";
-import { CAVE_BOX } from "../world/phase3";
+import { CAVE_BOX, ROCKFALL, SIGNAL_PAD } from "../world/phase3";
 import { canSleepNow } from "./days";
 import { count } from "../logic/inventory";
 
@@ -25,6 +25,22 @@ const SIGNS = [FOREST_GAP.sign, CAVE_SIGN, CLIFF_SIGN];
 function candidates(): Candidate[] {
   const g = getGame();
   const out: Candidate[] = [];
+  if (!g.cliffOpen) {
+    out.push({
+      focus: { id: ROCKFALL.id, kind: "rockfall", verb: g.quest.day === 5 ? "Clear" : "Look at", noun: "the rocks", icon: "stone" },
+      x: ROCKFALL.x,
+      z: ROCKFALL.z,
+      reach: INTERACT_RANGE + 0.6
+    });
+  }
+  if (g.cliffOpen && !g.signalLit) {
+    out.push({
+      focus: { id: SIGNAL_PAD.id, kind: "signalPad", verb: "Make", noun: "a signal fire", icon: "signalFire" },
+      x: SIGNAL_PAD.x,
+      z: SIGNAL_PAD.z,
+      reach: INTERACT_RANGE + 0.5
+    });
+  }
   if (!g.inCave) {
     out.push({ focus: { id: "caveMouth", kind: "caveMouth", verb: "Go in", noun: "the cave", icon: "torch" }, x: CAVE_MOUTH.x, z: CAVE_MOUTH.z, reach: INTERACT_RANGE });
   } else if (!g.caveBoxOpened) {
@@ -64,7 +80,10 @@ function candidates(): Candidate[] {
     if (rt.taken.has(s.id)) continue;
     out.push({ focus: { id: s.id, kind: "fish", verb: "Catch", noun: "a fish", icon: "fish" }, x: s.x, z: s.z, reach: INTERACT_RANGE });
   }
-  out.push({ focus: { id: "kai", kind: "kai", verb: "Talk to", noun: "Kai", icon: "needs" }, x: rt.kai.x, z: rt.kai.z, reach: INTERACT_RANGE + 0.5 });
+  const kaiAtRockfall = !g.cliffOpen && Math.hypot(rt.kai.x - ROCKFALL.x, rt.kai.z - ROCKFALL.z) < INTERACT_RANGE + 0.5;
+  if (!rt.kai.route.length && !kaiAtRockfall) {
+    out.push({ focus: { id: "kai", kind: "kai", verb: "Talk to", noun: "Kai", icon: "needs" }, x: rt.kai.x, z: rt.kai.z, reach: INTERACT_RANGE + 0.5 });
+  }
   const hasShelter = g.buildings.some((b) => b.type === "shelter" && b.built);
   for (const b of g.buildings) {
     if (b.type === "campfire" && !b.lit) {
@@ -82,6 +101,7 @@ function candidates(): Candidate[] {
     }
   }
   for (const s of SIGNS) {
+    if (s.id === CLIFF_SIGN.id && (g.quest.day === 5 || g.cliffOpen)) continue;
     out.push({ focus: { id: s.id, kind: "sign", verb: "Read", noun: "sign", icon: "sign" }, x: s.x, z: s.z, reach: INTERACT_RANGE });
   }
   return out;

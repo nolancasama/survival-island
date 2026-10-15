@@ -331,6 +331,10 @@ export function Player() {
         bend = 0.25;
       }
     }
+    if (rt.pushT0 >= 0 && rt.time - rt.pushT0 < 1.4) {
+      armLx = armRx = -1.5;
+      bend = 0.35;
+    }
     if (g.inCave) armRx = -1.15;
     const activeKind: string | undefined = act?.kind;
     if (rig.axe.current) rig.axe.current.visible = activeKind === "chop" && act !== null && (rt.time - act.t0) / 0.75 < 1;
@@ -490,6 +494,12 @@ export function Kai() {
     }
     if (rig.pose.current) {
       rig.pose.current.position.y = Math.sin(rt.time * 2) * 0.012 + (talking ? Math.abs(Math.sin(rt.time * 9)) * 0.015 : 0);
+      const pushing = rt.pushT0 >= 0 && rt.time - rt.pushT0 < 1.4;
+      rig.pose.current.rotation.x = pushing ? 0.35 : 0;
+      if (pushing) {
+        if (rig.armL.current) rig.armL.current.rotation.x = -1.5;
+        if (rig.armR.current) rig.armR.current.rotation.x = -1.5;
+      }
     }
     const y = groundY(k.x, k.z);
     if (rig.root.current) {
