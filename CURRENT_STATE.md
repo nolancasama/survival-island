@@ -46,14 +46,21 @@ Phase 2 story slice B decisions". Read those first.
   bridge, fishing with the bobber in the water, catch, cooking, Day 3 card,
   Day 4 free play.
 
+- **Checked after slice B (2026-10-15):** the flat-rock fishing spot
+  (`fish-1`) casts into open water and catches. `npm run shots:world` passes
+  again: its night shot used `setLight`, which the clock overrides since
+  story slice A, so it now stages night with `setClock`.
+
 ## Next Steps
-1. Not yet looked at: the second fishing spot (the flat rock, `fish-1`) in a
-   screenshot, and `npm run shots:world` after slice B (no world changes,
-   so low risk).
-2. Phase 3 (the cave, the clifftop, the torch, metal, the signal fire, and
-   classroom mode, which tunes counts and clock speed) has no design yet.
-   It starts with a design pass like "2026-10-13 — Phase 2 (Exploration)
-   design", frozen before any worker builds it.
+1. **Phase 3 design is written** ("2026-10-15 — Phase 3 (Full Story)
+   design" in DESIGN_DECISIONS.md): Day 4 (torch, cave interior, metal,
+   radio, "I have ___"), Day 5 (Kai at the rockfall, "Can you help me?",
+   clifftop path, signal fire, radio "I need help.", helicopter rescue,
+   Rescue card), classroom mode (whole story in one lesson), save v3. It is
+   waiting for the user's sign-off.
+2. Then build it in three slices: logic and world in parallel through the
+   router, then story. Freeze the place ids and fact names listed in the
+   build plan before dispatch.
 
 ## Known Issues / Unverified
 - Real speech recognition, sound and Chromebook GPU are untested (as in

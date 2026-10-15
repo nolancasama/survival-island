@@ -463,3 +463,208 @@ and the signal fire wait for Phase 3.
   read-only test state exposes cast phase, spot rest timers, action animation
   and free-play status alongside the existing quest, clock and sleep state.
 
+## 2026-10-15 — Phase 3 (Full Story) design
+
+Phase 3 adds the brief's Day 4 (Discover: torch, cave, signal device) and
+Day 5 (Escape: clifftop, signal fire, rescue), the rescue ending and
+classroom mode. These decisions were frozen before implementation started,
+and the workers build against them. The user chose two of them: classroom
+mode fits the whole story into one lesson, and the rescue is a helicopter at
+the clifftop.
+
+### Story
+
+`LAST_STORY_DAY` becomes 5. The Day 3 card loses "To be continued..." and
+gets a normal "Day 4" button. Day 4 ends with Sleep, like Days 1–3. Day 5
+ends with the rescue instead of Sleep.
+
+- **The signal device is an old radio** (ラジオ, a word Japanese children
+  already know). It works with the signal fire: the smoke shows where you
+  are, and the radio says what you need. Rejected: a flare gun or signal
+  mirror, which are hard words that do nothing for the English.
+- **Day 4: Discover.** Morning talk: "Good morning! Look at the cave." /
+  "The cave is dark." / Kai asks **"Can you make a torch?"**. Yes → "Show
+  me!"; No → he gives one leaves. Either way the torch recipe unlocks (1 wood
+  + 1 leaves, already in `RECIPES`; it shares ingredients with the shelter,
+  in different amounts). Steps:
+  1. Make a torch.
+  2. Go in the cave: at the cave mouth, with the torch, **"Go in the
+     cave."**. This is the first use of "go" from the brief's verb list. The
+     torch lights by itself as you enter. Without a torch, the mouth says
+     "It's dark! I need a torch." (a self line), and the cave stays shut.
+  3. Get metal (2). Old ship parts glint in the torchlight: **"Get the
+     metal."**, +1 each, quick after the first, like every resource.
+  4. Find the radio. An old box at the back of the cave: **"Open the box."**
+     (the Day 1 sentence again, on purpose) → "A radio! It's old, but it
+     works!".
+  5. Show Kai. Back at camp, Kai asks **"What do you have?"** → **"I have a
+     radio."** or **"I have metal."**. This is the first use of the brief's
+     "I have ___" pattern. Both are right and get different replies (radio →
+     "A radio! We can call for help!"; metal → "Metal! Good for a signal
+     fire. ... And a radio? Wow!"). Both end with the plan for tomorrow and
+     unlock the signal fire recipe.
+  6. Sleep.
+- **Day 5: Escape.** Morning: "Today we go home!" / "Let's go to the
+  clifftop. But rocks are on the path." / "I'll meet you there." Kai then
+  walks to the rockfall (see Kai below). Steps:
+  1. Clear the path: at the rockfall, with Kai there, the student asks
+     **"Can you help me?"**. Kai: "Yes, I can! One, two, three!" and the
+     rocks roll aside. Until now only Kai has asked "Can you ___?"; this
+     turns the pattern around. "Help" is in the verb list. Rejected: moving
+     the rocks with the axe, which teaches nothing new.
+  2. Make a signal fire (4 wood + 3 leaves + 2 metal, already in
+     `RECIPES`): "I want to make a signal fire." It can be made anywhere, as
+     every recipe can. Wood and leaves are counted steps (like Day 2); metal
+     comes from Day 4.
+  3. Go to the clifftop: done when the player first steps onto the
+     clifftop plateau.
+  4. Light the signal fire: at the stone fire pad beside the tower, with
+     the signal fire in the bag, **"Make a fire."** puts it down and lights
+     it in one action. It is the Day 1 sentence, which makes the climax an
+     easy win. A tall smoke column rises. No placement preview: the pad is
+     the only place it goes.
+  5. Call for help: the radio crackles. A voice: "Hello? Hello? What do you
+     need?" (Kai's Day 1 question, on purpose). The student says **"I need
+     help."** (mic-free distractors: "I need water." / "I want to sleep.").
+     Voice: "We see your smoke! We're coming!".
+  6. The rescue follows automatically (see Ending).
+- **World facts stay sticky and the world gates actions**, as in Phase 2.
+  The cave mouth needs a torch in the bag (no flag). `cliffOpen` is set by
+  "Can you help me?" and opens the path. Metal and the radio exist only in
+  the cave, so Day 4 cannot be skipped.
+
+### Kai on Days 4–5
+
+- On Day 4 Kai stays at camp. "Show Kai" needs the radio in the bag; his
+  repeatable hint before that points at the cave.
+- On Day 5, after the morning talk, Kai walks a fixed waypoint route from
+  camp to the rockfall (camp → forest gap → forest centre → the foot of the
+  cliff path) at walking speed. No pathfinding: the route is authored, and
+  Kai ignores collisions on it. If the player reaches the rockfall first,
+  the prompt waits with "Kai is coming!" until he arrives. After "Can you
+  help me?" he walks up the path ahead of the player and waits at the top
+  beside the pad. His hints there point at the pad, then at the radio.
+- Rejected: Kai following the player all day. It needs real pathfinding and
+  gets in the way.
+
+### The cave is its own small place
+
+- **Going in fades to a separate interior**, built away from the island (off
+  the map, out of sight), and going out fades back to the mouth. Rejected:
+  a tunnel cut into the hill terrain. The follow camera would fight the
+  ceiling and the walls, and the dither fade cannot clear a roof.
+- **Layout:** an entrance lit from outside, a short bend, then one chamber
+  about 12 × 16 m. Metal: 3 nodes (old ship parts: a bent plate, a pipe, a
+  wheel rim) that respawn like other nodes. The old box with the radio is at
+  the back and opens once. Leaving is just walking back into the entrance
+  light (no English). Saving inside the cave resumes at the cave mouth.
+- **Torchlight, never horror.** Inside, the island light rig is replaced by
+  a dim, warm cave rig: low ambient, never black, with the shared point
+  light carried by the torch. A few soft blue glowing crystals help the
+  student find the way. No bats, no sudden sounds, no darkness that hides
+  the floor. The day clock pauses inside the cave.
+- The player holds the lit torch only inside the cave.
+
+### Clifftop
+
+- **A real walkable path, not a fade.** Reaching the top is the exploration
+  payoff, with the whole island in view. The cliff path climbs from the
+  rockfall (about (7, −42)) to a plateau around the tower (26, 25, −78) as
+  one more walkable region, gated by `cliffOpen`. It switchbacks once if
+  the slope needs it, and it is gentle enough to walk without a stamina
+  cost. The world worker records the final coordinates here.
+- **The plateau** is flat and roughly 14 m across. It has the existing tower,
+  the stone fire pad (a ring of stones, place id `signalPad`), and a clear
+  landing area for the helicopter. Low rocks line the edge, so nobody walks
+  off the cliff.
+- The rockfall is a pile of boulders. When the path is cleared they roll
+  aside and stay aside (saved).
+
+### Ending
+
+- After "I need help." the voice line plays, then a helicopter flies in from
+  the sea, circles once and lands on the plateau. The camera frames the
+  landing (an authored shot), Kai cheers ("We did it! We're going home!"),
+  and the rescue music plays (the brief's "rescue celebration music").
+- **The Rescue card** replaces the day card: "Rescued!", all five days'
+  English with the usual NEW badges, and two buttons: **"Keep exploring"**
+  (back on the island next morning as free play, as Day 4+ free play works
+  now; the helicopter is gone and Kai is at camp) and **"Title"**. Free
+  Survival mode itself (camp expansion, optional challenges) stays in
+  Phase 4.
+- The day clock holds at golden hour on Day 5 (the sun waits as usual), so
+  the rescue happens in warm evening light.
+
+### English added in Phase 3
+
+New sentences: "Go in the cave.", "Get the metal.", "I have a radio.", "I
+have metal.", "Can you help me?", "I need help.", "I need metal." (the "I
+need…" choice: it lights the metal in the cave, or the cave mouth from
+outside), and Kai's questions "Can you make a torch?" and "What do you
+have?". "Open the box.", "Make a fire.", "Yes, I can." and "No, I can't."
+come back on purpose. The existing torch and signal-fire craft sentences
+become reachable.
+
+- Key words: go (go, goes, going, went, goal, gold), cave (cave, caves,
+  cape, cafe, kev), metal (metal, metals, medal, middle, meadow, iron),
+  have (have, has, had, half), radio (radio, radios, rajio, video), help
+  (help, helps, helped, health, hell), plus the existing need/get/yes/no
+  tables. Each prompt judges only its own choices, so "Can you help me?"
+  and "I need help." never compete.
+- The rules from Phases 1–2 hold: the first success makes an action quick,
+  mic-free shows a picture and 3 sentences, and Kai's questions (and the
+  radio voice's) have no wrong answer among the offered choices.
+
+### Classroom mode
+
+- **A teacher setting** on the title screen and in Settings, beside mic-free.
+  It is stored with the other device settings, not in the save, and can be
+  switched at any time; the counts take effect at once.
+- **Target: the whole story (Days 1–5) in about 30–35 minutes of play**, so
+  one 45-minute lesson ends with the rescue. It is the same story with the
+  same English. Only these numbers change, all from one `pace` table:
+  - Recipes: campfire 2 wood + 1 stone; axe 1 wood + 1 stone; shelter 2 wood
+    + 2 leaves; container 1 coconut + 1 leaves; rod 1 wood + 1 rope; torch 1
+    wood + 1 leaves; signal fire 2 wood + 2 leaves + 1 metal; bridge 2 wood;
+    the Day 4 metal goal 1. Counted steps read their goals from the active
+    recipe, so they follow automatically.
+  - Day clock: daylight 240 s (not 420), evening 15 s (not 30).
+  - Food drains at 0.6×.
+  - **Automatic hints:** if no step has ticked for 20 s and nothing is open
+    (no prompt, conversation or menu), the current step's target lights up
+    with beacons and edge arrows, as "I need…" or Kai's hint would. They
+    repeat at most every 20 s. Normal mode has no automatic hints.
+- Rejected: skipping Kai's lines or days in classroom mode. That would be a
+  different game.
+
+### Saves
+
+The save moves to `si.save.v3`. New saved facts: `cliffOpen`, the opened cave
+box, `signalLit`, `rescued`, and Kai's Day 5 stage (camp / rockfall /
+clifftop). The torch and radio are bag items (`radio` is a new `tool` item).
+A valid v2 save migrates. A v2 save in free play (day ≥ 4, made before
+Phase 3) resumes at the **Day 4 morning** with everything it had. Anything
+that does not validate is still discarded whole.
+
+### Build plan (for the workers)
+
+Three slices, in the Phase 2 pattern. World and logic run in parallel; story
+follows when both are accepted.
+
+1. **Logic:** Days 4–5 data and facts, `LAST_STORY_DAY = 5`, the new phrases
+   and key words, the `radio` item, the `pace` table (normal and classroom)
+   with the recipe, bridge and goal counts and the clock and food rates read
+   through it, save v3 with v2 migration, unit tests.
+2. **World:** the cave interior, the enter/exit fades and the cave light rig,
+   the torch prop and its light, metal nodes and the old box, the cliff path
+   region and the rockfall (closed/cleared), the clifftop plateau and pad,
+   the signal fire model with a cheap smoke column, the helicopter model and
+   its landing animation, Kai's Day 5 waypoint routes, and new places in
+   `flow/places.ts` (`caveMouth`, `caveBox`, `caveExit`, `rockfall`,
+   `signalPad`, `clifftop`). Same Chromebook budget as Phase 2, including
+   the view from the clifftop.
+3. **Story:** the Day 4 and Day 5 flow, Kai's talks, the radio call, the
+   ending and Rescue card, "I need metal.", classroom mode's setting and
+   automatic hints, e2e for Days 4–5 and classroom mode, and the shots
+   script.
+
