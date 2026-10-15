@@ -158,6 +158,8 @@ export async function nextDay() {
     rt.clock = dayStartT(q.day);
     rt.light = rt.lightTarget = lightAt(rt.clock);
     rt.eveningDay = 0;
+    rt.stepIdleSeconds = 0;
+    rt.lastAutomaticHintAt = rt.simTime;
     rt.beacons = { ids: [], until: 0 };
     setGame({
       quest: q,
@@ -193,6 +195,19 @@ export async function nextDay() {
   } finally {
     advancing = false;
   }
+}
+
+/** A migrated free-play save begins Day 4's story without advancing the day number. */
+export async function resumeDayFourMorning() {
+  setGame({ mode: "busy", focus: null, dayTitle: 4, daySaid: [], dayNew: [] });
+  wakeAtCamp();
+  audio.play("morning");
+  await wait(2600);
+  setGame({ dayTitle: null });
+  rt.player.lyingTarget = 0;
+  await wait(900);
+  await morningTalk(4);
+  refreshQuest();
 }
 
 /** The player wakes lying beside the shelter (or fire); Kai is up already, next to the camp. */

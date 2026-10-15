@@ -72,7 +72,7 @@ export interface Line {
 
 export interface Focus {
   id: string;
-  kind: "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign" | "bridge" | "water" | "fish";
+  kind: "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign" | "bridge" | "water" | "fish" | "caveMouth" | "caveBox";
   verb: string;
   noun: string;
   icon: IconId;
@@ -111,6 +111,11 @@ export type HintKey =
   | "rod"
   | "fish"
   | "cook"
+  | "torch"
+  | "cave"
+  | "metal"
+  | "radio"
+  | "showKai"
   | "micBlocked"
   | null;
 

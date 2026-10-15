@@ -1,16 +1,17 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { rt } from "../game/runtime";
 import { useGame } from "../game/store";
 import { groundY } from "../game/world/island";
 import {
-  CAVE_BOX, CAVE_CHAMBER, CAVE_EXIT, CLIFF_PATH, CLIFF_PATH_R,
+  CAVE_BOX, CAVE_CHAMBER, CAVE_EXIT,
   CLIFFTOP, HELICOPTER_PAD, RESCUE_SECONDS, ROCKFALL, SIGNAL_PAD
 } from "../game/world/phase3";
 import { PartBuilder } from "./partBuilder";
 import { flatMat, glowTexture, occluderMat } from "./materials";
-import { rockGeometry } from "./models/nature";
+import { bushGeometry, jungleTreeGeometry, rockGeometry } from "./models/nature";
+import { cliffDressingSpots, cliffTerrainGeometry, type CliffSpot } from "./models/cliffTrail";
 import {
   caveCrystalsGeometry, caveShellGeometry, helicopterGeometry,
   helicopterRotorGeometry, oldBoxGeometry, signalFireGeometry, signalPadGeometry
@@ -43,39 +44,8 @@ function CaveInterior() {
   );
 }
 
-function northTerrainGeometry(): THREE.BufferGeometry {
-  const g = new THREE.PlaneGeometry(160, 44, 128, 60);
-  g.rotateX(-Math.PI / 2);
-  g.translate(0, 0, -73);
-  const p = g.attributes.position;
-  const colors = new Float32Array(p.count * 3);
-  const color = new THREE.Color();
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i);
-    const z = p.getZ(i);
-    p.setY(i, groundY(x, z));
-    const plateau = Math.hypot(x - CLIFFTOP.x, z - CLIFFTOP.z) < CLIFFTOP.r + 0.8;
-    color.set(plateau ? "#b6a57b" : "#7c8670").multiplyScalar(0.96 + Math.sin(i * 19.3) * 0.035);
-    colors.set([color.r, color.g, color.b], i * 3);
-  }
-  g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  return g;
-}
-
 function cliffDetailsGeometry(): THREE.BufferGeometry {
   const b = new PartBuilder(0.2);
-  for (let i = 1; i < CLIFF_PATH.length; i++) {
-    const a = CLIFF_PATH[i - 1];
-    const c = CLIFF_PATH[i];
-    const distance = Math.hypot(c.x - a.x, c.z - a.z);
-    const steps = Math.ceil(distance / 0.65);
-    for (let k = 0; k < steps; k++) {
-      const u = (k + 0.5) / steps;
-      const x = a.x + (c.x - a.x) * u;
-      const z = a.z + (c.z - a.z) * u;
-      b.boxAt(CLIFF_PATH_R * 1.85, 0.055, distance / steps + 0.03, [x, groundY(x, z) + 0.035, z], [0, Math.atan2(c.x - a.x, c.z - a.z), 0], k % 3 ? "#b7a080" : "#c1ac89");
-    }
-  }
   for (let i = 0; i < 36; i++) {
     const a = i * Math.PI / 18;
     const x = CLIFFTOP.x + Math.cos(a) * (CLIFFTOP.r + 0.1);
@@ -84,6 +54,41 @@ function cliffDetailsGeometry(): THREE.BufferGeometry {
     b.add(rockGeometry(0.58, 0.72, 410 + i, 0), i % 2 ? "#aaa898" : "#8d9586", [x, groundY(x, z) + 0.05, z], [0, a, 0]);
   }
   return b.build();
+}
+
+function CliffInstances({ geometry, spots }: { geometry: THREE.BufferGeometry; spots: CliffSpot[] }) {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  useEffect(() => {
+    if (!mesh.current) return;
+    const o = new THREE.Object3D();
+    spots.forEach((p, i) => {
+      o.position.set(p.x, groundY(p.x, p.z) - 0.12, p.z);
+      o.rotation.set(0, p.r, 0);
+      o.scale.setScalar(p.s);
+      o.updateMatrix();
+      mesh.current!.setMatrixAt(i, o.matrix);
+    });
+    mesh.current.instanceMatrix.needsUpdate = true;
+    mesh.current.computeBoundingSphere();
+  }, [spots]);
+  return <instancedMesh ref={mesh} args={[geometry, occluderMat, spots.length]} />;
+}
+
+function CliffDressing() {
+  const spots = useMemo(cliffDressingSpots, []);
+  const bushes = useMemo(bushGeometry, []);
+  const trees = useMemo(jungleTreeGeometry, []);
+  const rocks = useMemo(() => {
+    const b = new PartBuilder(0.2);
+    b.add(rockGeometry(0.9, 1.1, 716, 0), "#969a94", [0, 0.15, 0]);
+    b.add(rockGeometry(0.6, 0.65, 717, 0), "#aaa99c", [0.6, 0.1, 0.2]);
+    return b.build();
+  }, []);
+  return <>
+    <CliffInstances geometry={rocks} spots={spots.rocks} />
+    <CliffInstances geometry={bushes} spots={spots.bushes} />
+    <CliffInstances geometry={trees} spots={spots.trees} />
+  </>;
 }
 
 function Rockfall() {
@@ -234,7 +239,7 @@ export function Helicopter() {
 
 export function Phase3World() {
   const inCave = useGame((s) => s.inCave);
-  const terrain = useMemo(northTerrainGeometry, []);
+  const terrain = useMemo(cliffTerrainGeometry, []);
   const details = useMemo(cliffDetailsGeometry, []);
   return (
     <>
@@ -242,6 +247,7 @@ export function Phase3World() {
       <group visible={!inCave}>
         <mesh geometry={terrain} material={flatMat} />
         <mesh geometry={details} material={occluderMat} />
+        <CliffDressing />
         <Rockfall />
         <SignalFire />
         <Helicopter />

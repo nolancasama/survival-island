@@ -38,7 +38,7 @@ export interface SaveData {
   metKai: boolean;
   ate: number;
   /** Kai's answers so far (choices change what he says later). */
-  kai: { need?: "water" | "food" | "wood"; canFire?: boolean; canAxe?: boolean; want?: "water" | "fish" };
+  kai: { need?: "water" | "food" | "wood"; canFire?: boolean; canAxe?: boolean; want?: "water" | "fish"; canTorch?: boolean; have?: "radio" | "metal" };
   player: { x: number; z: number; yaw: number };
   /** Story light, 1 = midday, 0 = night. */
   light: number;

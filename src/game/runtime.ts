@@ -111,6 +111,11 @@ export const rt = {
   celebrateT0: -100,
   /** Seconds the game has been running (paused in menus and dialogue). */
   simTime: 0,
+  /** Live seconds without a newly completed checklist step. */
+  stepIdleSeconds: 0,
+  /** Live time of the last automatic hint (also reset by a step tick). */
+  lastAutomaticHintAt: 0,
+  automaticHintCount: 0,
   /** Live (unrounded) survival stats; the store holds a rounded copy for the HUD. */
   stats: { ...START_STATS } as Stats,
   /** Metres walked since the start (hides the movement hint). */
@@ -170,6 +175,9 @@ export function resetRuntime() {
   rt.floaters = [];
   rt.celebrateT0 = -100;
   rt.simTime = 0;
+  rt.stepIdleSeconds = 0;
+  rt.lastAutomaticHintAt = 0;
+  rt.automaticHintCount = 0;
   rt.stats = { ...START_STATS };
   rt.walked = 0;
 }

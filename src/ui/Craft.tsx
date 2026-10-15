@@ -2,6 +2,7 @@ import { useGame } from "../game/store";
 import { ITEMS, type ItemId } from "../game/types";
 import { RECIPES, RECIPE_ORDER, checkCraft } from "../game/logic/crafting";
 import { count } from "../game/logic/inventory";
+import { recipeNeeds } from "../game/logic/pace";
 import { cancelPlacing, closeCraft, confirmPlacing, makeItem, rotatePlacing } from "../game/flow/actions";
 import { Icon } from "./icons";
 
@@ -23,6 +24,7 @@ export function CraftPanel() {
   const open = useGame((s) => s.craftOpen);
   const bag = useGame((s) => s.bag);
   const unlocked = useGame((s) => s.unlocked);
+  const classroom = useGame((s) => s.settings.classroom);
   if (!open) return null;
   const shown = RECIPE_ORDER.filter((id) => unlocked.includes(id));
   const locked = RECIPE_ORDER.length - shown.length;
@@ -40,7 +42,8 @@ export function CraftPanel() {
       <div className="recipes">
         {shown.map((id) => {
           const r = RECIPES[id];
-          const ok = checkCraft(bag, id, unlocked) === "ok";
+          const needs = recipeNeeds(id, classroom);
+          const ok = checkCraft(bag, id, unlocked, classroom) === "ok";
           return (
             <div key={id} className={`recipe ${ok ? "ready" : ""}`} data-testid={`recipe-${id}`}>
               <div className="recipe-icon">
@@ -53,7 +56,7 @@ export function CraftPanel() {
                   <Ja>{r.purpose.ja}</Ja>
                 </span>
                 <div className="needs-row">
-                  {(Object.entries(r.needs) as Array<[ItemId, number]>).map(([item, n]) => {
+                  {(Object.entries(needs) as Array<[ItemId, number]>).map(([item, n]) => {
                     const have = count(bag, item);
                     const enough = have >= n;
                     return (

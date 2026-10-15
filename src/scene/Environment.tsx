@@ -132,6 +132,7 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
   const ambient = useRef<THREE.AmbientLight>(null);
   const sunDisc = useRef<THREE.Mesh>(null);
   const last = useRef(-1);
+  const background = useMemo(() => new THREE.Color("#d6efff"), []);
   const dome = useMemo(() => {
     const g = new THREE.SphereGeometry(420, 24, 14);
     g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3), 3));
@@ -141,23 +142,35 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
   const discMat = useMemo(() => new THREE.MeshBasicMaterial({ color: "#fff4d6", fog: false, transparent: true, opacity: 0.95 }), []);
 
   useEffect(() => {
+    scene.background = background;
     scene.fog = new THREE.Fog("#d6efff", 60, 230);
-  }, [scene]);
+  }, [scene, background]);
 
   useFrame(() => {
     const cave = getGame().inCave;
     const l = rt.light;
+    if (!cave && scene.fog) {
+      // Thin the lowland haze as the trail rises, keeping the island below
+      // legible from the summit without altering the story's light keyframes.
+      const height = THREE.MathUtils.smoothstep(rt.player.y, 4, 24);
+      const north = THREE.MathUtils.smoothstep(-rt.player.z, 42, 54);
+      const clear = height * north;
+      const fog = scene.fog as THREE.Fog;
+      fog.near = 60 + clear * 65;
+      fog.far = 230 + clear * 150;
+    }
     const key = cave ? -2 : l;
     if (Math.abs(key - last.current) < 0.0015) return;
     last.current = key;
     if (cave) {
       if (scene.fog) {
         const fog = scene.fog as THREE.Fog;
-        fog.color.set("#272936");
+        fog.color.set("#130e0a");
         fog.near = 20;
         fog.far = 48;
       }
-      gl.setClearColor("#272936");
+      background.set("#130e0a");
+      gl.setClearColor(background);
       if (hemi.current) {
         hemi.current.color.set("#d3b99b");
         hemi.current.groundColor.set("#68617b");
@@ -169,10 +182,6 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
       }
       if (sun.current) sun.current.intensity = 0;
       return;
-    }
-    if (scene.fog) {
-      (scene.fog as THREE.Fog).near = 60;
-      (scene.fog as THREE.Fog).far = 230;
     }
     if (ambient.current) {
       ambient.current.color.set("#ffffff");
@@ -190,7 +199,8 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
     }
     col.needsUpdate = true;
     if (scene.fog) (scene.fog as THREE.Fog).color.copy(s.horizon);
-    gl.setClearColor(s.horizon);
+    background.copy(s.horizon);
+    gl.setClearColor(background);
     if (hemi.current) {
       hemi.current.color.copy(s.sky);
       hemi.current.groundColor.copy(s.ground);
@@ -253,7 +263,10 @@ function terrainGeometry(): THREE.BufferGeometry {
   const rand = makeRng(3);
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i);
-    const z = p.getZ(i);
+    // Keep the original lowland tessellation; collapse its unused northern
+    // rows onto the join with the detailed cliff terrain.
+    const z = Math.max(-41, p.getZ(i));
+    p.setZ(i, z);
     p.setY(i, groundY(x, z));
     const d = z - shoreZ(x);
     c.copy(SAND);

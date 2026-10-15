@@ -5,19 +5,20 @@ import { tickStats, afterFaint, RUN_AGAIN_AT, type Stats } from "../logic/stats"
 import { advanceClock, storyFloor, lightAt, isNight, faintPenalty, CAP } from "../logic/clock";
 import { SAVE_KEY, V2_SAVE_KEY, V1_SAVE_KEY, SAVE_VERSION, loadSaveText, serialize, type SaveData } from "../logic/save";
 import { checkCraft } from "../logic/crafting";
-import { pace } from "../logic/pace";
-import { NODE_BY_ID, NODES, FALLEN_TREE, FISH_SPOTS } from "../world/island";
+import { pace, recipeNeeds } from "../logic/pace";
+import { NODE_BY_ID, NODES, FALLEN_TREE, FISH_SPOTS, WATER_SPOTS, BRIDGE, CRATE } from "../world/island";
+import { CAVE_BOX, CAVE_OUTSIDE } from "../world/phase3";
 import { resolveCollisions, PLAYER_R, STATIC_OBSTACLES } from "../world/collision";
-import { isReachable } from "../world/reach";
 import { buildingObstacles } from "../world/placement";
 import { count } from "../logic/inventory";
 import { ask, fastMode, say } from "./ask";
-import { currentGates } from "./places";
-import { celebrate, eveningCue, nextDay, placeKaiAtCamp, sleepPlace } from "./days";
+import { currentGates, targetReachable } from "./places";
+import { celebrate, eveningCue, nextDay, placeKaiAtCamp, resumeDayFourMorning, sleepPlace } from "./days";
+import { checkCaveExit } from "./cave";
 import { audio } from "../../audio/audio";
 import { tts } from "../../audio/tts";
 import { recognition, requestMicPermission } from "../../audio/recognition";
-import { NODE_YIELD, type NodeKind } from "../types";
+import { NODE_YIELD, type CraftId, type ItemId, type NodeKind } from "../types";
 
 export const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, fastMode() ? Math.min(ms, 40) : ms));
 
@@ -51,7 +52,7 @@ export function save() {
     metKai: g.metKai,
     ate: g.ate,
     kai: g.kai,
-    player: { x: rt.player.x, z: rt.player.z, yaw: rt.player.yaw },
+    player: g.inCave ? { ...CAVE_OUTSIDE } : { x: rt.player.x, z: rt.player.z, yaw: rt.player.yaw },
     light: rt.lightTarget,
     said: g.said,
     daySaid: g.daySaid,
@@ -199,7 +200,13 @@ export async function continueGame() {
     void nextDay();
     return;
   }
+  // Keep controls paused while an unfinished morning waits for microphone preparation.
+  const needsMorning = data.quest.day === 4 && (getGame().kai.canTorch === undefined || !getGame().unlocked.includes("torch"));
+  if (needsMorning) setGame({ mode: "busy" });
   await prepareMic();
+  if (needsMorning) {
+    await resumeDayFourMorning();
+  }
 }
 
 export function toTitle() {
@@ -255,20 +262,111 @@ export function showBeacons(kind: NodeKind | NodeKind[], n = 2): boolean {
   const kinds = Array.isArray(kind) ? kind : [kind];
   const gates = currentGates();
   const p = rt.player;
-  const avail = NODES.filter((x) => kinds.includes(x.kind) && !rt.taken.has(x.id) && isReachable(x.x, x.z, gates))
+  const avail = NODES.filter((x) => kinds.includes(x.kind) && !rt.taken.has(x.id) && targetReachable(x.id, gates))
     .sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))
     .slice(0, n);
   if (avail.length) {
     showPlaces(avail.map((x) => x.id));
     return true;
   }
-  const behindGate = NODES.some((x) => kinds.includes(x.kind) && !isReachable(x.x, x.z, gates));
-  if (behindGate && !gates.pathCleared) {
+  const behindGate = NODES.some((x) => kinds.includes(x.kind) && !targetReachable(x.id, gates));
+  if (!getGame().inCave && behindGate && !gates.pathCleared) {
     showPlaces([FALLEN_TREE.id]);
+    return true;
+  }
+  if (!getGame().inCave && kinds.includes("metal")) {
+    showPlaces(["caveMouth"]);
+    return true;
+  }
+  if (getGame().inCave && behindGate && !kinds.includes("metal")) {
+    showPlaces(["caveExit"]);
     return true;
   }
   toast({ en: "None now. Wait a little!", ja: "いまは ないよ。すこし まってね。", icon: NODE_YIELD[kinds[0]].item, tone: "info" });
   return false;
+}
+
+/** Automatic help uses the same reachable places and resource beacons as voluntary help. */
+export function showStepTarget(): boolean {
+  const g = getGame();
+  const step = currentStep(g.quest);
+  if (!step) return false;
+  const point = (ids: string[]) => {
+    if (!ids.length) return false;
+    if (g.inCave && ids.some((id) => !targetReachable(id))) showPlaces(["caveExit"]);
+    else if (!g.pathCleared && ids.some((id) => !targetReachable(id))) showPlaces([FALLEN_TREE.id]);
+    else if (!g.bridgeBuilt && ids.some((id) => !targetReachable(id))) showPlaces([BRIDGE.id]);
+    else showPlaces(ids);
+    return true;
+  };
+  const recipes: Partial<Record<string, CraftId>> = {
+    craft: "campfire", axe: "axe", shelter: "shelter", container: "container", rod: "rod", torch: "torch", signalFire: "signalFire"
+  };
+  const recipe = recipes[step.id];
+  if (recipe) {
+    if (!g.unlocked.includes(recipe)) return point(["kai"]);
+    const needs = recipeNeeds(recipe, g.settings.classroom);
+    for (const item of Object.keys(needs) as ItemId[]) {
+      if (count(g.bag, item) >= needs[item]!) continue;
+      if (item === "rope") return point([CRATE.id]);
+      if (item === "wood") return showBeacons(count(g.bag, "axe") > 0 ? ["wood", "tree"] : "wood");
+      if (item === "stone" || item === "leaves" || item === "coconut" || item === "metal") return showBeacons(item);
+    }
+    // Ready-to-craft actions live in the UI, so pulse that target instead of a world place.
+    setGame({ craftPulse: true });
+    return true;
+  }
+  switch (step.id) {
+    case "eat":
+      if (count(g.bag, "coconut") === 0) return showBeacons("coconut");
+      setGame({ needsPulse: true });
+      return true;
+    case "kai":
+      return point(["kai"]);
+    case "wood":
+      return showBeacons(count(g.bag, "axe") > 0 ? ["wood", "tree"] : "wood");
+    case "stone":
+    case "leaves":
+    case "metal":
+      return showBeacons(step.id);
+    case "path":
+      return point([FALLEN_TREE.id]);
+    case "bridge":
+      return count(g.bag, "wood") < pace(g.settings.classroom).bridgeNeeds.wood! ? showBeacons(["wood", "tree"]) : point([BRIDGE.id]);
+    case "place":
+      setGame({ selected: "campfire" });
+      return true;
+    case "build": {
+      const shelter = g.buildings.find((b) => b.type === "shelter" && !b.built);
+      if (shelter) return point([shelter.id]);
+      setGame({ selected: "shelter" });
+      return true;
+    }
+    case "light":
+    case "cook":
+      return point(g.buildings.filter((b) => b.type === "campfire").map((b) => b.id));
+    case "water":
+    case "drink":
+      if (step.id === "drink" && count(g.bag, "water") > 0) {
+        setGame({ selected: "water" });
+        return true;
+      }
+      return point(WATER_SPOTS.map((s) => s.id));
+    case "fish":
+      return point(FISH_SPOTS.map((s) => s.id));
+    case "cave":
+      return point(["caveMouth"]);
+    case "radio":
+      return g.inCave ? point([CAVE_BOX.id]) : point(["caveMouth"]);
+    case "showKai":
+      return point(["kai"]);
+    case "sleep": {
+      const bed = sleepPlace();
+      return bed ? point([bed.id]) : false;
+    }
+    default:
+      return false;
+  }
 }
 
 // ------------------------------------------------------------------ quest
@@ -313,9 +411,13 @@ export function refreshQuest() {
       const step = day.steps.find((s) => s.id === id);
       if (step && step.id !== "sleep") toast({ en: `✓ ${step.en}`, ja: step.ja, tone: "good" });
     }
-    if (added.length) audio.play("sparkle");
+    if (added.length) {
+      audio.play("sparkle");
+      rt.stepIdleSeconds = 0;
+      rt.lastAutomaticHintAt = rt.simTime;
+    }
     // Each finished step pushes the sun on (it never waits past golden hour).
-    rt.clock = Math.max(rt.clock, storyFloor(q.done.length, day.steps.length));
+    if (!g.inCave) rt.clock = Math.max(rt.clock, storyFloor(q.done.length, day.steps.length));
     if (readyToSleep(q) && !readyToSleep(g.quest) && rt.eveningDay !== q.day) {
       if (q.day === 1) void celebrate();
       else void eveningCue();
@@ -384,6 +486,11 @@ export function updateHint() {
       case "rod":
       case "fish":
       case "cook":
+      case "torch":
+      case "cave":
+      case "metal":
+      case "radio":
+      case "showKai":
         hint = step.id;
         break;
     }
@@ -434,9 +541,17 @@ export function tick(dt: number) {
   const live = g.screen === "game" && (g.mode === "explore" || g.mode === "place") && !g.settingsOpen;
   if (!live) return;
   rt.simTime += dt;
+  rt.stepIdleSeconds += dt;
   const gamePace = pace(g.settings.classroom);
-  rt.clock = advanceClock(rt.clock, dt, { capped: clockCapped() }, gamePace.daySeconds, gamePace.eveningSeconds);
+  if (!g.inCave) rt.clock = advanceClock(rt.clock, dt, { capped: clockCapped() }, gamePace.daySeconds, gamePace.eveningSeconds);
   setMood(moodAt(rt.clock));
+  checkCaveExit();
+  const hintDelay = gamePace.automaticHintDelay;
+  if (hintDelay !== null && rt.stepIdleSeconds >= hintDelay && rt.simTime - rt.lastAutomaticHintAt >= hintDelay
+    && g.mode === "explore" && !g.prompt && !g.line && !g.craftOpen && !g.placing && !g.sleeping && getGame().mode === "explore") {
+    rt.lastAutomaticHintAt = rt.simTime;
+    if (showStepTarget()) rt.automaticHintCount++;
+  }
 
   // Resources grow back, but never right in front of the player.
   for (const [id, left] of rt.taken) {
@@ -514,6 +629,7 @@ async function faint() {
   // Wake at the shelter, else by a lit fire, else next to Kai.
   const camp = sleepPlace();
   const home = camp ? { x: camp.x + 1.6, z: camp.z + 1.9 } : { x: rt.kai.x + 1.4, z: rt.kai.z + 1.8 };
+  setGame({ inCave: false });
   const at = resolveCollisions(home.x, home.z, PLAYER_R, [STATIC_OBSTACLES, buildingObstacles(getGame().buildings)], currentGates());
   rt.player.x = at.x;
   rt.player.z = at.z;

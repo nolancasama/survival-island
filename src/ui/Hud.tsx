@@ -1,10 +1,10 @@
 import { useGame, setGame } from "../game/store";
 import { ITEMS, ITEM_ORDER, type ItemId } from "../game/types";
-import { dayDef } from "../game/logic/quest";
+import { dayDef, stepGoal } from "../game/logic/quest";
 import { count } from "../game/logic/inventory";
 import { needs, openCraft, useItem } from "../game/flow/actions";
 import { Icon, type IconId } from "./icons";
-import { HINTS } from "./i18n";
+import { hints } from "./i18n";
 
 function Ja({ children }: { children: React.ReactNode }) {
   const on = useGame((s) => s.settings.japanese);
@@ -45,6 +45,7 @@ function Stats() {
 function Objective() {
   const quest = useGame((s) => s.quest);
   const bag = useGame((s) => s.bag);
+  const classroom = useGame((s) => s.settings.classroom);
   const day = dayDef(quest.day);
   const current = day.steps.find((s) => !quest.done.includes(s.id));
   if (!day.steps.length) {
@@ -72,14 +73,15 @@ function Objective() {
         {day.steps.map((s) => {
           const done = quest.done.includes(s.id);
           const now = s === current;
+          const goal = stepGoal(s, classroom);
           return (
             <li key={s.id} className={done ? "done" : now ? "now" : "later"} data-testid={`step-${s.id}`}>
               <span className="tick">{done ? "✓" : now ? "▶" : "•"}</span>
               <span className="step-text">
                 {s.en}
-                {s.goal && !done && (
+                {goal && !done && (
                   <span className="goal">
-                    <Icon id={s.goal.item} size={18} /> {Math.min(count(bag, s.goal.item), s.goal.n)}/{s.goal.n}
+                    <Icon id={goal.item} size={18} /> {Math.min(count(bag, goal.item), goal.n)}/{goal.n}
                   </span>
                 )}
                 {now && <Ja>{s.ja}</Ja>}
@@ -97,8 +99,9 @@ function Hint() {
   const touch = useGame((s) => s.touch);
   const mode = useGame((s) => s.mode);
   const ja = useGame((s) => s.settings.japanese);
+  const classroom = useGame((s) => s.settings.classroom);
   if (!hint || (mode !== "explore" && mode !== "place")) return null;
-  const h = HINTS[hint]?.[touch ? "touch" : "keys"];
+  const h = hints(classroom)[hint]?.[touch ? "touch" : "keys"];
   if (!h) return null;
   return (
     <div className="hint ui" data-testid="hint">

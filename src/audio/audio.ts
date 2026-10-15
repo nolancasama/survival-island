@@ -15,6 +15,9 @@ export type SfxName =
   | "step"
   | "wood"
   | "stone"
+  | "metal"
+  | "torch"
+  | "creak"
   | "coconut"
   | "rope"
   | "chop"
@@ -246,6 +249,22 @@ class AudioEngine {
         this.tone(115, t, { to: 72, peak: 0.38, attack: 0.003, decay: 0.16, type: "triangle" });
         this.noiseBurst(t, { filter: "bandpass", freq: 850, to: 260, q: 1.8, peak: 0.24, attack: 0.003, decay: 0.13 });
         this.noiseBurst(t + 0.08, { filter: "highpass", freq: 2100, q: 0.8, peak: 0.08, attack: 0.002, decay: 0.12 });
+        break;
+      case "metal":
+        // Inharmonic ringing partials give the ship parts their own bright clink.
+        [1180, 1877, 2960].forEach((freq, i) => {
+          this.tone(freq, t, { peak: 0.12 / (i + 1), attack: 0.002, decay: 0.45 - i * 0.1, type: "sine" });
+        });
+        this.noiseBurst(t, { filter: "highpass", freq: 3200, peak: 0.06, attack: 0.001, decay: 0.035 });
+        break;
+      case "torch":
+        this.noiseBurst(t, { filter: "bandpass", freq: 350, to: 2100, q: 0.6, peak: 0.2, attack: 0.12, decay: 0.45 });
+        break;
+      case "creak":
+        [140, 175, 130].forEach((freq, i) => {
+          this.tone(freq, t + i * 0.12, { to: freq * 0.7, peak: 0.08, attack: 0.04, decay: 0.22, type: "triangle" });
+        });
+        this.noiseBurst(t, { filter: "bandpass", freq: 700, to: 400, q: 4, peak: 0.08, attack: 0.04, decay: 0.45 });
         break;
       case "leaves":
         for (let i = 0; i < 4; i++) {

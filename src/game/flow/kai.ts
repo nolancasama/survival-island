@@ -2,7 +2,9 @@ import { getGame, setGame, toast } from "../store";
 import { rt, floatText } from "../runtime";
 import { addItem, count } from "../logic/inventory";
 import { currentStep, readyToSleep } from "../logic/quest";
+import { pace, recipeNeeds } from "../logic/pace";
 import { BRIDGE, CRATE, FALLEN_TREE, FISH_SPOTS, WATER_SPOTS } from "../world/island";
+import { CAVE_BOX } from "../world/phase3";
 import type { CraftId } from "../types";
 import { ask, say } from "./ask";
 import { refreshQuest, showBeacons, showPlaces } from "./session";
@@ -44,7 +46,7 @@ function endConversation() {
   setGame({ mode: "explore" });
 }
 
-function give(item: "coconut" | "wood" | "stone") {
+function give(item: "coconut" | "wood" | "stone" | "leaves") {
   setGame({ bag: addItem(getGame().bag, item, 1).bag });
   audio.play(item);
   floatText(`+1 ${item}`, rt.player.x, rt.player.y + 2.1, rt.player.z);
@@ -61,6 +63,7 @@ export async function talkToKai() {
     else if (g.quest.day === 1) await helpAgain();
     else if (g.quest.day === 2) await helpDayTwo();
     else if (g.quest.day === 3) await helpDayThree();
+    else if (g.quest.day === 4) await helpDayFour();
     else await whatDoYouNeed();
   } finally {
     endConversation();
@@ -76,6 +79,7 @@ export async function morningTalk(day: number) {
   try {
     if (day === 2) await dayTwoMorning();
     else if (day === 3) await dayThreeMorning();
+    else if (day === 4) await dayFourMorning();
     else await say("kai", "Good morning! Let's explore the island!", "おはよう！ しまを たんけんしよう！");
   } finally {
     endConversation();
@@ -100,9 +104,13 @@ async function bedtime() {
   else await say("kai", "It's late. Let's sleep by the fire.", "もう おそいね。 火の そばで ねよう。");
 }
 
-/** Day 3's evening remembers which adventure the student chose. */
+/** The evening remembers Day 3's choice, then looks ahead on Day 4. */
 export async function dayThreeThanks() {
   const g = getGame();
+  if (g.quest.day === 4) {
+    await say("kai", "Tomorrow we go home!", "あしたは いえに かえろう！");
+    return;
+  }
   if (g.quest.day !== 3) return;
   if (g.kai.want === "fish") {
     await say("kai", "Fish for dinner! Yum!", "ゆうごはんは さかな！ おいしいね！");
@@ -132,11 +140,9 @@ async function dayTwoMorning() {
     give("stone");
     await say("kai", "That's OK. Here's a stone.", "だいじょうぶ。 はい、 石を どうぞ。");
   }
-  await say("kai", "You need two wood and one stone.", "木が 2つと、 石が 1つ いるよ。", {
-    icons: [
-      { item: "wood", n: 2 },
-      { item: "stone", n: 1 }
-    ]
+  const needs = recipeNeeds("axe", getGame().settings.classroom);
+  await say("kai", `You need ${numberWord(needs.wood!)} wood and ${numberWord(needs.stone!)} stone.`, `木が ${needs.wood}つと、 石が ${needs.stone}つ いるよ。`, {
+    icons: [{ item: "wood", n: needs.wood! }, { item: "stone", n: needs.stone! }]
   });
   unlock("axe", "stone axe", "石の おの");
 }
@@ -169,23 +175,99 @@ async function dayThreeMorning() {
   }
   const targets = !waterFirst && !getGame().crateOpened ? [BRIDGE.id, CRATE.id] : [BRIDGE.id];
   showPlaces(targets);
-  await say("kai", "You need four wood for the bridge.", "はしには 木が 4つ いるよ。", {
-    icons: [{ item: "wood", n: 4 }]
+  await bridgeNeedsLine();
+}
+
+/** Recipe quantities always follow the active teacher setting. */
+function numberWord(n: number): string {
+  return ["zero", "one", "two", "three", "four"][n] ?? String(n);
+}
+
+async function bridgeNeedsLine() {
+  const wood = pace(getGame().settings.classroom).bridgeNeeds.wood!;
+  await say("kai", `You need ${numberWord(wood)} wood for the bridge.`, `はしには 木が ${wood}つ いるよ。`, {
+    icons: [{ item: "wood", n: wood }]
+  });
+}
+
+async function containerNeedsLine() {
+  const needs = recipeNeeds("container", getGame().settings.classroom);
+  const leaves = needs.leaves!;
+  await say("kai", `Make a water container with a coconut and ${leaves === 1 ? "one leaf" : `${numberWord(leaves)} leaves`}.`, `ココナッツ ${needs.coconut}つと はっぱ ${leaves}つで みずいれを つくろう。`, {
+    icons: [{ item: "coconut", n: needs.coconut! }, { item: "leaves", n: leaves }]
+  });
+}
+
+async function rodNeedsLine() {
+  const needs = recipeNeeds("rod", getGame().settings.classroom);
+  await say("kai", `Make a fishing rod with ${numberWord(needs.wood!)} wood and ${numberWord(needs.rope!)} rope.`, `木 ${needs.wood}つと ロープ ${needs.rope}つで つりざおを つくろう。`, {
+    icons: [{ item: "wood", n: needs.wood! }, { item: "rope", n: needs.rope! }]
   });
 }
 
 async function teachContainer() {
-  await say("kai", "Make a water container with a coconut and two leaves.", "ココナッツ 1つと はっぱ 2つで みずいれを つくろう。", {
-    icons: [{ item: "coconut", n: 1 }, { item: "leaves", n: 2 }]
-  });
+  await containerNeedsLine();
   unlock("container", "water container", "みずいれ");
 }
 
 async function teachRod() {
-  await say("kai", "Make a fishing rod with two wood and one rope.", "木 2つと ロープ 1つで つりざおを つくろう。", {
-    icons: [{ item: "wood", n: 2 }, { item: "rope", n: 1 }]
-  });
+  await rodNeedsLine();
   unlock("rod", "fishing rod", "つりざお");
+}
+
+async function dayFourMorning() {
+  await say("kai", "Good morning! Look at the cave.", "おはよう！ どうくつを みて。");
+  await say("kai", "The cave is dark.", "どうくつは くらいね。");
+  const can = await ask({
+    kind: "choice",
+    options: ["yesICan", "noICant"],
+    question: { en: "Can you make a torch?", by: "kai" },
+    picture: "torch",
+    readQuestion: true
+  });
+  setGame({ kai: { ...getGame().kai, canTorch: can === "yesICan" } });
+  if (can === "yesICan") {
+    await say("kai", "Show me!", "みせて！");
+  } else {
+    give("leaves");
+    await say("kai", "Here are some leaves.", "はい、 はっぱを どうぞ。");
+  }
+  unlock("torch", "torch", "たいまつ");
+  showPlaces(["caveMouth"]);
+}
+
+/** Before the radio is found, Kai points toward the cave's next discovery. */
+async function helpDayFour() {
+  const g = getGame();
+  if (count(g.bag, "radio") > 0 && g.kai.have === undefined) {
+    const have = await ask({
+      kind: "choice",
+      options: ["haveRadio", "haveMetal"],
+      question: { en: "What do you have?", by: "kai" },
+      picture: "radio",
+      readQuestion: true
+    });
+    if (have === "haveRadio") {
+      await say("kai", "A radio! We can call for help!", "ラジオだ！ たすけを よべるよ！");
+    } else {
+      await say("kai", "Metal! Good for a signal fire.", "てつだ！ のろしに つかえるね。");
+      await say("kai", "And a radio? Wow!", "ラジオも？ すごい！");
+    }
+    await say("kai", "Tomorrow, let's go to the clifftop. We can make a signal fire there.", "あしたは がけの うえに いこう。 そこで のろしを つくれるよ。");
+    unlock("signalFire", "signal fire", "のろし");
+    setGame({ kai: { ...getGame().kai, have: have === "haveRadio" ? "radio" : "metal" } });
+    return;
+  }
+  if (!g.inCave) {
+    showPlaces(["caveMouth"]);
+    await say("kai", "Look in the cave with your torch!", "たいまつを もって どうくつを しらべよう！");
+  } else if (currentStep(g.quest)?.id === "metal") {
+    showBeacons("metal");
+    await say("kai", "Look! There is metal in the cave.", "みて！ どうくつに てつが あるよ。");
+  } else {
+    showPlaces([CAVE_BOX.id]);
+    await say("kai", "Look! There is an old box in the cave.", "みて！ どうくつに ふるい はこが あるよ。");
+  }
 }
 
 /** Pond hints point at the closed gate first, just like the voluntary needs menu. */
@@ -199,9 +281,10 @@ async function helpDayTwo() {
   const g = getGame();
   const step = currentStep(g.quest)?.id;
   const shelter = g.buildings.find((b) => b.type === "shelter" && !b.built);
+  const axeNeeds = recipeNeeds("axe", g.settings.classroom);
   switch (step) {
     case "axe":
-      if (count(g.bag, "wood") >= 2 && count(g.bag, "stone") >= 1) {
+      if (count(g.bag, "wood") >= axeNeeds.wood! && count(g.bag, "stone") >= axeNeeds.stone!) {
         await say("kai", "Make a stone axe. Then cut the big tree!", "石の おのを つくろう。 それから おおきな 木を きろう！");
         return;
       }
@@ -240,12 +323,12 @@ async function helpDayThree() {
   switch (currentStep(g.quest)?.id) {
     case "bridge":
       showPond([BRIDGE.id]);
-      await say("kai", "You need four wood for the bridge.", "はしには 木が 4つ いるよ。", { icons: [{ item: "wood", n: 4 }] });
+      await bridgeNeedsLine();
       return;
     case "container":
       if (count(g.bag, "coconut") === 0) showBeacons("coconut");
-      else if (count(g.bag, "leaves") < 2) showBeacons("leaves");
-      await say("kai", "Make a water container with a coconut and two leaves.", "ココナッツ 1つと はっぱ 2つで みずいれを つくろう。");
+      else if (count(g.bag, "leaves") < recipeNeeds("container", g.settings.classroom).leaves!) showBeacons("leaves");
+      await containerNeedsLine();
       return;
     case "water":
       showPond(WATER_SPOTS.map((spot) => spot.id));
@@ -260,8 +343,8 @@ async function helpDayThree() {
         showPlaces([CRATE.id]);
         await say("kai", "Open the box on the beach. There is rope!", "はまの はこを あけてね。 ロープが あるよ！");
       } else {
-        if (count(g.bag, "wood") < 2) showBeacons(count(g.bag, "axe") > 0 ? ["wood", "tree"] : "wood");
-        await say("kai", "Make a fishing rod with two wood and one rope.", "木 2つと ロープ 1つで つりざおを つくろう。");
+        if (count(g.bag, "wood") < recipeNeeds("rod", g.settings.classroom).wood!) showBeacons(count(g.bag, "axe") > 0 ? ["wood", "tree"] : "wood");
+        await rodNeedsLine();
       }
       return;
     case "fish":
@@ -355,11 +438,9 @@ async function firstMeeting() {
     give("stone");
     await say("kai", "Here's a stone.", "はい、 石を どうぞ。");
   }
-  await say("kai", "You need three wood and two stones.", "木が 3つと、 石が 2つ いるよ。", {
-    icons: [
-      { item: "wood", n: 3 },
-      { item: "stone", n: 2 }
-    ]
+  const needs = recipeNeeds("campfire", getGame().settings.classroom);
+  await say("kai", `You need ${numberWord(needs.wood!)} wood and ${numberWord(needs.stone!)} ${needs.stone === 1 ? "stone" : "stones"}.`, `木が ${needs.wood}つと、 石が ${needs.stone}つ いるよ。`, {
+    icons: [{ item: "wood", n: needs.wood! }, { item: "stone", n: needs.stone! }]
   });
   setGame({ unlocked: ["campfire"], craftPulse: true });
   audio.play("unlock");
@@ -379,7 +460,8 @@ async function helpAgain() {
     await say("kai", "Put the campfire on the sand.", "たきびを すなの うえに おこう。");
     return;
   }
-  if (count(g.bag, "wood") >= 3 && count(g.bag, "stone") >= 2) {
+  const needs = recipeNeeds("campfire", g.settings.classroom);
+  if (count(g.bag, "wood") >= needs.wood! && count(g.bag, "stone") >= needs.stone!) {
     await say("kai", "You have wood and stones! Now make a campfire.", "木と 石が あるね！ たきびを つくろう。");
     return;
   }

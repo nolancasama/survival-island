@@ -1,4 +1,4 @@
-// Visual check: plays Days 1–3 and free play in Chromium with speech stubs and saves screenshots to .tmp/shots.
+// Visual check: plays Days 1–4 and a classroom Day 1 pass, saving screenshots to .tmp/shots.
 // Usage: node scripts/shots.mjs [baseUrl] [viewport WxH] [--touch] [--tap]
 //   --tap: play in mic-free mode (tap the sentences)
 import { chromium } from "@playwright/test";
@@ -533,18 +533,157 @@ await stage("Day 3 complete card", () => window.__si.state().day === 3 && window
 await page.waitForTimeout(1500);
 await shot("day3-end");
 
-// Keep playing opens Day 4 with the free-time objective and no story checklist.
+// Day 4: torch, cave, metal and the radio, then Kai's plan for tomorrow.
 await page.getByTestId("next-day").click();
-await stage("Day 4 free-time title", () => window.__si.state().dayTitle === 4 && window.__si.state().freePlay);
+await stage("Day 4 story title", () => window.__si.state().dayTitle === 4 && !window.__si.state().freePlay);
 await shot("day4-title");
-await stage("free-play morning talk", () => window.__si.state().line?.en === "Good morning! Let's explore the island!");
+await stage("Day 4 cave greeting", () => window.__si.state().line?.en === "Good morning! Look at the cave.");
 await next();
-await stage("free play without a checklist", () => {
+await stage("dark cave lesson", () => window.__si.state().line?.en === "The cave is dark.");
+await next();
+await stage("torch question", () => window.__si.state().prompt?.question === "Can you make a torch?");
+await shot("day4-torch-question");
+await answer("yes I can", "yesICan");
+await stage("Kai says show me", () => window.__si.state().line?.en === "Show me!");
+await next();
+await stage("torch unlocked", () => window.__si.state().mode === "explore" && window.__si.state().unlocked.includes("torch"));
+await day3Target("caveMouth");
+await page.keyboard.press("KeyE");
+await stage("dark cave refusal", () => window.__si.state().line?.en === "It's dark! I need a torch.");
+await shot("day4-dark-cave-refusal");
+await next();
+await stage("refusal returns to play", () => window.__si.state().mode === "explore");
+
+/** New collection captures wait on the actual prompt and inventory transition. */
+const storyGather = async (kind, item, need, sentence, phrase) => {
+  for (let guard = 0; guard < 8; guard++) {
+    const before = (await st()).bag[item] ?? 0;
+    if (before >= need) return;
+    const ids = await page.evaluate((source) => window.__si.nodes(source), kind);
+    if (!ids.length) throw new Error(`HARNESS_PRECONDITION_FAILED: reachable ${kind} source`);
+    await day3Target(ids[0]);
+    const familiar = (await st()).known.includes(phrase);
+    await page.keyboard.press("KeyE");
+    if (!familiar) {
+      await stage(`new ${kind} prompt`, (id) => window.__si.state().prompt?.choices.includes(id), phrase);
+      if (kind === "metal") await shot("day4-metal-prompt");
+      await answer(sentence, phrase);
+    }
+    await stage(`${item} inventory increased`, ([target, n]) => (window.__si.state().bag[target] ?? 0) > n, [item, before]);
+    await stage(`${item} collection finished`, () => window.__si.state().mode === "explore");
+  }
+  throw new Error(`HARNESS_PRECONDITION_FAILED: gathered ${need} ${item}`);
+};
+await storyGather("tree", "wood", 1, "cut the tree", "cutTree");
+await storyGather("leaves", "leaves", 1, "get the leaves", "getLeaves");
+await page.keyboard.press("KeyC"); // the pulsing Make button is never "stable" to click
+await stage("torch craft menu", () => window.__si.state().craftOpen);
+await shot("day4-torch-recipe");
+await page.getByTestId("make-torch").click();
+await answer("I want to make a torch", "craftTorch");
+await stage("torch crafted", () => window.__si.state().bag.torch === 1 && window.__si.state().mode === "explore");
+await day3Target("caveMouth");
+await page.keyboard.press("KeyE");
+await stage("go cave prompt", () => window.__si.state().prompt?.choices.includes("goCave"));
+await shot("day4-go-in-prompt");
+await answer("go in the cave", "goCave");
+await stage("inside cave after fade", () => window.__si.state().inCave && window.__si.state().enteredCave && window.__si.state().mode === "explore");
+await shot("day4-cave-entry");
+await storyGather("metal", "metal", 2, "get the metal", "getMetal");
+await shot("day4-metal");
+await day3Target("caveBox");
+await page.keyboard.press("KeyE");
+await stage("old box command", () => window.__si.state().prompt?.choices.includes("openBox"));
+await shot("day4-box-prompt");
+await Promise.all([
+  stage("old box lid opening", () => {
+    const s = window.__si.state();
+    return s.caveBoxOpened && s.worldAnimation.caveBoxOpenT0 >= 0;
+  }).then(() => shot("day4-box-opening")),
+  answerForAnimation("open the box", "openBox")
+]);
+await stage("radio discovery", () => window.__si.state().line?.en === "A radio! It's old, but it works!");
+await shot("day4-radio-line");
+await next();
+await stage("radio exploration resumes", () => window.__si.state().mode === "explore" && window.__si.state().bag.radio === 1);
+const caveWorld = await page.evaluate(() => window.__si.world());
+await page.evaluate((exit) => window.__si.teleport(exit.x, exit.z), caveWorld.caveExit);
+await stage("cave exit fade completed", () => !window.__si.state().inCave && window.__si.state().mode === "explore");
+await shot("day4-leaving-cave");
+await day3Target("kai");
+// The teleport from the cave mouth leaves the follow camera far behind; let it catch up.
+await page.waitForTimeout(1500);
+await page.keyboard.press("KeyE");
+await stage("Kai inventory question", () => window.__si.state().prompt?.question === "What do you have?");
+await shot("day4-what-do-you-have");
+await answer("I have a radio", "haveRadio");
+await stage("Kai radio reply", () => window.__si.state().line?.en === "A radio! We can call for help!");
+await next();
+await stage("Kai tomorrow plan", () => window.__si.state().line?.en.startsWith("Tomorrow, let's go to the clifftop."));
+await shot("day4-tomorrow-plan");
+await next();
+await stage("Day 4 evening", () => window.__si.state().line?.en === "Tomorrow we go home!");
+await shot("day4-evening-kai");
+await next();
+await stage("Day 4 shelter bedtime line", () => window.__si.state().line?.en === "It's getting dark. Let's sleep in the shelter!");
+await next();
+await stage("Day 4 ready for sleep", () => window.__si.state().mode === "explore" && window.__si.state().step === "sleep");
+await page.evaluate(() => window.__si.setClock(0.95));
+await stage("Day 4 night", () => window.__si.state().isNight);
+await day3Target(frame.id);
+await page.keyboard.press("KeyE");
+await answer("I want to sleep", "sleep");
+await stage("Day 4 complete card", () => window.__si.state().screen === "dayEnd" && window.__si.state().sleptDay === 4, null, 30000);
+await page.waitForTimeout(1500);
+await shot("day4-end");
+
+// A separate Day 1 pass shows the teacher setting and the active smaller counts.
+await page.getByTestId("to-title").click();
+await stage("title before classroom pass", () => window.__si.state().screen === "title");
+await page.getByTestId("mode-classroom").click();
+await stage("classroom teacher setting enabled", () => window.__si.state().classroom);
+await shot("classroom-title");
+await page.getByTestId("start").click();
+await stage("classroom intro self line", () => window.__si.state().line?.en === "Where am I?");
+await next();
+await stage("classroom storm intro", () => window.__si.state().line?.en.startsWith("A storm broke your ship."));
+await next();
+await answer("I'm hungry", "hungry");
+await stage("classroom Day 1 exploring", () => window.__si.state().day === 1 && window.__si.state().mode === "explore");
+await shot("classroom-day1-hud-goals");
+await storyGather("coconut", "coconut", 1, "get the coconut", "getCoconut");
+await page.getByTestId("slot-coconut").click();
+await answer("eat the coconut", "eatCoconut");
+await stage("classroom ate coconut", () => window.__si.state().quest.done.includes("eat") && window.__si.state().mode === "explore");
+await day3Target("kai");
+await page.keyboard.press("KeyE");
+await stage("classroom Kai greeting", () => window.__si.state().line?.en === "Hi! I'm Kai.");
+await next();
+await next();
+await stage("classroom need question", () => window.__si.state().prompt?.question === "What do you need?");
+await answer("I need wood", "needWood");
+await next();
+await next();
+await next();
+await stage("classroom can fire question", () => window.__si.state().prompt?.question === "Can you make a fire?");
+await answer("yes I can", "yesICan");
+await next();
+await stage("classroom recipe lesson has smaller amounts", () => window.__si.state().line?.en === "You need two wood and one stone.");
+await shot("classroom-recipe-lesson");
+await next();
+await stage("classroom wood step", () => window.__si.state().step === "wood" && window.__si.state().mode === "explore");
+await shot("classroom-day1-wood-goal");
+await page.keyboard.press("KeyC"); // the pulsing Make button is never "stable" to click
+await stage("classroom recipe cards open", () => window.__si.state().craftOpen);
+await shot("classroom-craft-counts");
+await page.getByTestId("craft-close").click();
+const automaticBefore = (await st()).automaticHintCount;
+await page.evaluate(() => window.__si.setCameraYaw(Math.PI));
+await stage("classroom automatic hint", (count) => {
   const s = window.__si.state();
-  return s.day === 4 && s.freePlay && s.mode === "explore" && s.step === null;
-});
-await page.evaluate(() => window.__si.setCameraFollow(0.35, 0.42, 9.5));
-await shot("day4-free-play");
+  return s.classroom && s.mode === "explore" && s.automaticHintCount > count && s.beacons.length > 0;
+}, automaticBefore, 45000);
+await shot("classroom-automatic-hint");
 
 const s = await st();
 console.log("final:", JSON.stringify({ quest: s.quest, daySaid: s.daySaid, dayNew: s.dayNew, bag: s.bag, stats: s.stats, kai: s.kai }));

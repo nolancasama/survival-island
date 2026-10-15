@@ -682,3 +682,16 @@ The cave is a disconnected walkable set beyond the island's far plane. Target re
 
 The cliff path is a union of overlapping capsules, joined to a circular plateau, open only with both `pathCleared` and `cliffOpen`. Smooth terrain blends carry its authored climb into the old hillside, beginning strictly north of z=-42 and away from the unchanged cave notch. Plateau walkability is inset behind its low edge rocks. The cave notch is the only new island walkability without the cliff gate; the rock face behind it stays closed.
 
+- The cliff trail is a continuous dirt ribbon coloured into the groundY terrain, with grass-blended edges and inset stone treads only on the steep final ascent; sharing vertices prevents floating steps and switchback seams.
+- The hillside uses forest greens with sparse instanced bushes, small broadleaf trees and grey rock clusters outside the route and plateau; the low edge rocks and open island vista remain the summit payoff.
+- Outdoor haze thins progressively with climb height so the island and sea remain clear below the summit, while the story still controls daylight and night colours.
+- Cave background and fog use warm near-black (#130e0a), enclosing the cutaway chamber without changing its torchlight or crystals.
+
+## 2026-10-15 - Phase 3 story slice A decisions
+
+- **Automatic hints count live play, not time spent reading or in menus.** A checklist tick resets the idle interval; placement can accrue live time but suppresses the hint until exploration resumes. A ready recipe pulses Craft, and an inventory action selects its bag item or pulses the food help, since those actions have no world location to beacon. Physical targets use the existing beacons and edge arrows.
+- **The cave clock also ignores checklist pushes.** Gathering metal or finding the radio cannot move the sun while inside. Survival stats and resource respawns still use live play, as outside.
+- **Needs in the cave point at the way out when the resource is outdoors.** Metal help outside points at the cave mouth (or the forest gate first if closed); inside it points at reachable metal. This keeps guidance within the player's current place.
+- **An interrupted Day 4 introduction resumes at camp with its title and torch lesson.** The same path handles migrated v2 free-play saves without advancing beyond Day 4. The introduction is complete only once Kai's answer and the torch recipe are both present, so saving during the reply cannot strand the recipe.
+- **Acceptance observes semantic state.** The read-only test state adds the classroom setting, cave entry/box facts, live idle seconds, automatic-hint count and open-menu flags alongside the existing quest, Kai memory, mode and cave state. Screenshot and browser acceptance execution remains with the executor.
+

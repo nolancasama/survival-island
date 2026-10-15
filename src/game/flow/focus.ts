@@ -2,7 +2,9 @@ import { NODES, CRATE, FOREST_GAP, CAVE_SIGN, CLIFF_SIGN, FALLEN_TREE, BRIDGE, F
 import { ITEMS, NODE_YIELD } from "../types";
 import { rt } from "../runtime";
 import { getGame, type Focus } from "../store";
-import { targetPosition } from "./places";
+import { targetPosition, targetReachable } from "./places";
+import { CAVE_MOUTH } from "../world/island";
+import { CAVE_BOX } from "../world/phase3";
 import { canSleepNow } from "./days";
 import { count } from "../logic/inventory";
 
@@ -23,6 +25,11 @@ const SIGNS = [FOREST_GAP.sign, CAVE_SIGN, CLIFF_SIGN];
 function candidates(): Candidate[] {
   const g = getGame();
   const out: Candidate[] = [];
+  if (!g.inCave) {
+    out.push({ focus: { id: "caveMouth", kind: "caveMouth", verb: "Go in", noun: "the cave", icon: "torch" }, x: CAVE_MOUTH.x, z: CAVE_MOUTH.z, reach: INTERACT_RANGE });
+  } else if (!g.caveBoxOpened) {
+    out.push({ focus: { id: CAVE_BOX.id, kind: "caveBox", verb: "Open", noun: "the box", icon: "box" }, x: CAVE_BOX.x, z: CAVE_BOX.z, reach: INTERACT_RANGE });
+  }
   for (const n of NODES) {
     if (rt.taken.has(n.id)) continue;
     if (n.kind === "tree") {
@@ -90,6 +97,7 @@ export function findFocus(px: number, pz: number, yaw: number): Focus | null {
     const dz = c.z - pz;
     const d = Math.hypot(dx, dz);
     if (d > c.reach) continue;
+    if (!targetReachable(c.focus.id)) continue;
     // Prefer things in front; behind still counts when very close.
     const facing = d > 0.01 ? (dx * fx + dz * fz) / d : 1;
     if (facing < -0.2 && d > 1.1) continue;

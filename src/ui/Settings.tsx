@@ -1,5 +1,5 @@
 import { useGame, setGame, saveSettings, type Settings } from "../game/store";
-import { toTitle } from "../game/flow/session";
+import { refreshQuest, toTitle } from "../game/flow/session";
 import { recognition } from "../audio/recognition";
 import { audio } from "../audio/audio";
 import { tts } from "../audio/tts";
@@ -28,6 +28,7 @@ export function updateSettings(patch: Partial<Settings>) {
   const s = { ...useGame.getState().settings, ...patch };
   saveSettings(s);
   setGame({ settings: s });
+  if (patch.classroom !== undefined && useGame.getState().screen === "game") refreshQuest();
   audio.setVolumes(s.music, s.sfx);
   tts.setRate(s.slowVoice ? 0.8 : 1);
 }
@@ -46,6 +47,9 @@ export function SettingsModal() {
         </h2>
         <Row label="Speak answers (microphone)" ja="マイクで こたえる">
           <Toggle value={s.mic} onChange={(v) => updateSettings({ mic: v })} testId="toggle-mic" />
+        </Row>
+        <Row label="Classroom mode" ja="じゅぎょうモード">
+          <Toggle value={s.classroom} onChange={(v) => updateSettings({ classroom: v })} testId="toggle-classroom" />
         </Row>
         {!recognition.supported && <p className="note" lang="ja">このブラウザでは マイクが つかえません。ぶんを えらんで こたえます。</p>}
         {recognition.supported && micState === "blocked" && s.mic && (

@@ -136,7 +136,7 @@ async function resume(page: Page) {
   await until(page, "save restored into exploration", idle);
 }
 
-test("tapping: Day 3 Explore through the card, then free play and Day 5", async ({ page }) => {
+test("tapping: Day 3 Explore through the card, then the Day 4 morning", async ({ page }) => {
   const errors = await precondition("game boot", () => boot(page));
   await morning(page);
   let s = await state(page);
@@ -174,37 +174,22 @@ test("tapping: Day 3 Explore through the card, then free play and Day 5", async 
   expect(s.quest.done).toEqual(expect.arrayContaining(["bridge", "container", "water", "drink", "rod", "fish", "cook", "sleep"]));
   expect(s.counters).toEqual({ gotWater: 1, drank: 1, caught: 1, cooked: 1 });
   expect(s.daySaid).toEqual(expect.arrayContaining(["wantWater", "buildBridge", "craftContainer", "getWater", "drinkWater", "craftRod", "catchFish", "cookFish", "eatFish", "sleep"]));
-  await expect(page.getByTestId("dayend")).toContainText("To be continued... Next time: the cave!");
-  await expect(page.getByTestId("next-day")).toHaveText(/Keep playing/);
+  await expect(page.getByTestId("dayend")).toContainText("Next: Day 4: Discover");
+  await expect(page.getByTestId("dayend")).not.toContainText("To be continued");
+  await expect(page.getByTestId("next-day")).toHaveText(/Day 4/);
   await page.getByTestId("next-day").click();
-  await until(page, "Day 4 free play", (st) => st.day === 4 && st.freePlay && st.mode === "explore" && st.line === null);
-  await expect(page.getByTestId("objective")).toContainText("Free time: explore the island!");
-  await expect(page.getByTestId("objective").locator("li")).toHaveCount(0);
-  expect((await state(page)).step).toBeNull();
-  await at(page, "kai");
-  await page.keyboard.press("KeyE");
-  await until(page, "free play Kai question", (st) => st.prompt?.question === "What do you need?");
-  await answer(page, "needWater");
-  await until(page, "free play Kai answered", idle);
-  expect((await state(page)).beacons).toEqual(["water-1", "water-2", "water-3"]);
-  await resume(page);
-  expect((await state(page)).day).toBe(4);
-  expect((await state(page)).freePlay).toBe(true);
-  expect((await state(page)).step).toBeNull();
-  await hook(page, "setClock", 0.6199);
-  await until(page, "free play clock naturally passes the story cap", (st) => st.clock > 0.62);
-  await hook(page, "setClock", 0.9);
-  await until(page, "free play clock reaches night", (st) => st.isNight && st.clock >= 0.9);
-  await at(page, "bE2eShelter");
-  await page.keyboard.press("KeyE");
-  await answer(page, "sleep");
-  await until(page, "Day 5 wakes without a card", (st) => st.day === 5 && st.mode === "explore" && st.dayTitle === null);
+  await until(page, "Day 4 torch question", (st) => st.day === 4 && st.prompt?.question === "Can you make a torch?");
+  await answer(page, "yesICan");
+  await until(page, "Day 4 morning finished", idle);
   s = await state(page);
   expect(s.screen).toBe("game");
-  expect(s.freePlay).toBe(true);
-  expect(s.sleptDay).toBe(4);
+  expect(s.freePlay).toBe(false);
+  expect(s.sleptDay).toBe(3);
   expect(s.isNight).toBe(false);
-  expect(s.quest.done).toEqual([]);
+  expect(s.step).toBe("torch");
+  expect(s.kai.canTorch).toBe(true);
+  expect(s.unlocked).toContain("torch");
+  expect(s.beacons).toContain("caveMouth");
   await expect(page.getByTestId("dayend")).toHaveCount(0);
   expect(errors).toEqual([]);
 });

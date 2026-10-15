@@ -6,6 +6,7 @@ import { dayDef } from "../game/logic/quest";
 import { saveSettings } from "../game/store";
 import { recognition } from "../audio/recognition";
 import { Icon, type IconId } from "./icons";
+import { updateSettings } from "./Settings";
 
 function Ja({ children }: { children: React.ReactNode }) {
   const on = useGame((s) => s.settings.japanese);
@@ -46,6 +47,26 @@ function AnswerMode() {
   );
 }
 
+function ClassroomMode() {
+  const classroom = useGame((s) => s.settings.classroom);
+  return (
+    <div className="answer-mode">
+      <span className="answer-mode-label">
+        Classroom mode <Ja>じゅぎょうモード</Ja>
+      </span>
+      <button
+        className={`toggle ${classroom ? "on" : ""}`}
+        onClick={() => updateSettings({ classroom: !classroom })}
+        aria-label="Classroom mode"
+        aria-pressed={classroom}
+        data-testid="mode-classroom"
+      >
+        <span>{classroom ? "ON" : "OFF"}</span>
+      </button>
+    </div>
+  );
+}
+
 export function TitleScreen() {
   const screen = useGame((s) => s.screen);
   const hasSave = useGame((s) => s.hasSave);
@@ -72,6 +93,7 @@ export function TitleScreen() {
           </button>
         </div>
         <AnswerMode />
+        <ClassroomMode />
         <button className="link" onClick={() => setGame({ settingsOpen: true })} data-testid="title-settings">
           <Icon id="gear" size={18} /> Settings
         </button>
@@ -84,7 +106,8 @@ export function TitleScreen() {
 const DAY_DONE: Record<number, { en: string; ja: string; icon: IconId }> = {
   1: { en: "You found food, met Kai and made a fire.", ja: "たべものを みつけて、カイに あって、火を つけたね！", icon: "fire" },
   2: { en: "You made an axe, opened the forest and built a shelter.", ja: "おのを つくって、もりを ひらいて、こやを たてたね！", icon: "shelter" },
-  3: { en: "You built a bridge, found water and cooked a fish.", ja: "はしを つくって、みずを みつけて、さかなを やいたね！", icon: "grilledFish" }
+  3: { en: "You built a bridge, found water and cooked a fish.", ja: "はしを つくって、みずを みつけて、さかなを やいたね！", icon: "grilledFish" },
+  4: { en: "You explored the cave and found an old radio.", ja: "どうくつを たんけんして、ふるい ラジオを みつけたね！", icon: "radio" }
 };
 
 /** "Day 2: Make Camp" -> ["Day 2", "Make Camp"]. */
@@ -129,12 +152,12 @@ export function DayEndScreen() {
           ))}
         </ul>
         <p className="next-day">
-          {day === 3 ? "To be continued... Next time: the cave!" : `Next: ${next.steps.length ? next.en : `Day ${day + 1}`}`}
-          <Ja>{day === 3 ? "つづく… つぎは どうくつへ！" : next.steps.length ? `つぎは ${next.ja}` : `つぎは ${day + 1}にちめ`}</Ja>
+          {`Next: ${next.steps.length ? next.en : `Day ${day + 1}`}`}
+          <Ja>{next.steps.length ? `つぎは ${next.ja}` : `つぎは ${day + 1}にちめ`}</Ja>
         </p>
         <div className="title-buttons">
           <button className="primary big" onClick={() => void nextDay()} data-testid="next-day">
-            {day === 3 ? "Keep playing" : `Day ${day + 1} →`} <Ja>{day === 3 ? "もっと あそぶ" : `${day + 1}にちめへ`}</Ja>
+            {`Day ${day + 1} →`} <Ja>{`${day + 1}にちめへ`}</Ja>
           </button>
           <button className="secondary big" onClick={() => toTitle()} data-testid="to-title">
             Title <Ja>タイトルへ</Ja>

@@ -29,7 +29,7 @@ import {
 } from "./world/phase3";
 import { isWalkable, overlaps, resolveCollisions, PLAYER_R, STATIC_OBSTACLES } from "./world/collision";
 import { buildingObstacles, type PlacedBuilding } from "./world/placement";
-import { currentStep, DAYS } from "./logic/quest";
+import { currentStep, DAYS, LAST_STORY_DAY } from "./logic/quest";
 import { isNight, lightAt } from "./logic/clock";
 import type { PhraseId } from "./logic/english";
 import type { Bag, CraftId } from "./types";
@@ -42,9 +42,11 @@ import * as THREE from "three";
 const KNOWN_BY_DAY: Record<number, PhraseId[]> = {
   1: ["hungry", "getCoconut", "eatCoconut", "needWood", "yesICan", "getWood", "getStone", "craftCampfire", "makeFire", "sleep"],
   2: ["yesICan", "craftAxe", "cutTree", "getLeaves", "craftShelter", "buildShelter", "sleep"],
-  3: ["wantWater", "buildBridge", "craftContainer", "getWater", "drinkWater", "craftRod", "catchFish", "cookFish", "eatFish", "sleep"]
+  3: ["wantWater", "openBox", "buildBridge", "craftContainer", "getWater", "drinkWater", "craftRod", "catchFish", "cookFish", "eatFish", "sleep"],
+  4: ["yesICan", "craftTorch", "goCave", "getMetal", "openBox", "haveRadio", "sleep"],
+  5: ["canHelp", "craftSignalFire", "makeFire", "needHelp"]
 };
-const UNLOCKED_BY_DAY: Record<number, CraftId[]> = { 1: ["campfire"], 2: ["axe", "shelter"], 3: ["container", "rod"] };
+const UNLOCKED_BY_DAY: Record<number, CraftId[]> = { 1: ["campfire"], 2: ["axe", "shelter"], 3: ["container", "rod"], 4: ["torch", "signalFire"] };
 /** Where startDay puts the camp: the Day 1 fire on the beach, the Day 2 shelter beside it. */
 const CAMP_FIRE = { x: 2, z: 5 };
 const CAMP_SHELTER = { x: -3, z: 5 };
@@ -90,6 +92,11 @@ export function installE2eHook(seed: number) {
         buildings: g.buildings,
         metKai: g.metKai,
         kai: g.kai,
+        classroom: g.settings.classroom,
+        stepIdleSeconds: rt.stepIdleSeconds,
+        automaticHintCount: rt.automaticHintCount,
+        craftOpen: g.craftOpen,
+        settingsOpen: g.settingsOpen,
         ate: g.ate,
         crateOpened: g.crateOpened,
         focus: g.focus,
@@ -116,12 +123,13 @@ export function installE2eHook(seed: number) {
         fishing: rt.fishing ? { ...rt.fishing } : null,
         fishRests: Object.fromEntries([...rt.taken].filter(([id]) => FISH_SPOTS.some((s) => s.id === id))),
         action: rt.player.action ? { ...rt.player.action } : null,
-        freePlay: g.quest.day > 3,
+        freePlay: g.quest.day > LAST_STORY_DAY,
         beacons: rt.time < rt.beacons.until ? rt.beacons.ids : [],
         pathCleared: g.pathCleared,
         bridgeBuilt: g.bridgeBuilt,
         cliffOpen: g.cliffOpen,
         inCave: g.inCave,
+        enteredCave: g.enteredCave,
         signalLit: g.signalLit,
         rescued: g.rescued,
         kaiStage: g.kaiStage,
@@ -203,6 +211,10 @@ export function installE2eHook(seed: number) {
       if (n >= 3) buildings.push({ id: "bE2eShelter", type: "shelter", x: CAMP_SHELTER.x, z: CAMP_SHELTER.z, rot: 0, built: true });
       const bag: Bag = n >= 4 ? { coconut: 1, wood: 1, axe: 1, container: 1, rod: 1 } : n >= 3 ? { coconut: 1, wood: 1, axe: 1 } : { coconut: 1 };
       const crafted: CraftId[] = n >= 4 ? ["campfire", "axe", "shelter", "container", "rod"] : n >= 3 ? ["campfire", "axe", "shelter"] : ["campfire"];
+      if (n >= 5) {
+        Object.assign(bag, { torch: 1, radio: 1, metal: 2 });
+        crafted.push("torch");
+      }
       const lastDay = DAYS.find((d) => d.day === before);
       resetRuntime();
       setGame({
@@ -213,7 +225,9 @@ export function installE2eHook(seed: number) {
         quest: { day: before, done: lastDay ? lastDay.steps.map((s) => s.id) : [], complete: Boolean(lastDay) },
         ate: 1,
         metKai: true,
-        kai: n >= 3 ? { need: "wood", canFire: true, canAxe: true } : { need: "wood", canFire: true },
+        kai: n >= 5 ? { need: "wood", canFire: true, canAxe: true, want: "water", canTorch: true, have: "radio" }
+          : n >= 4 ? { need: "wood", canFire: true, canAxe: true, want: "water" }
+          : n >= 3 ? { need: "wood", canFire: true, canAxe: true } : { need: "wood", canFire: true },
         known,
         said: [...known],
         unlocked,
@@ -222,6 +236,9 @@ export function installE2eHook(seed: number) {
         bag,
         pathCleared: n >= 3,
         bridgeBuilt: n >= 4,
+        crateOpened: n >= 4,
+        enteredCave: n >= 5,
+        caveBoxOpened: n >= 5,
         gotWater: n >= 4 ? 1 : 0,
         drank: n >= 4 ? 1 : 0,
         caught: n >= 4 ? 1 : 0,

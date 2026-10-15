@@ -3,7 +3,8 @@ import { rt, floatText } from "../runtime";
 import { ITEMS, ITEM_ORDER, NODE_YIELD, type Bag, type CraftId, type ItemId, type NodeKind } from "../types";
 import type { PhraseId } from "../logic/english";
 import { addItem, count, hasAll, isFull, missing, removeAll } from "../logic/inventory";
-import { BRIDGE_NEEDS, RECIPES, checkCraft, cookFish, craft } from "../logic/crafting";
+import { RECIPES, checkCraft, cookFish, craft } from "../logic/crafting";
+import { pace, recipeNeeds } from "../logic/pace";
 import { consume, eat, spend } from "../logic/stats";
 import { dayDef } from "../logic/quest";
 import { BRIDGE, CAVE_SIGN, CLIFF_SIGN, CRATE, FALLEN_TREE, FISH_SPOTS, NODE_BY_ID, POND, RESPAWN_S, WATER_SPOTS, groundY } from "../world/island";
@@ -12,6 +13,8 @@ import { ask, say } from "./ask";
 import { refreshQuest, save, showBeacons, showPlaces, syncStats, updateHint, wait } from "./session";
 import { canSleepNow, sleepPlace, trySleep } from "./days";
 import { talkToKai } from "./kai";
+import { enterCave } from "./cave";
+import { CAVE_BOX } from "../world/phase3";
 import { focusPosition } from "./focus";
 import { audio } from "../../audio/audio";
 import { UI } from "../../ui/i18n";
@@ -19,13 +22,13 @@ import { UI } from "../../ui/i18n";
 /** What the student says to collect from a node, until it is known (then it is quick). */
 const GATHER: Record<NodeKind, PhraseId> = { wood: "getWood", stone: "getStone", coconut: "getCoconut", leaves: "getLeaves", tree: "cutTree", metal: "getMetal" };
 const EAT: Partial<Record<ItemId, PhraseId>> = { coconut: "eatCoconut", grilledFish: "eatFish" };
-const GATHER_SOUND: Record<NodeKind, "wood" | "stone" | "coconut" | "leaves" | "chop"> = {
+const GATHER_SOUND: Record<NodeKind, "wood" | "stone" | "coconut" | "leaves" | "chop" | "metal"> = {
   wood: "wood",
   stone: "stone",
   coconut: "coconut",
   leaves: "leaves",
   tree: "chop",
-  metal: "stone"
+  metal: "metal"
 };
 
 const canAct = () => {
@@ -50,6 +53,10 @@ export async function interact() {
       return gather(f.id);
     case "crate":
       return openCrate();
+    case "caveMouth":
+      return enterCave();
+    case "caveBox":
+      return openCaveBox();
     case "kai":
       return talkToKai();
     case "campfire":
@@ -69,18 +76,20 @@ export async function interact() {
   }
 }
 
-/** The bridge can be built as soon as the player reaches it with four wood. */
+/** The bridge can be built as soon as the player has the active pace's wood. */
 async function buildBridge() {
   const g = getGame();
   if (g.bridgeBuilt) return;
-  if (!hasAll(g.bag, BRIDGE_NEEDS)) {
+  const bridgeNeeds = pace(g.settings.classroom).bridgeNeeds;
+  if (!hasAll(g.bag, bridgeNeeds)) {
     audio.play("error");
-    toast({ en: "You need four wood.", ja: "木が 4つ ひつようだよ。", icon: "wood", icons: [{ item: "wood", n: 4 }], tone: "warn" });
+    const n = bridgeNeeds.wood!;
+    toast({ en: `You need ${n === 2 ? "two" : "four"} wood.`, ja: `木が ${n}つ ひつようだよ。`, icon: "wood", icons: [{ item: "wood", n }], tone: "warn" });
     return;
   }
   const said = await ask({ kind: "command", options: ["buildBridge"], picture: "bridge", cancellable: true, readSentence: true });
   if (!said || getGame().bridgeBuilt) return;
-  const bag = removeAll(getGame().bag, BRIDGE_NEEDS);
+  const bag = removeAll(getGame().bag, pace(getGame().settings.classroom).bridgeNeeds);
   if (!bag) return;
   setGame({ mode: "busy", focus: null, bag, bridgeBuilt: true });
   rt.bridgeBuiltT0 = rt.time;
@@ -403,11 +412,26 @@ async function openCrate() {
   refreshQuest();
 }
 
+/** This is a new box: its first opening asks even when Day 1 taught the sentence. */
+async function openCaveBox() {
+  if (!getGame().inCave || getGame().caveBoxOpened) return;
+  const said = await ask({ kind: "command", options: ["openBox"], picture: "box", cancellable: true, readSentence: true });
+  if (!said || getGame().caveBoxOpened) return;
+  rt.caveBoxOpenT0 = rt.time;
+  rt.player.action = { kind: "gather", t0: rt.time };
+  audio.play("creak");
+  setGame({ mode: "talk", focus: null, caveBoxOpened: true, bag: addItem(getGame().bag, "radio", 1).bag });
+  floatText("+1 radio", CAVE_BOX.x, groundY(CAVE_BOX.x, CAVE_BOX.z) + 1.5, CAVE_BOX.z);
+  refreshQuest();
+  await say("self", "A radio! It's old, but it works!", "ラジオだ！ ふるいけど、つかえる！");
+  setGame({ mode: "explore" });
+}
+
 async function readSign(id: string) {
   const g = getGame();
   setGame({ mode: "talk" });
   if (id === CAVE_SIGN.id) {
-    await say("game", "CAVE → It's too dark. You need a torch!", "どうくつ → くらすぎるよ。 たいまつが ひつよう！");
+    await say("game", "CAVE -> It's dark. Make a torch!", "どうくつ → くらいよ。 たいまつを つくろう！");
   } else if (id === CLIFF_SIGN.id) {
     await say("game", "CLIFF → Rocks fell. The path is closed.", "がけ → いわが おちた。 みちは とおれないよ。");
   } else if (g.pathCleared) {
@@ -437,7 +461,7 @@ export function closeCraft() {
 
 export async function makeItem(id: CraftId) {
   const g = getGame();
-  if (g.mode !== "craft" || checkCraft(g.bag, id, g.unlocked) !== "ok") return;
+  if (g.mode !== "craft" || checkCraft(g.bag, id, g.unlocked, g.settings.classroom) !== "ok") return;
   const recipe = RECIPES[id];
   const first = !g.known.includes(recipe.phrase);
   setGame({ craftOpen: false });
@@ -455,7 +479,7 @@ export async function makeItem(id: CraftId) {
     return;
   }
   const now = getGame();
-  const bag = craft(now.bag, id, now.unlocked);
+  const bag = craft(now.bag, id, now.unlocked, now.settings.classroom);
   if (!bag) return;
   setGame({ bag, crafted: now.crafted.includes(id) ? now.crafted : [...now.crafted, id] });
   rt.player.action = { kind: "craft", t0: rt.time };
@@ -537,10 +561,10 @@ async function lightFire(id: string) {
 
 // -------------------------------------------------------------- "I need..."
 
-const NEED_KIND: Partial<Record<PhraseId, NodeKind>> = { hungry: "coconut", needWood: "wood", needStone: "stone", needFood: "coconut", needLeaves: "leaves" };
+const NEED_KIND: Partial<Record<PhraseId, NodeKind>> = { hungry: "coconut", needWood: "wood", needStone: "stone", needFood: "coconut", needLeaves: "leaves", needMetal: "metal" };
 /** Recipe behind each "make" step, for what it is still short of. */
-const STEP_RECIPE: Partial<Record<string, CraftId>> = { craft: "campfire", axe: "axe", shelter: "shelter", container: "container", rod: "rod" };
-const SHORT_NEED: Partial<Record<ItemId, PhraseId>> = { wood: "needWood", stone: "needStone", leaves: "needLeaves" };
+const STEP_RECIPE: Partial<Record<string, CraftId>> = { craft: "campfire", axe: "axe", shelter: "shelter", container: "container", rod: "rod", torch: "torch", signalFire: "signalFire" };
+const SHORT_NEED: Partial<Record<ItemId, PhraseId>> = { wood: "needWood", stone: "needStone", leaves: "needLeaves", metal: "needMetal" };
 
 /** "I need ___" sentences for the open steps of the day, in step order. */
 function stepNeeds(): PhraseId[] {
@@ -554,7 +578,7 @@ function stepNeeds(): PhraseId[] {
     if (step.goal) add(SHORT_NEED[step.goal.item]);
     const recipe = STEP_RECIPE[step.id];
     if (recipe) {
-      const short: Bag = missing(g.bag, RECIPES[recipe].needs);
+      const short: Bag = missing(g.bag, recipeNeeds(recipe, g.settings.classroom));
       for (const item of Object.keys(short) as ItemId[]) add(SHORT_NEED[item]);
     }
     if (step.id === "bridge") add("needWood");
@@ -592,7 +616,7 @@ export async function needs() {
   if (said === "sleep") {
     const bed = sleepPlace();
     if (bed) {
-      showPlaces([bed.id]);
+      showPlaces(getGame().inCave ? ["caveExit"] : [bed.id]);
       look("moon");
     }
     return;
@@ -600,7 +624,7 @@ export async function needs() {
   if (said === "needWater") {
     // The pond's water spots; while a gate is closed, the gate on the way there.
     const g = getGame();
-    showPlaces(!g.pathCleared ? [FALLEN_TREE.id] : !g.bridgeBuilt ? [BRIDGE.id] : WATER_SPOTS.map((s) => s.id));
+    showPlaces(g.inCave ? ["caveExit"] : !g.pathCleared ? [FALLEN_TREE.id] : !g.bridgeBuilt ? [BRIDGE.id] : WATER_SPOTS.map((s) => s.id));
     look("water");
     return;
   }
