@@ -25,6 +25,9 @@ import {
 } from "../game/world/island";
 import { makeRng } from "../game/logic/rng";
 import { flatMat, occluderMat, signTexture, smoothMat } from "./materials";
+import { bucketByTile, splitGeometryByTiles } from "./tiles";
+import { cliffTerrainGeometry } from "./models/cliffTrail";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   bouldersGeometry,
   bushGeometry,
@@ -295,9 +298,23 @@ function terrainGeometry(): THREE.BufferGeometry {
   return g;
 }
 
+/**
+ * The lowland ground and the Phase 3 hillside share flatMat, so they are
+ * merged and cut into one set of 40 m tiles (exactly four columns across the
+ * 160 m terrain): off-screen land is frustum culled without doubling the draw
+ * calls the clifftop view pays for seeing everything.
+ */
+function terrainTiles(): THREE.BufferGeometry[] {
+  const lowland = terrainGeometry();
+  lowland.deleteAttribute("uv");
+  const merged = mergeGeometries([lowland, cliffTerrainGeometry()]);
+  if (!merged) throw new Error("terrain attributes do not match");
+  return splitGeometryByTiles(merged, 40);
+}
+
 export function Terrain() {
-  const geo = useMemo(terrainGeometry, []);
-  return <mesh geometry={geo} material={flatMat} />;
+  const tiles = useMemo(terrainTiles, []);
+  return <>{tiles.map((geo, i) => <mesh key={i} geometry={geo} material={flatMat} />)}</>;
 }
 
 // ------------------------------------------------------------------ ocean
@@ -481,26 +498,37 @@ function treeSpots(): { trees: TreeSpot[]; bushes: TreeSpot[] } {
   return { trees, bushes };
 }
 
-function Instanced({ geometry, spots, yOffset = 0 }: { geometry: THREE.BufferGeometry; spots: TreeSpot[]; yOffset?: number }) {
+/** One frustum-culled instanced batch per spatial tile. Each spot keeps its
+ * index in the full list, so per-instance tints match the untiled layout. */
+function Instanced({ geometry, spots, tile }: { geometry: THREE.BufferGeometry; spots: TreeSpot[]; tile?: number }) {
+  const tiles = useMemo(() => {
+    const indexed = spots.map((s, i) => ({ ...s, i }));
+    return tile ? bucketByTile(indexed, tile) : [indexed];
+  }, [spots, tile]);
+  return <>{tiles.map((tile, k) => <InstancedTile key={k} geometry={geometry} spots={tile} />)}</>;
+}
+
+function InstancedTile({ geometry, spots }: { geometry: THREE.BufferGeometry; spots: (TreeSpot & { i: number })[] }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useEffect(() => {
     const m = ref.current;
     if (!m) return;
     const o = new THREE.Object3D();
     const c = new THREE.Color();
-    spots.forEach((s, i) => {
-      o.position.set(s.x, groundY(s.x, s.z) + yOffset, s.z);
+    spots.forEach((s, slot) => {
+      const i = s.i;
+      o.position.set(s.x, groundY(s.x, s.z), s.z);
       o.rotation.set(0, s.r, 0);
       o.scale.setScalar(s.s);
       o.updateMatrix();
-      m.setMatrixAt(i, o.matrix);
-      m.setColorAt(i, c.setRGB(s.tint, s.tint * (0.95 + (i % 3) * 0.04), s.tint));
+      m.setMatrixAt(slot, o.matrix);
+      m.setColorAt(slot, c.setRGB(s.tint, s.tint * (0.95 + (i % 3) * 0.04), s.tint));
     });
     m.instanceMatrix.needsUpdate = true;
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
     m.computeBoundingSphere();
-  }, [spots, yOffset]);
-  return <instancedMesh ref={ref} args={[geometry, occluderMat, spots.length]} frustumCulled={false} />;
+  }, [spots]);
+  return <instancedMesh ref={ref} args={[geometry, occluderMat, spots.length]} />;
 }
 
 /** Distance from point (px, pz) to segment a->b in XZ, and how far along it lies (0..1). */
@@ -537,7 +565,8 @@ export function Vegetation() {
   return (
     <group>
       <Palms />
-      <Instanced geometry={tree} spots={trees} />
+      {/* Trees are tiled; the 21 bushes (~1.3k tris) stay one culled batch. */}
+      <Instanced geometry={tree} spots={trees} tile={40} />
       <Instanced geometry={bush} spots={bushes} />
     </group>
   );

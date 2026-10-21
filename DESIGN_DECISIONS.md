@@ -702,3 +702,36 @@ The cliff path is a union of overlapping capsules, joined to a circular plateau,
 - **The landing shot follows animation time.** Normal play holds the authored camera for the full twelve seconds of runtime flight, even when rendering is slow. The existing fast test mode may skip the wait and settles the helicopter at its landed state. The Rescue card reuses the existing day-end screen with all adventure sentences and Day 5's first-use badges.
 
 - **The Rescue card bounds its sentence list (controller, on review).** The whole adventure's English (about 35 sentences) pushed the Keep exploring and Title buttons below a 768 px Chromebook screen, where students would not think to scroll. The Rescue card is wider (760 px) and its list scrolls inside a tinted box capped at about a third of the screen height, so the buttons always stay visible. Rejected: showing only Day 5's sentences, which loses the five-day summary.
+
+## 2026-10-22 — Tiled, frustum-culled scenery
+
+- **Problem:** almost the whole island was drawn every frame. Profiling the live
+  scene showed the two terrain meshes (hillside 34.6k triangles, lowland ground
+  17.4k) were each one island-sized piece, so frustum culling never skipped them,
+  and the 139 jungle trees were one instanced batch with culling switched off.
+  Every outdoor view drew 87–106k triangles wherever the camera looked.
+- **Decision:** static scenery is cut into square XZ tiles (`scene/tiles.ts`).
+  Terrain is split by triangle centroid, copying vertices exactly, so tiles
+  meet without seams and the flat-shaded look is unchanged. Zero-area triangles
+  are dropped: the lowland's northern rows, collapsed onto the hillside join,
+  were drawn for nothing. The lowland ground and hillside share `flatMat`, so they
+  are merged first and tiled together. Jungle trees are bucketed into per-tile
+  instanced batches; each keeps its original index for its tint.
+- **Tile size 40 m, measured.** 32 m tiles with separate ground/hill sets cut
+  more triangles but raised the clifftop view, which sees everything, from 98 to
+  134 draw calls. Merged terrain with 40 m tiles (exactly four columns across the
+  160 m terrain) keeps the worst view at 116 calls.
+- **Left as is:** the 21 bushes (~1.3k triangles; culling switched on, not tiled),
+  node/resource batches (small and updated at runtime), the animated sea, sky,
+  rockfall, flames and smoke.
+- **Result (`npm run shots:world`, SwiftShader 1024×768), triangles before → after:**
+  bridge 87.5k → 37.8k, pond 87.0k → 37.0k, signal fire 91.3k → 38.4k, halfway up
+  the cliff path 90.9k → 48.5k, rockfall 91.6k → 68.8k, forest centre 92.2k → 70.4k,
+  beach spawn 96.0k → 85.6k, camp at night 101.9k → 95.1k, clifftop 106.0k → 98.1k.
+  Draw calls rise by 3–18 per view; the worst is the clifftop at 116 (was 98).
+  Screenshot pixel diffs against the baseline stay within animation noise
+  (water, fish, follow-camera timing); no seams or missing scenery.
+- **Rejected:** `BatchedMesh` (per-object culling in one draw call), which would
+  have meant rewriting the instanced batches and the line-of-sight material path
+  for a modest extra gain, and distance LOD. Neither helps much until the scenery
+  is heavier; the clifftop, which sees the whole island, is what LOD would target.

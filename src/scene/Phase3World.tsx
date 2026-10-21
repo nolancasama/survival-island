@@ -11,7 +11,7 @@ import {
 import { PartBuilder } from "./partBuilder";
 import { flatMat, glowTexture, occluderMat } from "./materials";
 import { bushGeometry, jungleTreeGeometry, rockGeometry } from "./models/nature";
-import { cliffDressingSpots, cliffTerrainGeometry, type CliffSpot } from "./models/cliffTrail";
+import { cliffDressingSpots, type CliffSpot } from "./models/cliffTrail";
 import {
   caveCrystalsGeometry, caveShellGeometry, helicopterGeometry,
   helicopterRotorGeometry, oldBoxGeometry, signalFireGeometry, signalPadGeometry
@@ -239,13 +239,11 @@ export function Helicopter() {
 
 export function Phase3World() {
   const inCave = useGame((s) => s.inCave);
-  const terrain = useMemo(cliffTerrainGeometry, []);
   const details = useMemo(cliffDetailsGeometry, []);
   return (
     <>
       <group visible={inCave}><CaveInterior /></group>
       <group visible={!inCave}>
-        <mesh geometry={terrain} material={flatMat} />
         <mesh geometry={details} material={occluderMat} />
         <CliffDressing />
         <Rockfall />

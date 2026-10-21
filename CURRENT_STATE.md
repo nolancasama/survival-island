@@ -34,12 +34,19 @@ decision sections after it. Read those first. Phase 2 sections still apply.
   (the pulsing Make button is never "stable" for a click); shots wait for
   camera catch-up and card fades; the Rescue card's sentence list is bounded
   so its buttons stay on a 768 px screen.
-- **Verified:** typecheck, `npm test` (123), `npm run e2e` (26, incl. Day 4,
+- **Verified:** typecheck, `npm test` (127), `npm run e2e` (26, incl. Day 4,
   Day 5 and classroom specs). `npm run shots` plays Days 1–5, the rescue and
   Day 6 plus a classroom pass (118 shots, ~12 min, in .tmp/shots);
-  `npm run shots:world` 28 views. Perf worst view: clifftop, 98 draw calls,
-  106k triangles (budget 120 / 200k). Reviewed by eye: cave, cliff trail,
+  `npm run shots:world` 28 views. Reviewed by eye: cave, cliff trail,
   clifftop, signal fire, helicopter, every Day 4–5 story beat, Rescue card.
+- **Performance (2026-10-22, tiled culling, `scene/tiles.ts`):** terrain and
+  jungle trees are split into 40 m frustum-culled tiles. Worst view is the
+  clifftop at 116 draw calls / 98k triangles (budget 120 / 200k); ordinary
+  views dropped to 37–95k (bridge and pond about 37k, from 87k). Draw-call
+  headroom is now the tighter limit: new static batches should join the
+  existing tiles rather than add island-wide meshes. A Pirate Kit palm pass was
+  tried and reverted (f091cb3 → bf34c1f); its measurements are in the revert
+  message.
 
 ## Next Steps
 1. **Classroom trial.** The real check now is students: does classroom mode
