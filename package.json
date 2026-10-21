@@ -12,8 +12,7 @@
     "test": "vitest run",
     "e2e": "npm run build && playwright test",
     "shots": "node scripts/shots.mjs",
-    "shots:world": "node scripts/shots-world.mjs",
-    "models:bake": "node scripts/bake-models.mjs .tmp/pirate-kit-src"
+    "shots:world": "node scripts/shots-world.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",

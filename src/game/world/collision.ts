@@ -1,6 +1,5 @@
 import { BOULDERS, BOUNDS, BRIDGE, CAVE_MOUTH, CRATE, KAI_HOME, LEAN_TO, NODES, PALMS, POND, WRECK, maxZ } from "./island";
 import { CAVE_BOX, CAVE_CHAMBER, CAVE_CORRIDOR, CLIFF_PATH, CLIFF_PATH_R, CLIFFTOP, nearestOnSegment } from "./phase3";
-import { SCENERY_COLLIDERS } from "./scenery";
 
 export interface Circle {
   x: number;
@@ -45,7 +44,6 @@ const CAVE_ROOM = {
 /** Fixed obstacles. Buildings and Kai are added at runtime. */
 export const STATIC_OBSTACLES: Obstacles = {
   circles: [
-    ...SCENERY_COLLIDERS,
     ...PALMS.map((p) => ({ x: p.x, z: p.z, r: 0.42 })),
     ...BOULDERS.map((b) => ({ x: b.x, z: b.z, r: b.r * 0.92 })),
     ...NODES.filter((n) => n.kind === "tree").map((n) => ({ x: n.x, z: n.z, r: 0.45 })),

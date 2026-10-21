@@ -53,11 +53,9 @@ const settle = async (seconds = 0.22) => {
 
 let shotNumber = 0;
 const shot = async (name) => {
-  await settle(0.35);
   const file = path.join(outDir, `${String(++shotNumber).padStart(2, "0")}-${name}.png`);
   await page.screenshot({ path: file });
   console.log("saved", path.relative(root, file));
-  console.log(`perf (${name}):`, JSON.stringify(await call("perf")));
 };
 const perfAt = async (name) => {
   await settle(0.35);
@@ -81,7 +79,6 @@ const frameNode = async (node) => {
 
 await page.goto(`${base}?e2e=1&seed=3`);
 await page.waitForFunction(() => Boolean(window.__si), null, { timeout: 20_000 });
-await requireState("environment models did not settle", (s) => s.modelsReady);
 await call("showWorld");
 await requireState("world view did not open", (s) => s.screen === "game" && s.mode === "explore");
 await call("setClock", 0.05);
@@ -94,15 +91,6 @@ const world = await call("world");
 // Required performance point: the original beach spawn.
 await frame(world.spawn.x, world.spawn.z, world.spawn.x, world.spawn.z - 8);
 await perfAt("beach spawn");
-await shot("beach-spawn");
-await call("setCameraFollow", world.spawn.yaw + Math.PI, 0.42, 9.5);
-await shot("beach-spawn-opening-view");
-
-// Asset review views remain in the playable world, using the normal camera.
-await frame(-22, 11, -30, 9, 0.42, 9.5);
-await shot("west-landmark-grove");
-await frame(23, 8.5, 26, 11, 0.5, 7.5);
-await shot("wreck-debris");
 
 // Fallen palm gate, closed then open toward the forest.
 await frame(world.fallenTree.x, world.fallenTree.z + 4.2, world.fallenTree.x, world.fallenTree.z - 3);

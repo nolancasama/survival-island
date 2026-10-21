@@ -64,7 +64,6 @@ const goTo = async (id) => {
 };
 
 await page.goto(`${base}?e2e=1&seed=3`);
-await waitFor(() => Boolean(window.__si) && window.__si.state().modelsReady, null);
 await page.waitForTimeout(3000);
 if (tap) await page.getByTestId("mode-tap").click();
 await shot("title");

@@ -22,8 +22,6 @@ export interface Floater {
 }
 
 export const rt = {
-  /** Asset requests have all settled (success or procedural fallback). Not saved. */
-  modelsReady: false,
   /** Real seconds since load (animation). */
   time: 0,
   player: {
