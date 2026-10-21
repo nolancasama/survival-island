@@ -137,6 +137,9 @@ export const NODES: NodeDef[] = [
 ];
 
 export interface Palm {
+  /** Optional visual choice; legacy/save-authored palms keep their coordinates. */
+  variant?: "palmA" | "palmB" | "palmC";
+  yaw?: number;
   x: number;
   z: number;
   height: number;

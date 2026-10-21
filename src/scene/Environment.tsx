@@ -15,7 +15,6 @@ import {
   KAI_HOME,
   LEAN_TO,
   NODES,
-  PALMS,
   POND,
   SEA_Y,
   STREAM,
@@ -24,13 +23,14 @@ import {
   shoreZ
 } from "../game/world/island";
 import { makeRng } from "../game/logic/rng";
+import { onForestPath } from "../game/world/scenery";
+import { Palms, PirateScenery } from "./Scenery";
 import { flatMat, occluderMat, signTexture, smoothMat } from "./materials";
 import {
   bouldersGeometry,
   bushGeometry,
   farIslandGeometry,
   jungleTreeGeometry,
-  palmsGeometry,
   towerGeometry
 } from "./models/nature";
 import {
@@ -435,14 +435,7 @@ function treeSpots(): { trees: TreeSpot[]; bushes: TreeSpot[] } {
   const trees: TreeSpot[] = [];
   const bushes: TreeSpot[] = [];
   const inGap = (x: number, z: number) => Math.abs(x - FOREST_GAP.x) < 2.4 && z > -11;
-  const onPath = (x: number, z: number) =>
-    segDist(-9, -3, -8, -20, x, z).d < 3.1 ||
-    segDist(-8, -20, 5, -34, x, z).d < 3.1 ||
-    segDist(-8, -20, -27.5, -22, x, z).d < 3.1 ||
-    segDist(5, -34, 20, -39, x, z).d < 3 ||
-    segDist(18, -36, 22, -44, x, z).d < 4 ||
-    segDist(8, -36, 7.2, -42.2, x, z).d < 4 ||
-    Math.hypot(x - 2, z + 20) < 4.4;
+  const onPath = onForestPath;
   const byNode = (x: number, z: number) => NODES.some((n) => Math.hypot(n.x - x, n.z - z) < 2.25);
   // The original south tree line remains dense, with the single forest gap.
   for (let x = -40; x < 40; x += 2.8 + rand() * 1.4) {
@@ -503,31 +496,13 @@ function Instanced({ geometry, spots, yOffset = 0 }: { geometry: THREE.BufferGeo
   return <instancedMesh ref={ref} args={[geometry, occluderMat, spots.length]} frustumCulled={false} />;
 }
 
-/** Distance from point (px, pz) to segment a->b in XZ, and how far along it lies (0..1). */
+/** Distance to a terrain-path segment, including interpolation along it. */
 function segDist(ax: number, az: number, bx: number, bz: number, px: number, pz: number) {
   const dx = bx - ax;
   const dz = bz - az;
   const l2 = dx * dx + dz * dz || 1;
   const u = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / l2));
   return { d: Math.hypot(ax + dx * u - px, az + dz * u - pz), u };
-}
-
-/** Palms share the general line-of-sight material with the other vegetation. */
-function Palms() {
-  const items = useMemo(
-    () =>
-      PALMS.map((palm, i) => ({
-        geo: palmsGeometry([palm], 7 + i)
-      })),
-    []
-  );
-  return (
-    <group>
-      {items.map((it, i) => (
-        <mesh key={i} geometry={it.geo} material={occluderMat} />
-      ))}
-    </group>
-  );
 }
 
 export function Vegetation() {
@@ -537,6 +512,7 @@ export function Vegetation() {
   return (
     <group>
       <Palms />
+      <PirateScenery />
       <Instanced geometry={tree} spots={trees} />
       <Instanced geometry={bush} spots={bushes} />
     </group>

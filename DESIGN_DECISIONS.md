@@ -702,3 +702,85 @@ The cliff path is a union of overlapping capsules, joined to a circular plateau,
 - **The landing shot follows animation time.** Normal play holds the authored camera for the full twelve seconds of runtime flight, even when rendering is slow. The existing fast test mode may skip the wait and settles the helicopter at its landed state. The Rescue card reuses the existing day-end screen with all adventure sentences and Day 5's first-use badges.
 
 - **The Rescue card bounds its sentence list (controller, on review).** The whole adventure's English (about 35 sentences) pushed the Keep exploring and Title buttons below a 768 px Chromebook screen, where students would not think to scroll. The Rescue card is wider (760 px) and its list scrolls inside a tinted box capped at about a third of the screen height, so the buttons always stay visible. Rejected: showing only Day 5's sentences, which loses the five-day summary.
+
+## 2026-10-22 — Downloaded environment models (Pirate Kit)
+
+- **Bundled, same-origin GLBs are allowed.** This deliberately revises
+  "Everything procedural, nothing downloaded": the concern was school networks
+  blocking external asset hosts/CDNs. The Quaternius Pirate Kit now supplies
+  standing palms, individual small rocks and a modest wreck-debris POI in the
+  playable island. No external requests, runtime dependencies or demo scene.
+  Rejected: external hosting and shipping the original texture-atlas GLBs.
+- **Bake offline, keep the shipped files.** `npm run models:bake` reads the
+  ignored `.tmp/pirate-kit-src` (or pass a source directory to the Node script).
+  The built-in zlib PNG decoder supports the kit's 8-bit non-interlaced RGB/RGBA
+  atlas, including PNG row filters. The bake applies the complete node transform
+  chain, samples nearest/clamped UVs using glTF's top-left image origin (no extra
+  OpenGL-style flip), converts sRGB to linear and adds PartBuilder's gentle
+  0.58–1 height AO over the bottom 0.55 m. It removes UVs, normals and all texture
+  resources, leaving positions, float colours, indices and an empty default
+  material. The lower vertices centre the trunk/base at x/z=0, min y=0.
+  Twelve baked GLBs total **389,884 bytes**. Sources and the zip stay ignored;
+  baked outputs are intended for version control. No image-library dependency.
+- **One manifest, resilient loading.** `scene/assets/manifest.ts` is the single
+  public-path mapping and documents metre-scale, y-up, base-centred, linear-colour
+  replacement assumptions. URLs use `import.meta.env.BASE_URL` and the document
+  base, preserving `./` builds in folders and GitHub Pages subpaths. The loader
+  caches each key's promise, flattens mesh transforms and merges geometry. Failed
+  or blocked loads warn once and remain null; a bounded request timeout also
+  settles failures. Callers retain procedural scenery. Preload at boot, and expose
+  settled readiness (including failures) as `rt.modelsReady` / `__si.state()`;
+  both screenshot scripts wait for it. Rejected: suspending the playable world
+  on assets, retrying every render, or making assets a gameplay requirement.
+- **Standing palms use three instanced batches.** The ten original PALMS retain
+  their exact x/z, 0.42 m trunk colliders, coconut nodes, dialogue role and saved
+  placements. Their authored heights scale the baked model height, lean/dir tilt
+  about each base, and deterministic yaw varies the crowns. Optional visual fields
+  keep Palm backward compatible. Each unavailable variant uses merged
+  `palmsGeometry` as before. **FallenPalm stays procedural**: its gate animation
+  cuts it into two halves. Rejected: separate imported meshes per palm or changing
+  gameplay coordinates to fit models.
+- **Curated anchors plus seeded jitter, never a grid.** Eighteen decorative palms
+  bring the total to 28: uneven beach clusters, opening-view framing, one six-palm
+  west-beach landmark grove with a taller dramatic lean, south tree-line palms
+  and three forest/pond-edge silhouettes. Heights vary ±12%, with sea-facing
+  decorative lean and varied yaw. Six boulders use only the ~700-triangle Rock
+  files, at least 0.9 m tall, away from pickable stones. A barrel, bucket, bottle
+  and upright post form a small wreck POI. The optional broken dock is omitted
+  to keep the wreck/wade approach clear and avoid another model/draw call.
+  Rejected: the 8k–24k-triangle rock clusters, decorative wood/logs/driftwood
+  (confusable with wood resources), and chests, treasure, weapons, skulls or
+  skeletons (off-tone or suggest interactions).
+- **Placement fairness is executable world data.** `world/scenery.ts` owns the
+  seed, curated anchors and exclusion rules without three.js. Candidates reserve
+  spawn, every resource (extra separation for rocks near stone nodes), camp,
+  lean-to, crate, expanded wreck rectangle, signs, gates, bridge, water/fish
+  approaches, cave mouth, cliff path, Kai's authored routes and the shared forest
+  path corridors. Shore bases stay at least 1.5 m inland; existing palms/boulders
+  and other new bases cannot overlap. The spawn/crate/camp/gap walking strip and
+  a beach building clearing remain open. Rejected candidates get bounded seeded
+  attempts, then are omitted instead of weakening clearances. Tests compare
+  collision-free flood reachability from spawn before/after at all four existing
+  gate states, alongside determinism, exclusions and collider overlap checks.
+- **Visible bases and cheap collision agree.** New trunks use 0.42 m circles;
+  props/rocks normalize their visible lower footprint to collider radius / 0.8,
+  with authored heights; the tiny bottle has no collider. Static circles join the
+  existing collision set. New scenery relies on line-of-sight fading rather than
+  adding camera blockers or changing the camera. All batches use the existing
+  shared flat vertex-colour Lambert `occluderMat`; no textures, new rendered
+  materials, shadows, lights or post-processing.
+- **Budget and review remain Phase 2's:** worst view about 120 draw calls / 200k
+  triangles, fixed lighting, DPR ≤1.5. Screenshot captures include spawn, grove,
+  wreck POI and clifftop, with a perf line for every view. Reduce decorative palms
+  first, then rocks if the budget is exceeded. Claude performs the final aesthetic
+  review; real Chromebook GPU testing remains a classroom follow-up.
+- **Credit/licence:** README credits Pirate Kit by Quaternius, believed CC0;
+  the user must verify the licence against the original download before release.
+- **Measured result:** all 32 world views pass the budget. Worst overview and
+  clifftop: **100 calls / 193,376 triangles** (previous clifftop 98 / ~106k).
+  Beach spawn north-facing: **55 / 181,455**; opening camera: **65 / 186,555**.
+  The extra silhouettes fit without cutting the 28-palm layout. Per-view values
+  and capture notes are in `.tmp/shots/world/performance.md`. Blocked-file browser
+  verification also rendered the procedural fallback with readiness settled.
+  Run SwiftShader browser checks sequentially: overlapping E2E and world capture
+  caused render-clock timeouts on this host; isolated capture completed normally.

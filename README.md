@@ -84,6 +84,22 @@ helicopter landing, plus a classroom Day 1 pass showing goals, recipe counts
 and an automatic hint. Browser acceptance and screenshot execution belong to
 the controller; Claude performs final aesthetic review.
 
+## Third-party assets
+
+Environment palms, small rocks and wreck props use **Pirate Kit by Quaternius**,
+believed CC0 — **verify licence** against the downloaded kit before release.
+Only the baked, texture-free GLBs under `public/assets/models/pirate/` ship;
+the original kit/zip stays ignored under `.tmp/`.
+
+Run `npm run models:bake` (defaults to `.tmp/pirate-kit-src`), or
+`node scripts/bake-models.mjs <sourceDir>`. The script expects the original
+filenames listed inside it and an embedded 8-bit RGB/RGBA PNG palette atlas.
+It applies node transforms, samples linear vertex colours and ground AO, and
+centres each base at y=0. Swap public paths in `src/scene/assets/manifest.ts`;
+replacement models must be metre-scale, y-up, base-centred, and vertex-coloured
+in linear space. Paths resolve through Vite's relative `BASE_URL`, including
+GitHub Pages subfolders. Missing files use procedural scenery.
+
 ## Deploy
 
 `.github/workflows/deploy-pages.yml` tests, builds and deploys `dist/` to

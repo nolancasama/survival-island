@@ -1,6 +1,12 @@
 # Current State
 
 ## Status
+**Environment asset polish (Pirate Kit palms, rocks, wreck props) is reviewed
+and merged to `main` (2026-10-22).** Read the "Downloaded environment models"
+decision section. Bundled same-origin GLBs are now allowed; external hosts/CDNs
+remain unnecessary. Gameplay coordinates, saves, story, controls and camera rules
+are unchanged. The Pirate Kit licence (believed CC0) still needs the user's check.
+
 **Phase 3 is complete: the whole five-day story (Days 1–5), the helicopter
 rescue, the Rescue card, free play from Day 6, and classroom mode, all on
 `main`.** The design is in DESIGN_DECISIONS.md: "2026-10-15 — Phase 3 (Full
@@ -41,6 +47,42 @@ decision sections after it. Read those first. Phase 2 sections still apply.
   106k triangles (budget 120 / 200k). Reviewed by eye: cave, cliff trail,
   clifftop, signal fire, helicopter, every Day 4–5 story beat, Rescue card.
 
+## Environment assets (2026-10-22)
+- **World/rendering:** 28 standing palms in at most three instanced batches
+  (the ten original coconut landmarks plus 18 seeded/curated decorative palms),
+  a six-palm west landmark grove, six decorative boulders and one small wreck POI
+  with barrel, bucket, bottle and post. FallenPalm remains procedural for its
+  cut-into-halves gate. All imported scenery uses existing `occluderMat` and its
+  line-of-sight fade; no new rendered materials, lights, textures or shadows.
+- **Placement:** pure `world/scenery.ts` enforces interaction, waterline,
+  route, gate, camp, existing-obstacle and building-clearance exclusions. New
+  static circle colliders match the visible bases; bottle has none. Tests flood
+  collision-free land from spawn before/after at four gate states and cover
+  deterministic layout, exclusions and collider separation.
+- **Pipeline:** `npm run models:bake`, or `node scripts/bake-models.mjs <dir>`,
+  reads ignored `.tmp/pirate-kit-src` and writes the 12 shipped GLBs in
+  `public/assets/models/pirate` (**389,884 bytes total**). Built-in PNG/zlib
+  decoding samples the kit palette into linear vertex colours, applies node
+  transforms and gentle ground AO, centres bases, and strips texture resources.
+  No dependencies added. Sources/zip must never be committed. Runtime paths and
+  swap-file assumptions live in `scene/assets/manifest.ts`; the cached loader
+  resolves relative BASE_URL paths and retains procedural fallback on failure.
+  `__si.state().modelsReady` means every request settled, success or failure.
+- **Verification:** typecheck, all **132 unit tests**, production build, bake
+  and GLTFLoader output inspection pass. All **32 world captures** pass the
+  **120 calls / 200k triangles** budget: north-facing beach spawn **55 / 181,455**,
+  opening spawn camera **65 / 186,555**, and worst overview/clifftop
+  **100 / 193,376** (old clifftop 98 / ~106k). No palm/rock count cuts needed.
+  Values for every view are in `.tmp/shots/world/performance.md`; images are
+  `.tmp/shots/world/01-...32-*.png`. Existing Clock deprecation warning only.
+  A separate blocked-all-models browser check settles readiness and renders the
+  procedural fallback (`.tmp/pirate-fallback.png`; loaded counterpart alongside).
+  **E2E: all 26 passed** on the isolated run. The first overlapping SwiftShader
+  run suffered render-clock/intro timeouts and was stopped. No harness timing was
+  weakened. On Windows, the completed test worker left its temporary preview
+  server alive during teardown; stopping that task-owned server released the
+  runner with exit 0 and `26 passed (16.2m)`.
+
 ## Next Steps
 1. **Classroom trial.** The real check now is students: does classroom mode
    fit the whole story in one 45-minute lesson (target 30–35 min of play),
@@ -63,8 +105,14 @@ decision sections after it. Read those first. Phase 2 sections still apply.
   (harmless).
 - The full screenshot playthrough exceeds 10 minutes; run it in the
   background.
+- **Triangle headroom is thin since the palms:** most outdoor views are now
+  175–193k of the 200k budget (28 palms × ~3.1k tris dominate). Any further
+  scenery must pay for itself: bake a decimated palm variant, or cut decorative
+  palms first. Draw calls are fine (worst 100 of 120).
+- Pirate Kit licence assumed CC0 (README credits Quaternius); verify against
+  the original download page before public release.
 
 ## Codex / Delegated Work
-No run is in flight, and none is pending review. Codex usage ran out on
-2026-10-15, after story slice B finished; the router checks availability
-itself. Phase 3 work orders and results are in `.ai/p3-*.json` (gitignored).
+No run is in flight, and none is pending review. The Pirate Kit integration
+(Codex) was reviewed by eye and diff and merged. Work orders and results are in
+`.ai/` (gitignored).

@@ -78,6 +78,7 @@ export function installE2eHook(seed: number) {
       const g = getGame();
       return {
         screen: g.screen,
+        modelsReady: rt.modelsReady,
         mode: g.mode,
         fade: g.fade,
         micState: g.micState,
