@@ -735,3 +735,79 @@ The cliff path is a union of overlapping capsules, joined to a circular plateau,
   have meant rewriting the instanced batches and the line-of-sight material path
   for a modest extra gain, and distance LOD. Neither helps much until the scenery
   is heavier; the clifftop, which sees the whole island, is what LOD would target.
+
+## 2026-10-22 — Vegetation overhaul
+
+- **What and why:** replace the segmented palm fronds and repeated foliage blobs
+  with a shared tropical family: warm tapered trunks, visible primary branches,
+  full domed crowns, cooler green undersides and yellow-green upper
+  highlights. A shared vegetation palette keeps jungle trees, palms, decorative
+  bushes and harvestable plants consistent. Flat shading remains the art style;
+  silhouette and vertex colour supply the detail without textures or extra materials.
+- **Frozen rendering architecture:** `bucketByTile` groups jungle trees, palms
+  and decorative bushes together in 40 m tiles. Each tile is one static merged
+  `BufferGeometry` mesh using the existing `occluderMat`, with frustum culling.
+  Spot transforms and the original indexed tint formula are baked into its
+  world-space vertices and colours. This replaces the separate palm meshes,
+  tiled jungle instances and separate bush batch; runtime resource batches and
+  CliffDressing keep their existing draw-call structure. Geometry is generated
+  once, and temporary/prototype geometry is disposed after merging.
+- **Variation and placement:** a small library supplies five jungle archetypes
+  (tall broad, asymmetric spreading, dense rounded, slender branching and wide
+  tiered), seeded variants, four palm silhouettes (tall elegant, short full,
+  leaning beach and windswept), and layered decorative bush variants.
+  Deterministic index hashes choose variants and mild non-uniform stretches.
+  No extra values are drawn from `makeRng(42)`; a spot-list regression test locks
+  existing positions, scale, rotation and tint. Placement, collision, harvesting,
+  chop/stump/regrow logic and the line-of-sight fade remain unchanged.
+- **Generator parameters and budgets:** five jungle archetypes × three variants
+  use three to five 48-triangle volumetric lobes with three to five primary
+  branches ending inside the foliage. Lobe tops rise one height parameter above
+  the centre; rounded undersides descend 0.68 of it, with shoulder rings at
+  +0.65, 0 and -0.5. Heights are 0.72–1.38 m and radii 0.7–1.5 m, giving full,
+  overlapping domes rather than horizontal plates. The tall emergent has five
+  high broad lobes; the asymmetric crown leans left with five offset lobes;
+  the low round tree overlaps five lobes into a dense mass; the slender tree
+  carries three small separated crowns up its trunk; the wide tiered tree has
+  three lower lobes and two upper lobes separated vertically. Foliage stays
+  above 1.8 m and within 2.53 m radial clearance after the mild baked stretch.
+  Prototypes use 270–406 triangles (library average 362.8), below the existing
+  placed-average limit of 450. Index hashes still stretch X/Z by 0.96–1.04 and
+  Y by 0.97–1.04. Forest tops are yellow-green, sides mid green and undersides
+  cool green (#4c8c64), with ±0.0125 hue variation per clump.
+  Four reusable palm crowns have ten or eleven fronds, eight thicker rachis
+  strips and nine leaflet pairs at 0.10 intervals. Leaflets are about 2.5 times
+  wider, with fuller mid-length spreads and light green reverse faces; reversed
+  winding produces opposite back normals. Ten trunk rings × eight sides follow
+  the unchanged `palmAt` curve; the largest coconut palm uses 1,384 triangles,
+  within the existing 1,400 cap. The choppable tree uses 342 triangles, a straight
+  .28 m base-radius trunk and a cohesive round crown centred at y=3.4, with
+  lighter greens (#80bf60 through #c4e88a) than the forest.
+  Harvestable leaf bushes use thirteen overlapping broad pointed oval blades
+  (1.0–1.08 m maximum width), fanning up/out from a low centre, about 1 m radius
+  and 1.1 m tall. Their palette is #7dcc52 / #8fd45a / #b5e66a, including lighter
+  reverse faces with opposite normals; no wood or dark inner piece. They use
+  208 triangles, under the existing 400 cap. Three darker decorative bush
+  variants retain their shallow profiles and use 212 triangles each.
+- **Evidence and ownership:** seven close-up views are appended to
+  `scripts/shots-world.mjs`, each followed by `perfAt`: beach palms at eye level,
+  a palm crown from below, the forest edge from the beach, inside the forest,
+  a choppable tree, a leaf bush and the pond-clearing rim. Their staging restores
+  outdoor daylight, gates and resource availability using semantic preconditions.
+  Each detail camera requires at least 2.2 m horizontal player clearance; the
+  forest camera sits behind the player, and the leaf/pond views also stand back.
+  Measured with `npm run shots:world`: the clifftop went from 116 draw calls /
+  98k triangles to 107 / 154k; every view lost draw calls, and triangles rose
+  45–60k in the busiest views, within the 200k budget. Draw-call headroom is now
+  13 at the worst view.
+- **First pass rejected on review (controller):** the first crowns were thin
+  horizontal plates, so every archetype read as a savanna parasol and the jungle
+  lost its mass from the clifftop; palm leaflets were wiry and black from below;
+  the leaf bush went olive. Hence the volumetric lobes, wider leaflets with
+  flipped back normals, and the bright leaf-bush floor (nothing darker than
+  about #6cbf4a).
+- **Rejected:** per-archetype instanced batches per tile, because they multiply
+  draw calls across tiles; distance LOD, already rejected in the tiled-culling
+  decision; a smooth-shaded material, which would require a second material and
+  bypass the fade; hand-modelled/baked GLB palms, about 3k triangles each (see
+  revert `bf34c1f`).

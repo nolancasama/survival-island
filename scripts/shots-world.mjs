@@ -246,5 +246,87 @@ await frame(kai.x + 2, kai.z + 4, kai.x, kai.z, 0.4, 8);
 await requireState("Kai route ended before its partway view", (s) => !s.kaiRouteEmpty);
 await shot("kai-walking-to-rockfall");
 
+// Vegetation detail views follow every existing view. Reload to clear the
+// rescue flight and Kai's live route before staging a clean outdoor morning.
+await page.reload();
+await page.waitForFunction(() => Boolean(window.__si), null, { timeout: 20_000 }).catch((error) => {
+  throw new Error("HARNESS_PRECONDITION_FAILED: vegetation world hook did not load", { cause: error });
+});
+await call("showWorld");
+await call("setInCave", false);
+await call("setClock", 0.05);
+await call("setGates", { pathCleared: true, bridgeBuilt: true, cliffOpen: false });
+await call("setWorldFacts", { signalLit: false, rescued: false, kaiStage: "camp", caveBoxOpened: false });
+await call("setBuildings", []);
+await call("setTaken", tree.id, false);
+await call("setTaken", leaves.id, false);
+await requireState(
+  "vegetation daylight, outdoor gates and resources were not staged",
+  (s, ids) => s.screen === "game" && s.mode === "explore" && s.fade === 0 &&
+    !s.inCave && !s.isNight && s.light >= 0.95 && s.pathCleared && s.bridgeBuilt && !s.cliffOpen &&
+    !s.signalLit && !s.rescued && s.rescue.phase === "none" && s.kaiRouteEmpty &&
+    s.buildings.length === 0 && ids.every((id) => !s.taken.includes(id)),
+  [tree.id, leaves.id]
+);
+const vegetationFrame = async (player, pos, target) => {
+  const p = await call("goto", player.x, player.z, target.x, target.z);
+  await requireState(
+    "vegetation camera subject was not reached",
+    (s, at) => !s.inCave && Math.hypot(s.player.x - at.x, s.player.z - at.z) < 0.05,
+    p
+  );
+  await requireState(
+    "vegetation camera lacks player clearance",
+    (s, camera) => Math.hypot(s.player.x - camera.x, s.player.z - camera.z) >= 2.2,
+    pos
+  );
+  await call("setCameraShot", pos, target);
+  await settle(0.35);
+};
+
+await vegetationFrame({ x: 10.5, z: 13 }, { x: 12, y: 2.2, z: 17 }, { x: 3, y: 3.9, z: 7.5 });
+await shot("vegetation-beach-palms-eye-level");
+await perfAt("vegetation beach palms eye level");
+
+// PALMS[0] is authored at (5, 8.5), height 6.2, lean .25, dir 2.6.
+// Its unchanged palmAt crown is approximately (5.8, 6.6, 7.17).
+await vegetationFrame({ x: 9, z: 10 }, { x: 6.2, y: 2, z: 9.2 }, { x: 5.8, y: 6.6, z: 7.17 });
+await shot("vegetation-palm-crown-from-below");
+await perfAt("vegetation palm crown from below");
+
+await vegetationFrame({ x: -9, z: 1 }, { x: -15, y: 2.4, z: 2 }, { x: -17, y: 3.5, z: -5 });
+await shot("vegetation-forest-edge-from-beach");
+await perfAt("vegetation forest edge from beach");
+
+await vegetationFrame({ x: -8, z: -20 }, { x: -12, y: 3.3, z: -16 }, { x: 1, y: 4, z: -27 });
+await shot("vegetation-inside-forest");
+await perfAt("vegetation inside forest");
+
+await requireState("vegetation choppable tree was not restored", (s, id) => !s.taken.includes(id), tree.id);
+await vegetationFrame(
+  { x: tree.x + 3.5, z: tree.z + 1.5 },
+  { x: tree.x + 3.5, y: 2.7, z: tree.z + 4.5 },
+  { x: tree.x, y: 3.2, z: tree.z }
+);
+await shot("vegetation-choppable-tree-close");
+await perfAt("vegetation choppable tree close");
+
+await requireState("vegetation leaf bush was not restored", (s, id) => !s.taken.includes(id), leaves.id);
+await vegetationFrame(
+  { x: leaves.x - 2, z: leaves.z - 0.5 },
+  { x: leaves.x + 2.5, y: 3, z: leaves.z - 3.5 },
+  { x: leaves.x, y: 0.7, z: leaves.z }
+);
+await shot("vegetation-leaf-bush-close");
+await perfAt("vegetation leaf bush close");
+
+await vegetationFrame(
+  { x: world.pond.x + 5, z: world.pond.z + 3 },
+  { x: world.pond.x + 7.5, y: 3, z: world.pond.z + 6 },
+  { x: world.pond.x - 4, y: 3.6, z: world.pond.z - 3 }
+);
+await shot("vegetation-pond-clearing-rim");
+await perfAt("vegetation pond clearing rim");
+
 console.log(logs.length ? logs.join("\n") : "no console errors");
 await browser.close();

@@ -14,8 +14,6 @@ import {
   FOREST_GAP,
   KAI_HOME,
   LEAN_TO,
-  NODES,
-  PALMS,
   POND,
   SEA_Y,
   STREAM,
@@ -25,15 +23,13 @@ import {
 } from "../game/world/island";
 import { makeRng } from "../game/logic/rng";
 import { flatMat, occluderMat, signTexture, smoothMat } from "./materials";
-import { bucketByTile, splitGeometryByTiles } from "./tiles";
+import { splitGeometryByTiles } from "./tiles";
+import { vegetationTiles } from "./models/vegetationLayout";
 import { cliffTerrainGeometry } from "./models/cliffTrail";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   bouldersGeometry,
-  bushGeometry,
   farIslandGeometry,
-  jungleTreeGeometry,
-  palmsGeometry,
   towerGeometry
 } from "./models/nature";
 import {
@@ -439,98 +435,6 @@ function useFoam() {
 
 // -------------------------------------------------------------- vegetation
 
-interface TreeSpot {
-  x: number;
-  z: number;
-  s: number;
-  r: number;
-  tint: number;
-}
-
-function treeSpots(): { trees: TreeSpot[]; bushes: TreeSpot[] } {
-  const rand = makeRng(42);
-  const trees: TreeSpot[] = [];
-  const bushes: TreeSpot[] = [];
-  const inGap = (x: number, z: number) => Math.abs(x - FOREST_GAP.x) < 2.4 && z > -11;
-  const onPath = (x: number, z: number) =>
-    segDist(-9, -3, -8, -20, x, z).d < 3.1 ||
-    segDist(-8, -20, 5, -34, x, z).d < 3.1 ||
-    segDist(-8, -20, -27.5, -22, x, z).d < 3.1 ||
-    segDist(5, -34, 20, -39, x, z).d < 3 ||
-    segDist(18, -36, 22, -44, x, z).d < 4 ||
-    segDist(8, -36, 7.2, -42.2, x, z).d < 4 ||
-    Math.hypot(x - 2, z + 20) < 4.4;
-  const byNode = (x: number, z: number) => NODES.some((n) => Math.hypot(n.x - x, n.z - z) < 2.25);
-  // The original south tree line remains dense, with the single forest gap.
-  for (let x = -40; x < 40; x += 2.8 + rand() * 1.4) {
-    const px = x + (rand() - 0.5) * 1.2;
-    const pz = -4.3 - rand() * 1.2;
-    if (!inGap(px, pz)) trees.push({ x: px, z: pz, s: 0.85 + rand() * 0.45, r: rand() * 6.28, tint: 0.88 + rand() * 0.22 });
-  }
-  // Forest trees are clustered away from the readable three-metre path corridors.
-  for (let i = 0; i < 230; i++) {
-    const px = -27 + rand() * 54;
-    const pz = -7 - rand() * 35;
-    if (inGap(px, pz) || onPath(px, pz) || byNode(px, pz)) continue;
-    const edge = Math.min(px + 27, 27 - px, -7 - pz, pz + 42);
-    if (rand() > (edge < 4 ? 0.9 : 0.54)) continue;
-    trees.push({ x: px, z: pz, s: 0.72 + rand() * 0.48, r: rand() * 6.28, tint: 0.82 + rand() * 0.25 });
-  }
-  for (let x = -40; x < 40; x += 2.2 + rand() * 2.5) {
-    if (inGap(x, -3)) continue;
-    bushes.push({ x, z: -3.2 - rand() * 0.9, s: 0.7 + rand() * 0.6, r: rand() * 6, tint: 0.85 + rand() * 0.3 });
-  }
-  // A soft vegetation rim defines the pond clearing without hiding its shore.
-  for (let i = 0; i < 18; i++) {
-    const a = (i / 18) * Math.PI * 2 + rand() * 0.18;
-    const rr = POND.r + 3.2 + rand() * 2.2;
-    const x = POND.x + Math.cos(a) * rr;
-    const z = POND.z + Math.sin(a) * rr;
-    if (x > STREAM.x - 1 || onPath(x, z) || byNode(x, z)) continue;
-    trees.push({ x, z, s: 0.72 + rand() * 0.3, r: rand() * 6.28, tint: 0.86 + rand() * 0.2 });
-  }
-  // Headland trees.
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 9; i++) {
-      trees.push({ x: side * (42 + rand() * 8), z: -6 + rand() * 12, s: 0.9 + rand() * 0.4, r: rand() * 6, tint: 0.9 + rand() * 0.2 });
-    }
-  }
-  return { trees, bushes };
-}
-
-/** One frustum-culled instanced batch per spatial tile. Each spot keeps its
- * index in the full list, so per-instance tints match the untiled layout. */
-function Instanced({ geometry, spots, tile }: { geometry: THREE.BufferGeometry; spots: TreeSpot[]; tile?: number }) {
-  const tiles = useMemo(() => {
-    const indexed = spots.map((s, i) => ({ ...s, i }));
-    return tile ? bucketByTile(indexed, tile) : [indexed];
-  }, [spots, tile]);
-  return <>{tiles.map((tile, k) => <InstancedTile key={k} geometry={geometry} spots={tile} />)}</>;
-}
-
-function InstancedTile({ geometry, spots }: { geometry: THREE.BufferGeometry; spots: (TreeSpot & { i: number })[] }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  useEffect(() => {
-    const m = ref.current;
-    if (!m) return;
-    const o = new THREE.Object3D();
-    const c = new THREE.Color();
-    spots.forEach((s, slot) => {
-      const i = s.i;
-      o.position.set(s.x, groundY(s.x, s.z), s.z);
-      o.rotation.set(0, s.r, 0);
-      o.scale.setScalar(s.s);
-      o.updateMatrix();
-      m.setMatrixAt(slot, o.matrix);
-      m.setColorAt(slot, c.setRGB(s.tint, s.tint * (0.95 + (i % 3) * 0.04), s.tint));
-    });
-    m.instanceMatrix.needsUpdate = true;
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
-    m.computeBoundingSphere();
-  }, [spots]);
-  return <instancedMesh ref={ref} args={[geometry, occluderMat, spots.length]} />;
-}
-
 /** Distance from point (px, pz) to segment a->b in XZ, and how far along it lies (0..1). */
 function segDist(ax: number, az: number, bx: number, bz: number, px: number, pz: number) {
   const dx = bx - ax;
@@ -540,36 +444,13 @@ function segDist(ax: number, az: number, bx: number, bz: number, px: number, pz:
   return { d: Math.hypot(ax + dx * u - px, az + dz * u - pz), u };
 }
 
-/** Palms share the general line-of-sight material with the other vegetation. */
-function Palms() {
-  const items = useMemo(
-    () =>
-      PALMS.map((palm, i) => ({
-        geo: palmsGeometry([palm], 7 + i)
-      })),
-    []
-  );
-  return (
-    <group>
-      {items.map((it, i) => (
-        <mesh key={i} geometry={it.geo} material={occluderMat} />
-      ))}
-    </group>
-  );
-}
-
+/** All static vegetation shares one frustum-culled mesh per 40 m tile. */
 export function Vegetation() {
-  const tree = useMemo(jungleTreeGeometry, []);
-  const bush = useMemo(bushGeometry, []);
-  const { trees, bushes } = useMemo(treeSpots, []);
-  return (
-    <group>
-      <Palms />
-      {/* Trees are tiled; the 21 bushes (~1.3k tris) stay one culled batch. */}
-      <Instanced geometry={tree} spots={trees} tile={40} />
-      <Instanced geometry={bush} spots={bushes} />
-    </group>
-  );
+  const tiles = useMemo(vegetationTiles, []);
+  useEffect(() => () => tiles.forEach((geometry) => geometry.dispose()), [tiles]);
+  return <group>{tiles.map((geometry, index) => (
+    <mesh key={index} geometry={geometry} material={occluderMat} frustumCulled />
+  ))}</group>;
 }
 
 // ------------------------------------------------------------ the rest

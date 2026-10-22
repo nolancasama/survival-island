@@ -1,5 +1,27 @@
 # Current State
 
+## Vegetation overhaul — 2026-10-22
+- Procedural vegetation now targets a shared stylized tropical family, with
+  jungle archetypes, continuous palm trunks and leaflet crowns, darker layered
+  decorative bushes, a distinct choppable tree and bright broad-leaf harvest bushes.
+- Static jungle trees, palms and decorative bushes share one merged mesh per
+  40 m tile using `occluderMat`; deterministic prototype selection preserves the
+  existing authored placements and seeded spot stream. Gameplay is unchanged.
+- Generators: `scene/models/vegetationBroadleaf.ts` (jungle archetypes, bushes,
+  choppable tree, leaf bush), `vegetationPalms.ts` (palms, `palmAt`),
+  `vegetationLayout.ts` (`treeSpots`, moved verbatim from Environment.tsx, and
+  the per-tile merge). Parameters are in DESIGN_DECISIONS "Vegetation overhaul".
+- `npm run shots:world` now has 35 views (seven vegetation close-ups appended).
+- **Measured (SwiftShader 1024×768), calls / triangles before → after:**
+  clifftop 116/98k → 107/154k (worst view), camp at night 100/95k → 95/150k,
+  beach spawn 70/86k → 66/138k, forest gap 78/89k → 75/142k, forest centre
+  48/70k → 47/112k, bridge 41/38k → 39/53k, pond 37/37k → 36/53k. Draw calls
+  fell in every view; triangles rose ~45–60k but stay under the 200k budget.
+- Verified: typecheck, `npm test` (133), build, `npm run e2e` (26, incl.
+  chop/stump/regrow, leaf collection, save migration), placement checksums
+  locked by test and the moved `treeSpots` checked byte-identical to the old one.
+  Reviewed by eye: palms, forest, choppable tree and stump, leaf bush, clifftop.
+
 ## Status
 **Phase 3 is complete: the whole five-day story (Days 1–5), the helicopter
 rescue, the Rescue card, free play from Day 6, and classroom mode, all on
@@ -40,11 +62,10 @@ decision sections after it. Read those first. Phase 2 sections still apply.
   `npm run shots:world` 28 views. Reviewed by eye: cave, cliff trail,
   clifftop, signal fire, helicopter, every Day 4–5 story beat, Rescue card.
 - **Performance (2026-10-22, tiled culling, `scene/tiles.ts`):** terrain and
-  jungle trees are split into 40 m frustum-culled tiles. Worst view is the
-  clifftop at 116 draw calls / 98k triangles (budget 120 / 200k); ordinary
-  views dropped to 37–95k (bridge and pond about 37k, from 87k). Draw-call
-  headroom is now the tighter limit: new static batches should join the
-  existing tiles rather than add island-wide meshes. A Pirate Kit palm pass was
+  all static vegetation are split into 40 m frustum-culled tiles. After the
+  vegetation overhaul the worst view is the clifftop at 107 draw calls / 154k
+  triangles (budget 120 / 200k). New static scenery should join the existing
+  vegetation tiles rather than add island-wide meshes. A Pirate Kit palm pass was
   tried and reverted (f091cb3 → bf34c1f); its measurements are in the revert
   message.
 
