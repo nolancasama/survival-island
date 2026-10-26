@@ -1355,7 +1355,7 @@ input[type="range"] {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: #0b1020;
+  background: #000;
   pointer-events: none;
   transition: opacity 0.9s ease;
 }

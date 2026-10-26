@@ -104,7 +104,7 @@ async function bedtime() {
   await dayThreeThanks();
   const bed = sleepPlace();
   if (bed) showPlaces([bed.id]);
-  if (bed?.type === "shelter") await say("kai", "It's getting dark. Let's sleep in the shelter!", "くらく なって きたね。 こやで ねよう！");
+  if (bed?.type === "shelter") await say("kai", "It's getting dark. Let's sleep in the tent!", "くらく なって きたね。 テントで ねよう！");
   else await say("kai", "It's late. Let's sleep by the fire.", "もう おそいね。 火の そばで ねよう。");
 }
 
@@ -126,7 +126,7 @@ export async function dayThreeThanks() {
 async function dayTwoMorning() {
   await say("kai", "Good morning!", "おはよう！");
   await say("kai", "Brr! The sand was cold.", "ブルル！ すなの うえは さむかったね。");
-  await say("kai", "Let's make a shelter.", "こやを つくろう。");
+  await say("kai", "Let's make a tent.", "テントを つくろう。");
   showPlaces([FALLEN_TREE.id]);
   await say("kai", "Leaves are in the forest. But a big tree is in the way.", "もりに はっぱが あるよ。 でも おおきな 木が じゃまなんだ。");
   const can = await ask({
@@ -197,7 +197,7 @@ async function bridgeNeedsLine() {
 async function containerNeedsLine() {
   const needs = recipeNeeds("container", getGame().settings.classroom);
   const leaves = needs.leaves!;
-  await say("kai", `Make a water container with a coconut and ${leaves === 1 ? "one leaf" : `${numberWord(leaves)} leaves`}.`, `ココナッツ ${needs.coconut}つと はっぱ ${leaves}つで みずいれを つくろう。`, {
+  await say("kai", `Make a cup with a coconut and ${leaves === 1 ? "one leaf" : `${numberWord(leaves)} leaves`}.`, `ココナッツ ${needs.coconut}つと はっぱ ${leaves}つで カップを つくろう。`, {
     icons: [{ item: "coconut", n: needs.coconut! }, { item: "leaves", n: leaves }]
   });
 }
@@ -211,7 +211,7 @@ async function rodNeedsLine() {
 
 async function teachContainer() {
   await containerNeedsLine();
-  unlock("container", "water container", "みずいれ");
+  unlock("container", "cup", "カップ");
 }
 
 async function teachRod() {
@@ -349,14 +349,14 @@ async function helpDayTwo() {
       await say("kai", "Cut the trees with your axe!", "おので 木を きろう！");
       return;
     case "shelter":
-      await say("kai", "You have wood and leaves! Make a shelter.", "木と はっぱが あるね！ こやを つくろう。");
+      await say("kai", "You have wood and leaves! Make a tent.", "木と はっぱが あるね！ テントを つくろう。");
       return;
     case "build":
       if (shelter) {
         showPlaces([shelter.id]);
-        await say("kai", "Now build the shelter!", "さあ、 こやを たてよう！");
+        await say("kai", "Now build the tent!", "さあ、 テントを たてよう！");
       } else {
-        await say("kai", "Put the shelter down. Then build it!", "こやを おいてから、 たてよう！");
+        await say("kai", "Put the tent down. Then build it!", "テントを おいてから、 たてよう！");
       }
       return;
     default:

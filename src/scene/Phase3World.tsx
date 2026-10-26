@@ -13,7 +13,7 @@ import { flatMat, glowTexture, occluderMat } from "./materials";
 import { bushGeometry, jungleTreeGeometry, rockGeometry } from "./models/nature";
 import { cliffDressingSpots, type CliffSpot } from "./models/cliffTrail";
 import {
-  caveCrystalsGeometry, caveShellGeometry, helicopterGeometry,
+  caveCrystalsGeometry, caveFloorGeometry, caveShellGeometry, helicopterGeometry,
   helicopterRotorGeometry, oldBoxGeometry, signalFireGeometry, signalPadGeometry
 } from "./models/phase3";
 
@@ -21,6 +21,7 @@ function CaveInterior() {
   const opened = useGame((s) => s.caveBoxOpened);
   const lid = useRef<THREE.Group>(null);
   const shell = useMemo(() => caveShellGeometry(CAVE_CHAMBER.x, CAVE_CHAMBER.z), []);
+  const floor = useMemo(() => caveFloorGeometry(CAVE_CHAMBER.x, CAVE_CHAMBER.z), []);
   const crystals = useMemo(() => caveCrystalsGeometry(CAVE_CHAMBER.x, CAVE_CHAMBER.z), []);
   const crystalMat = useMemo(() => new THREE.MeshLambertMaterial({ vertexColors: true, emissive: "#3a7895", emissiveIntensity: 0.72, flatShading: true }), []);
   const daylight = useMemo(() => new THREE.MeshBasicMaterial({ color: "#c6e1dd", map: glowTexture(), transparent: true, opacity: 0.48, depthWrite: false, side: THREE.DoubleSide }), []);
@@ -33,6 +34,7 @@ function CaveInterior() {
   return (
     <group>
       <mesh geometry={shell} material={occluderMat} userData={{ cameraCollider: true }} />
+      <mesh name="cave-floor" geometry={floor} material={flatMat} />
       <mesh geometry={crystals} material={crystalMat} />
       <mesh material={daylight} position={[CAVE_EXIT.x, 0.035, CAVE_EXIT.z - 1.2]} rotation={[-Math.PI / 2, 0, 0]} scale={[6, 8, 1]}><planeGeometry args={[1, 1]} /></mesh>
       <mesh material={daylight} position={[CAVE_EXIT.x, 1.6, CAVE_EXIT.z + 0.9]} scale={[4, 4.5, 1]}><planeGeometry args={[1, 1]} /></mesh>

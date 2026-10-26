@@ -70,12 +70,12 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   metal: { id: "metal", en: "metal", ja: "てつ", kind: "resource" },
   axe: { id: "axe", en: "stone axe", ja: "いしの おの", kind: "tool" },
   rod: { id: "rod", en: "fishing rod", ja: "つりざお", kind: "tool" },
-  container: { id: "container", en: "water container", ja: "みずいれ", kind: "tool" },
+  container: { id: "container", en: "cup", ja: "カップ", kind: "tool" },
   torch: { id: "torch", en: "torch", ja: "たいまつ", kind: "tool" },
   /** The old signal device from the cave (Phase 3). */
   radio: { id: "radio", en: "radio", ja: "ラジオ", kind: "tool" },
   campfire: { id: "campfire", en: "campfire", ja: "たきび", kind: "building", places: "campfire" },
-  shelter: { id: "shelter", en: "shelter", ja: "こや", kind: "building", places: "shelter" },
+  shelter: { id: "shelter", en: "tent", ja: "テント", kind: "building", places: "shelter" },
   signalFire: { id: "signalFire", en: "signal fire", ja: "のろし", kind: "building" }
 };
 

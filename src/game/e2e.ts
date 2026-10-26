@@ -120,7 +120,8 @@ export function installE2eHook(seed: number) {
         /** The preview has been checked this placement and fits (E would place it). */
         placeOk: g.mode === "place" && rt.place.ok,
         hint: g.hint,
-        player: { x: rt.player.x, z: rt.player.z, yaw: rt.player.yaw },
+        player: { x: rt.player.x, y: rt.player.y, z: rt.player.z, yaw: rt.player.yaw,
+          speed: rt.player.speed, lying: rt.player.lying, lyingTarget: rt.player.lyingTarget },
         taken: [...rt.taken.keys()],
         /** Read-only semantic cast phase and saved live-seconds rest timers. */
         fishing: rt.fishing ? { ...rt.fishing } : null,
@@ -291,6 +292,12 @@ export function installE2eHook(seed: number) {
     setStats(s: Partial<{ hp: number; stamina: number; food: number }>) {
       rt.stats = { ...rt.stats, ...s };
       syncStats();
+    },
+    /** Stage an actual action at an animation phase for representative captures. */
+    setAction(kind: NonNullable<typeof rt.player.action>["kind"], progress = 0) {
+      const duration = kind === "craft" || kind === "build" ? 0.9 : kind === "chop" || kind === "drink" ? 0.75 : 0.55;
+      rt.player.action = { kind, t0: rt.time - Math.max(0, Math.min(1, progress)) * duration };
+      rt.player.frozenUntil = rt.time + 0.1;
     },
     kaiHome() {
       return KAI_HOME;

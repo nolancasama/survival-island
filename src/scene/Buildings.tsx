@@ -45,11 +45,59 @@ export function shelterFrameGeometry(): THREE.BufferGeometry {
 /** Leaf roof only; kept separate so it can drop onto the frame. */
 export function shelterRoofGeometry(): THREE.BufferGeometry {
   const b = new PartBuilder(0.2);
-  for (let side = -1; side <= 1; side += 2) {
-    for (let i = 0; i < 7; i++) {
-      const z = -1.35 + i * 0.45;
-      b.boxAt(1.72, 0.07, 0.52, [side * 0.72, 1.68, z], [0, 0, side * -0.88], i % 2 ? "#4fa046" : "#3e8d3e");
+  type Point = [number, number, number];
+  const palette = ["#4b9343", "#5da347", "#6aac4e", "#42843c", "#589a42"];
+  const leaf = (edge: Point[], centre: Point, color: string) => {
+    const vertices: number[] = [];
+    edge.forEach((p, i) => {
+      const next = edge[(i + 1) % edge.length];
+      vertices.push(...centre, ...p, ...next, ...centre, ...next, ...p);
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+    g.computeVertexNormals();
+    b.add(g, color, [0, 0, 0]);
+  };
+  for (const side of [-1, 1]) {
+    // A thin woven underside seals the pointed leaf edges and both slopes
+    // share the exact ridge coordinate. Unlike rotated rectangular panels,
+    // their upper ends cannot stop short of the A-frame's ridge pole.
+    const angle = Math.atan2(2.4, 1.49);
+    b.boxAt(Math.hypot(2.4, 1.49), 0.055, 3.12, [side * 0.745, 1.285, 0], [0, 0, -side * angle], "#376f35");
+    // Lay from eave toward ridge: upper rows sit slightly above the row
+    // below, so the overlaps read as leaves from normal camera distances.
+    for (let row = 3; row >= 0; row--) {
+      for (let col = 0; col < 6; col++) {
+        const t = row * 0.245 - 0.012;
+        const length = 0.325 + ((row + col) % 3) * 0.009;
+        const width = 0.31 + ((col * 3 + row) % 4) * 0.009;
+        const z = -1.25 + col * 0.5;
+        const skew = ((row + col) % 3 - 1) * 0.035;
+        const height = 0.045 + (3 - row) * 0.014;
+        const at = (u: number, v: number, raised = 0): Point => [
+          side * 1.49 * u, 2.51 - 2.4 * u + height + raised, z + v + skew * u
+        ];
+        leaf([
+          at(t, -width * 0.48), at(t + length * 0.28, -width),
+          at(t + length * 0.72, -width * 0.83), at(t + length, skew),
+          at(t + length * 0.72, width * 0.83), at(t + length * 0.28, width),
+          at(t, width * 0.48)
+        ], at(t + length * 0.45, 0, 0.045), palette[(row * 2 + col + (side === 1 ? 1 : 0)) % palette.length]);
+      }
     }
+  }
+  // Folded broad leaves straddle the ridge; the cap conceals the join and
+  // catches the light. The bindings are only three small pairs of cords.
+  for (let i = 0; i < 6; i++) {
+    const z = -1.25 + i * 0.5;
+    leaf([
+      [-0.25, 2.16, z - 0.33], [0, 2.66, z - 0.29], [0.25, 2.16, z - 0.33],
+      [0.23, 2.18, z + 0.29], [0, 2.65, z + 0.36], [-0.23, 2.18, z + 0.29]
+    ], [0, 2.67, z], i % 2 ? "#6aab4e" : "#5a9b44");
+  }
+  for (const z of [-1.12, 0, 1.12]) {
+    between(b, [-0.17, 2.4, z], [0, 2.71, z], 0.017, 0.017, "#b9ae72", 4);
+    between(b, [0, 2.71, z], [0.17, 2.4, z + 0.025], 0.017, 0.017, "#b9ae72", 4);
   }
   return b.build();
 }

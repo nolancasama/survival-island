@@ -11,6 +11,7 @@ import { currentGates } from "./places";
 import { facts, refreshQuest, save, setMood, showPlaces, syncStats, updateHint, wait } from "./session";
 import { dayThreeThanks, morningTalk } from "./kai";
 import { audio } from "../../audio/audio";
+import { changePose, fadeFromBlack, fadeToBlack } from "./transition";
 
 /**
  * The shape of a day: the evening (Day 1's celebration, or Kai's evening line
@@ -99,7 +100,7 @@ export async function eveningCue() {
   const bed = sleepPlace();
   if (bed) showPlaces([bed.id]);
   await dayThreeThanks();
-  await say("kai", "It's getting dark. Let's sleep in the shelter!", "くらく なって きたね。 こやで ねよう！");
+  await say("kai", "It's getting dark. Let's sleep in the tent!", "くらく なって きたね。 テントで ねよう！");
   setGame({ mode: "explore" });
   updateHint();
 }
@@ -126,10 +127,9 @@ export async function sleepTonight(bed: PlacedBuilding | null) {
   const p = rt.player;
   if (bed) p.yaw = Math.atan2(bed.x - p.x, bed.z - p.z);
   audio.play("sleep");
-  p.lyingTarget = 1;
-  await wait(1100);
-  setGame({ fade: 1 });
-  await wait(900);
+  await changePose(1);
+  await wait(650);
+  await fadeToBlack();
   setGame({ sleeping: true });
   await wait(2500);
   rt.stats = afterSleep(rt.stats);
@@ -154,6 +154,8 @@ export async function nextDay() {
   if (advancing) return;
   advancing = true;
   try {
+    setGame({ mode: "busy", focus: null });
+    await fadeToBlack();
     const previousDay = getGame().quest.day;
     if (previousDay === 5 && getGame().rescued) {
       rt.rescueT0 = -1;
@@ -193,8 +195,7 @@ export async function nextDay() {
     setGame({ fade: 0, dayTitle: q.day });
     await wait(2600);
     setGame({ dayTitle: null });
-    rt.player.lyingTarget = 0;
-    await wait(900);
+    await changePose(0);
     if (isStoryDay(previousDay)) await morningTalk(q.day);
     setGame({ mode: "explore" });
     refreshQuest();
@@ -207,26 +208,30 @@ export async function nextDay() {
 
 /** A migrated free-play save begins Day 4's story without advancing the day number. */
 export async function resumeDayFourMorning() {
-  setGame({ mode: "busy", focus: null, dayTitle: 4, daySaid: [], dayNew: [] });
+  setGame({ mode: "busy", focus: null, daySaid: [], dayNew: [] });
+  await fadeToBlack();
   wakeAtCamp();
+  setGame({ dayTitle: 4 });
+  await fadeFromBlack();
   audio.play("morning");
   await wait(2600);
   setGame({ dayTitle: null });
-  rt.player.lyingTarget = 0;
-  await wait(900);
+  await changePose(0);
   await morningTalk(4);
   refreshQuest();
 }
 
 /** An interrupted Escape introduction replays at camp, before Kai starts his walk. */
 export async function resumeDayFiveMorning() {
-  setGame({ mode: "busy", focus: null, dayTitle: 5, daySaid: [], dayNew: [] });
+  setGame({ mode: "busy", focus: null, daySaid: [], dayNew: [] });
+  await fadeToBlack();
   wakeAtCamp();
+  setGame({ dayTitle: 5 });
+  await fadeFromBlack();
   audio.play("morning");
   await wait(2600);
   setGame({ dayTitle: null });
-  rt.player.lyingTarget = 0;
-  await wait(900);
+  await changePose(0);
   await morningTalk(5);
   refreshQuest();
 }

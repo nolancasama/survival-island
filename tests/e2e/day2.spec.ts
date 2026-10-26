@@ -38,7 +38,7 @@ async function make(page: Page, id: string, sentence: string) {
   await speak(page, sentence);
 }
 
-test("speech: Day 2 from the morning to sleeping in the shelter", async ({ page }) => {
+test("speech: Day 2 from the morning to sleeping in the tent", async ({ page }) => {
   const errors = await boot(page);
   await startDay(page, 2, "no I can't");
   let s = await state(page);
@@ -64,7 +64,7 @@ test("speech: Day 2 from the morning to sleeping in the shelter", async ({ page 
   expect(s.quest.done).toContain("path");
   expect(await hook<boolean>(page, "reachable", "leaves-1")).toBe(true);
 
-  // Leaves: the first are spoken and teach the shelter recipe; +2 per bush.
+  // Leaves: the first are spoken and teach the tent recipe; +2 per bush.
   await goTo(page, await firstNode(page, "leaves"));
   await use(page, "get the leaves");
   s = await state(page);
@@ -81,10 +81,10 @@ test("speech: Day 2 from the morning to sleeping in the shelter", async ({ page 
   expect(s.prompt).toBeNull();
   expect(s.quest.done).toEqual(expect.arrayContaining(["leaves", "wood"]));
 
-  // Make the shelter, put it on the beach, and build it.
+  // Make the tent, put it on the beach, and build it.
   await hook(page, "teleport", 9, 9.5, Math.PI);
   await hook(page, "setCameraYaw", 0);
-  await make(page, "shelter", "I want to make a shelter");
+  await make(page, "shelter", "I want to make a tent");
   await waitFor(page, (st) => st.mode === "place");
   await waitFor(page, (st) => st.placeOk);
   await page.keyboard.press("KeyE");
@@ -92,15 +92,15 @@ test("speech: Day 2 from the morning to sleeping in the shelter", async ({ page 
   const shelter = (await state(page)).buildings.find((b) => b.type === "shelter")!;
   expect(shelter.built).toBeFalsy();
   await goTo(page, shelter.id);
-  await use(page, "build a shelter");
+  await use(page, "build a tent");
   s = await state(page);
   expect(s.buildings.find((b) => b.id === shelter.id)?.built).toBe(true);
   expect(s.step).toBe("sleep");
 
-  // Evening: Kai's line lights the shelter.
+  // Evening: Kai's line lights the tent.
   await waitFor(page, (st, id) => st.beacons.includes(id) && st.mode === "explore" && st.line === null, 20_000, shelter.id);
 
-  // By day the shelter refuses: "It's not night yet!"
+  // By day the tent refuses: "It's not night yet!"
   await hook(page, "setClock", 0.3);
   await goTo(page, shelter.id);
   await page.keyboard.press("KeyE");
@@ -123,6 +123,11 @@ test("speech: Day 2 from the morning to sleeping in the shelter", async ({ page 
   expect(s.dayNew).not.toContain("sleep"); // said on Day 1 already
   await expect(page.getByTestId("dayend")).toContainText("Day 2 complete!");
   await expect(page.getByTestId("next-day")).toContainText("Day 3");
+  await expect(page.getByTestId("dayend").getByRole("button")).toHaveCount(1);
+  await expect(page.getByTestId("to-title")).toHaveCount(0);
+  await expect(page.getByTestId("dayend")).toContainText("built a tent");
+  await expect(page.getByTestId("said")).toContainText("I want to make a tent.");
+  await expect(page.getByTestId("said")).toContainText("Build a tent.");
   expect(errors).toEqual([]);
 });
 
@@ -155,7 +160,7 @@ test("Day 2 gates: the forest is closed, the big tree needs an axe, and “I nee
   expect(errors).toEqual([]);
 });
 
-test("save and resume in the Day 2 evening keeps the night and the shelter", async ({ page }) => {
+test("save and resume in the Day 2 evening keeps the night and the tent", async ({ page }) => {
   await boot(page);
   await startDay(page, 2, "yes I can");
   // Played ahead: a stone axe, the open forest and a built shelter beside the fire.

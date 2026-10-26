@@ -44,6 +44,15 @@ describe("save", () => {
     expect(parseSave(serialize(s))).toEqual(s);
   });
 
+  it("loads existing tent and cup saves with their original identifiers", () => {
+    const old = sample();
+    old.bag = { container: 1, shelter: 1, water: 1 };
+    old.buildings.push({ id: "old-tent", type: "shelter", x: 6, z: 5, rot: 0, built: true });
+    old.known = old.said = ["craftShelter", "buildShelter", "craftContainer"];
+    old.unlocked = old.crafted = ["shelter", "container"];
+    expect(parseSave(serialize(old))).toEqual(old);
+  });
+
   it("preserves Escape morning completion and rejects a malformed completion flag", () => {
     const s = sample();
     s.quest = { day: 5, done: [], complete: false };

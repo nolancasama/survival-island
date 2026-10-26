@@ -95,8 +95,8 @@ function candidates(): Candidate[] {
       out.push({ focus: { id: b.id, kind: "campfire", verb: "Sleep", noun: "by the fire", icon: "moon" }, x: b.x, z: b.z, reach: INTERACT_RANGE + 0.5 });
     } else if (b.type === "shelter") {
       const focus: Focus = b.built
-        ? { id: b.id, kind: "shelter", verb: "Sleep", noun: "in the shelter", icon: "moon" }
-        : { id: b.id, kind: "shelter", verb: "Build", noun: "the shelter", icon: "shelter" };
+        ? { id: b.id, kind: "shelter", verb: "Sleep", noun: "in the tent", icon: "moon" }
+        : { id: b.id, kind: "shelter", verb: "Build", noun: "the tent", icon: "shelter" };
       out.push({ focus, x: b.x, z: b.z, reach: INTERACT_RANGE + 1.1 });
     }
   }

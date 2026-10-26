@@ -328,5 +328,32 @@ await vegetationFrame(
 await shot("vegetation-pond-clearing-rim");
 await perfAt("vegetation pond clearing rim");
 
+// Polish acceptance views: retain every established performance point above.
+await call("setCameraShot", { x: 16, y: 3.6, z: 23 }, { x: 25.5, y: 1.8, z: 14.5 });
+await settle(0.35);
+await shot("polish-wreck-beach-approach");
+await perfAt("wreck beach approach");
+
+await call("setGates", { pathCleared: true, bridgeBuilt: true, cliffOpen: true });
+await call("setInCave", false);
+await frame(world.bridge.x, world.bridge.z, world.bridge.x - 5, world.bridge.z, 0.28, 5.8);
+await shot("polish-player-on-bridge");
+await perfAt("player on bridge");
+
+for (const [name, x, z] of [["flat", 10.5, 13], ["slope", 7, -48.4]]) {
+  await frame(x, z, x, z - 2, 0.3, 4.5);
+  const p = (await state()).player;
+  await call("setCameraShot", { x: p.x + 2.4, y: p.y + 1.1, z: p.z + 3.4 }, { x: p.x, y: p.y + 0.65, z: p.z });
+  // Hold an actual procedural gather pose for a representative rendered frame.
+  await page.evaluate(() => {
+    window.__pickupFrameTimer = setInterval(() => window.__si.setAction("gather", 0.45), 16);
+  });
+  await settle(0.3);
+  await shot(`polish-pickup-${name}`);
+  await page.evaluate(() => clearInterval(window.__pickupFrameTimer));
+  await settle(0.7);
+  await shot(`polish-pickup-${name}-recovered`);
+}
+
 console.log(logs.length ? logs.join("\n") : "no console errors");
 await browser.close();

@@ -20,6 +20,7 @@ import { audio } from "../../audio/audio";
 import { tts } from "../../audio/tts";
 import { recognition, requestMicPermission } from "../../audio/recognition";
 import { NODE_YIELD, type CraftId, type ItemId, type NodeKind } from "../types";
+import { changePose, fadeFromBlack, fadeToBlack } from "./transition";
 
 export const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, fastMode() ? Math.min(ms, 40) : ms));
 
@@ -232,8 +233,7 @@ async function intro() {
   await wait(200);
   setGame({ fade: 0 });
   await wait(1500);
-  rt.player.lyingTarget = 0;
-  await wait(1000);
+  await changePose(0);
   await say("self", "Where am I?", "ここは どこ？");
   await say("game", "A storm broke your ship. You are on an island!", "あらしで ふねが こわれて、しまに ながれついた！");
   await ask({
@@ -645,10 +645,9 @@ export function syncStats() {
 async function faint() {
   setGame({ mode: "busy", focus: null });
   audio.play("faint");
-  rt.player.lyingTarget = 1;
-  await wait(1300);
-  setGame({ fade: 1 });
-  await wait(800);
+  await changePose(1);
+  await wait(650);
+  await fadeToBlack();
   // Wake at the shelter, else by a lit fire, else next to Kai.
   const camp = sleepPlace();
   const home = camp ? { x: camp.x + 1.6, z: camp.z + 1.9 } : { x: rt.kai.x + 1.4, z: rt.kai.z + 1.8 };
@@ -660,12 +659,10 @@ async function faint() {
   syncStats();
   rt.camera.snap = true;
   rt.clock = faintPenalty(rt.clock, clockCapped()); // a little time has passed
-  setGame({ fade: 0 });
-  await wait(700);
+  await fadeFromBlack();
   await say("game", "You fainted. Kai helped you.", "たおれて しまった。 カイが たすけて くれたよ。");
   await say("kai", "Eat coconuts. Then you feel good!", "ココナッツを たべてね。 げんきに なるよ！");
-  rt.player.lyingTarget = 0;
-  await wait(600);
+  await changePose(0);
   setGame({ mode: "explore" });
   save();
 }

@@ -4,23 +4,96 @@ import { between, rockGeometry } from "./nature";
 
 /** The shipwreck, built along local +x (matches the collision rect). */
 export function wreckGeometry(): THREE.BufferGeometry {
-  const b = new PartBuilder(1.2);
-  const hull = "#7b4e2c";
-  const plank = "#9a6a3f";
-  // Hull body (open top), lying on its side a little.
-  b.box(8.6, 2.1, 3.4, -0.6, -0.6, 0, hull);
-  for (let i = 0; i < 4; i++) b.box(8.7, 0.12, 3.5, -0.6, -0.4 + i * 0.5, 0, i % 2 ? plank : "#86592f");
-  // Bow wedge.
-  b.add(new THREE.CylinderGeometry(0.1, 1.75, 2.1, 4, 1), hull, [4.4, 0.45, 0], [0, Math.PI / 4, -Math.PI / 2], [1, 1, 1]);
-  // Deck (tilted planks) and a dark hole in the side.
-  b.boxAt(7.6, 0.14, 3.1, [-0.6, 1.5, 0], [0, 0, 0], "#b9895a");
-  b.boxAt(1.6, 1.0, 0.1, [-2.2, 0.4, 1.73], [0, 0, 0.15], "#2b1d14");
-  // Broken mast with a torn sail.
-  between(b, [-1.2, 1.5, 0], [-2.8, 5.4, 0.8], 0.2, 0.15, "#6a4527", 7);
-  b.boxAt(0.08, 2.0, 2.2, [-2.3, 3.9, 0.55], [0.1, 0.3, 0.42], "#efe6d0");
-  b.boxAt(0.08, 1.1, 1.3, [-1.9, 2.9, 1.5], [0.4, 0.5, 0.6], "#e6dbc2");
-  // Railing posts.
-  for (let i = 0; i < 6; i++) b.cyl(0.06, 0.06, 0.6, -4.4 + i * 1.5, 1.55, 1.5, "#6a4527", 5);
+  const b = new PartBuilder(0.9);
+  type Point = [number, number, number];
+  // Thin solid planks give genuine gaps and visible cut edges, rather than
+  // painting a black rectangle onto a closed box. Everything is still merged.
+  const panel = (points: Point[], color: string, thickness: number) => {
+    const positions: number[] = [];
+    const back = points.map(([x, y, z]): Point => [x, y, z - thickness]);
+    for (let i = 1; i < points.length - 1; i++) {
+      positions.push(...points[0], ...points[i], ...points[i + 1]);
+      positions.push(...back[0], ...back[i + 1], ...back[i]);
+    }
+    points.forEach((p, i) => {
+      const j = (i + 1) % points.length;
+      positions.push(...p, ...back[i], ...points[j], ...points[j], ...back[i], ...back[j]);
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    g.computeVertexNormals();
+    b.add(g, color, [0, 0, 0]);
+  };
+  const sections = [
+    [-4.7, 0.72], [-3.35, 1.38], [-1.7, 1.64], [0, 1.68],
+    [1.65, 1.5], [3.1, 1.02], [4.8, 0.12]
+  ];
+  const colors = ["#7c5133", "#986a43", "#ad7b4e", "#8b5c37"];
+  const widths = [0.35, 0.65, 0.88, 1, 1.02];
+  // Faceted, tapering hull, with a missing stern and fractured starboard side.
+  for (const side of [-1, 1]) {
+    for (let row = 0; row < 4; row++) {
+      for (let i = 0; i < sections.length - 1; i++) {
+        if (side === 1 && i === 1 && row >= 1) continue;
+        if (i === 0 && row === 3) continue;
+        const [x0, w0] = sections[i];
+        const [x1, w1] = sections[i + 1];
+        const y = -0.66 + row * 0.55;
+        const tip = side === 1 && i === 2 && row >= 1 ? 0.38 : 0;
+        panel([
+          [x0 + tip, y, side * w0 * widths[row]],
+          [x1, y + (i === 5 ? 0.16 : 0), side * w1 * widths[row]],
+          [x1, y + 0.49 + (i === 5 ? 0.16 : 0), side * w1 * widths[row + 1]],
+          [x0 + tip * 0.15, y + 0.49, side * w0 * widths[row + 1]]
+        ], colors[(row + i + (side === 1 ? 1 : 0)) % colors.length], side * 0.075);
+      }
+    }
+  }
+  between(b, [-4.65, -0.52, 0], [4.78, -0.47, 0], 0.13, 0.1, "#4e3524", 5);
+  // Exposed U-shaped ribs and the dark, open interior remain visible through
+  // the broken planks and missing deck from both approach directions.
+  for (const [x, w] of sections.slice(1, -1)) {
+    for (const side of [-1, 1]) {
+      between(b, [x, -0.5, 0], [x, -0.03, side * w * 0.62], 0.075, 0.07, "#5a3d28", 5);
+      between(b, [x, -0.03, side * w * 0.62], [x, 1.58, side * w], 0.07, 0.065, "#c39a68", 5);
+    }
+  }
+  for (let i = 0; i < 5; i++) {
+    b.boxAt(5.7 - (i % 2) * 0.7, 0.09, 0.25, [-0.8, -0.14, (i - 2) * 0.28], [0, 0, 0.015 * i], "#62452e");
+  }
+  for (let i = 0; i < 5; i++) {
+    b.boxAt(3.4 - (i % 3) * 0.36, 0.11, 0.3, [1.45 + (i % 2) * 0.2, 1.32, (i - 2) * 0.32], [0, (i - 2) * 0.025, 0.02], i % 2 ? "#c08e59" : "#a77749");
+  }
+  b.boxAt(2.25, 0.11, 0.33, [-3.18, 0.56, 0.68], [0.12, -0.3, -0.4], "#bc8f5c");
+  b.boxAt(1.4, 0.1, 0.28, [-3.85, 0.12, -0.55], [0, 0.45, 0.22], "#9d754b");
+  // Leaning snapped mast, broken spar, and an irregular billowing sail. The
+  // sail uses explicit reverse faces, with no transparent material or texture.
+  between(b, [-0.85, -0.1, 0], [-2.25, 5.25, 0.6], 0.2, 0.12, "#6a4527", 7);
+  between(b, [-2.24, 5.24, 0.6], [-1.55, 4.72, 0.76], 0.09, 0.025, "#c29968", 5);
+  between(b, [-4.0, 4.45, 0.48], [0.15, 4.37, 0.66], 0.065, 0.05, "#785234", 5);
+  const sail: Point[] = [
+    [-3.9, 4.4, 0.5], [-0.05, 4.32, 0.66], [-0.12, 3.76, 0.76],
+    [-0.46, 3.86, 0.8], [-0.2, 3.13, 0.88], [-0.9, 3.35, 0.94],
+    [-0.62, 2.68, 0.94], [-1.43, 2.98, 1.02], [-1.73, 2.53, 1.02],
+    [-2.35, 2.97, 0.92], [-2.91, 2.72, 0.78], [-3.6, 3.38, 0.58],
+    [-3.28, 3.74, 0.58]
+  ];
+  const sailPositions: number[] = [];
+  const centre: Point = [-2.12, 3.75, 1.08];
+  sail.forEach((p, i) => {
+    const next = sail[(i + 1) % sail.length];
+    sailPositions.push(...centre, ...p, ...next, ...centre, ...next, ...p);
+  });
+  const cloth = new THREE.BufferGeometry();
+  cloth.setAttribute("position", new THREE.Float32BufferAttribute(sailPositions, 3));
+  cloth.computeVertexNormals();
+  b.add(cloth, "#e5d6b7", [0, 0, 0]);
+  // Rails survive only in short, uneven fragments.
+  for (const [x, z, tilt] of [[-3.5, -1.35, -0.2], [-1.8, -1.62, 0.1], [0.3, -1.65, 0.22], [2.2, 1.28, -0.35]]) {
+    b.cylAt(0.06, 0.64, [x, 1.73, z], [0, 0, tilt], "#6a4527", 5);
+  }
+  between(b, [-3.56, 2.02, -1.35], [-1.76, 2.06, -1.62], 0.055, 0.045, "#94704b", 5);
+  between(b, [0.37, 2.02, -1.65], [1.35, 1.81, -1.46], 0.055, 0.025, "#a27a4e", 5);
   return b.build();
 }
 

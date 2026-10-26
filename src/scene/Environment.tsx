@@ -22,6 +22,8 @@ import {
   shoreZ
 } from "../game/world/island";
 import { makeRng } from "../game/logic/rng";
+import { BRIDGE_BASE_Y, BRIDGE_SURFACE } from "../game/world/surface";
+import { bridgeApproachGeometry } from "./models/bridge";
 import { flatMat, occluderMat, signTexture, smoothMat } from "./materials";
 import { splitGeometryByTiles } from "./tiles";
 import { vegetationTiles } from "./models/vegetationLayout";
@@ -596,15 +598,20 @@ function BridgeModel() {
   const dangling = useRef<THREE.Mesh>(null);
   const posts = useMemo(bridgePostsGeometry, []);
   const plank = useMemo(bridgePlankGeometry, []);
-  const rails = useMemo(bridgeRailsGeometry, []);
+  const rails = useMemo(() => {
+    const parts = [bridgeRailsGeometry(), bridgeApproachGeometry()];
+    const geometry = mergeGeometries(parts, false)!;
+    parts.forEach((part) => part.dispose());
+    return geometry;
+  }, []);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const y = Math.max(groundY(BRIDGE.x - 2.3, BRIDGE.z), groundY(BRIDGE.x + 2.3, BRIDGE.z)) + 0.05;
+  const y = BRIDGE_BASE_Y;
   useFrame(() => {
     const t = built ? (rt.bridgeBuiltT0 < 0 ? 1 : THREE.MathUtils.smoothstep((rt.time - rt.bridgeBuiltT0) / 1.2, 0, 1)) : 0;
     for (let i = 0; i < 9; i++) {
       const delay = i / 11;
       const p = Math.max(0, Math.min(1, (t - delay) * 3.6));
-      dummy.position.set(-1.92 + i * 0.48, 0.24 + (1 - p) * 2.4, 0);
+      dummy.position.set(-1.92 + i * 0.48, BRIDGE_SURFACE.plankY + (1 - p) * 2.4, 0);
       dummy.rotation.set(0, 0, (1 - p) * 0.45 * (i % 2 ? 1 : -1));
       dummy.scale.setScalar(Math.max(0.001, p));
       dummy.updateMatrix();
@@ -616,8 +623,8 @@ function BridgeModel() {
   return (
     <group position={[BRIDGE.x, y, BRIDGE.z]} rotation={[0, BRIDGE.rot, 0]}>
       <mesh geometry={posts} material={occluderMat} />
-      <instancedMesh ref={planks} args={[plank, occluderMat, 9]} frustumCulled={false} />
-      <mesh geometry={rails} material={occluderMat} visible={built} position={[0, 0, 0]} />
+      <instancedMesh ref={planks} args={[plank, flatMat, 9]} frustumCulled={false} />
+      <mesh geometry={rails} material={flatMat} visible={built} position={[0, 0, 0]} />
       <mesh ref={dangling} geometry={plank} material={occluderMat} position={[-1.7, -0.15, 0]} rotation={[1.15, 0, 0]} />
     </group>
   );

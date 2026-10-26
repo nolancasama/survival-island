@@ -1,5 +1,6 @@
 import { BOULDERS, BOUNDS, BRIDGE, CAVE_MOUTH, CRATE, KAI_HOME, LEAN_TO, NODES, PALMS, POND, WRECK, maxZ } from "./island";
 import { CAVE_BOX, CAVE_CHAMBER, CAVE_CORRIDOR, CLIFF_PATH, CLIFF_PATH_R, CLIFFTOP, nearestOnSegment } from "./phase3";
+import { BRIDGE_SURFACE } from "./surface";
 
 export interface Circle {
   x: number;
@@ -33,7 +34,7 @@ export const PLAYER_R = 0.35;
 
 const FOREST = { x0: -28, x1: 27, z0: -42, z1: -3.1 };
 const GAP = { x0: -11.2, x1: -6.8, z0: -5.5, z1: -1.5 };
-const BRIDGE_DECK = { x0: BRIDGE.x - 3.6, x1: BRIDGE.x + 3.6, z0: BRIDGE.z - 1.4, z1: BRIDGE.z + 1.4 };
+const BRIDGE_DECK = { x0: BRIDGE.x - BRIDGE_SURFACE.approachEnd, x1: BRIDGE.x + BRIDGE_SURFACE.approachEnd, z0: BRIDGE.z - BRIDGE_SURFACE.halfWidth, z1: BRIDGE.z + BRIDGE_SURFACE.halfWidth };
 const POND_CLEARING = { x: -45.5, z: -24, rx: 12.5, rz: 11 };
 const CAVE_NOTCH = { x0: CAVE_MOUTH.x - 1.8, x1: CAVE_MOUTH.x + 1.8, z0: -43.5, z1: -40.5 };
 const CAVE_ROOM = {

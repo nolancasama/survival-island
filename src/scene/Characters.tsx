@@ -5,6 +5,7 @@ import { rt } from "../game/runtime";
 import { getGame, setGame } from "../game/store";
 import { keyboardMove, keys } from "../input/keyboard";
 import { groundY, POND, shoreZ } from "../game/world/island";
+import { walkingSurfaceY } from "../game/world/surface";
 import { PLAYER_R, STATIC_OBSTACLES, resolveCollisions, type Obstacles } from "../game/world/collision";
 import { buildingObstacles } from "../game/world/placement";
 import { canRun } from "../game/logic/stats";
@@ -12,7 +13,8 @@ import { findFocus } from "../game/flow/focus";
 import { audio } from "../audio/audio";
 import { tts } from "../audio/tts";
 import { smoothMat, shadowMaterial } from "./materials";
-import { KAI_OUTFIT, PLAYER_OUTFIT, armGeometry, bodyGeometry, legGeometry, type Outfit } from "./models/people";
+import { KAI_OUTFIT, PLAYER_OUTFIT, armGeometry, bodyGeometry, legGeometry, pickupLegGeometry, type Outfit } from "./models/people";
+import { LEG_LENGTH, pickupAmount, plantedLeg } from "./pickup";
 import { PartBuilder } from "./partBuilder";
 import { Torch } from "./Torch";
 
@@ -26,8 +28,13 @@ function useKid(outfit: Outfit) {
 interface Rig {
   root: React.RefObject<THREE.Group | null>;
   pose: React.RefObject<THREE.Group | null>;
+  torso: React.RefObject<THREE.Group | null>;
   legL: React.RefObject<THREE.Group | null>;
   legR: React.RefObject<THREE.Group | null>;
+  kneeL: React.RefObject<THREE.Group | null>;
+  kneeR: React.RefObject<THREE.Group | null>;
+  footL: React.RefObject<THREE.Group | null>;
+  footR: React.RefObject<THREE.Group | null>;
   armL: React.RefObject<THREE.Group | null>;
   armR: React.RefObject<THREE.Group | null>;
   axe: React.RefObject<THREE.Group | null>;
@@ -40,8 +47,13 @@ function useRig(): Rig {
   return {
     root: useRef<THREE.Group>(null),
     pose: useRef<THREE.Group>(null),
+    torso: useRef<THREE.Group>(null),
     legL: useRef<THREE.Group>(null),
     legR: useRef<THREE.Group>(null),
+    kneeL: useRef<THREE.Group>(null),
+    kneeR: useRef<THREE.Group>(null),
+    footL: useRef<THREE.Group>(null),
+    footR: useRef<THREE.Group>(null),
     armL: useRef<THREE.Group>(null),
     armR: useRef<THREE.Group>(null),
     axe: useRef<THREE.Group>(null),
@@ -77,6 +89,7 @@ function cupGeometry(): THREE.BufferGeometry {
 
 function KidMesh({ outfit, rig, scale = 1, torch = false }: { outfit: Outfit; rig: Rig; scale?: number; torch?: boolean }) {
   const g = useKid(outfit);
+  const legs = useMemo(() => torch ? pickupLegGeometry(outfit) : null, [outfit, torch]);
   const axe = useMemo(() => axeGeometry(), []);
   const rod = useMemo(() => rodGeometry(), []);
   const cup = useMemo(() => cupGeometry(), []);
@@ -85,28 +98,46 @@ function KidMesh({ outfit, rig, scale = 1, torch = false }: { outfit: Outfit; ri
     <group ref={rig.root}>
       <group scale={scale}>
         <group ref={rig.pose}>
-          <mesh geometry={g.body} material={smoothMat} />
           <group ref={rig.legL} position={[-0.09, 0.5, 0]}>
-            <mesh geometry={g.leg} material={smoothMat} />
+            {legs ? <>
+              <mesh geometry={legs.thigh} material={smoothMat} />
+              <group ref={rig.kneeL} position={[0, -LEG_LENGTH, 0]}>
+                <mesh geometry={legs.shin} material={smoothMat} />
+                <group ref={rig.footL} position={[0, -LEG_LENGTH, 0]}>
+                  <mesh geometry={legs.shoe} material={smoothMat} />
+                </group>
+              </group>
+            </> : <mesh geometry={g.leg} material={smoothMat} />}
           </group>
           <group ref={rig.legR} position={[0.09, 0.5, 0]}>
-            <mesh geometry={g.leg} material={smoothMat} />
+            {legs ? <>
+              <mesh geometry={legs.thigh} material={smoothMat} />
+              <group ref={rig.kneeR} position={[0, -LEG_LENGTH, 0]}>
+                <mesh geometry={legs.shin} material={smoothMat} />
+                <group ref={rig.footR} position={[0, -LEG_LENGTH, 0]}>
+                  <mesh geometry={legs.shoe} material={smoothMat} />
+                </group>
+              </group>
+            </> : <mesh geometry={g.leg} material={smoothMat} />}
           </group>
-          <group ref={rig.armL} position={[-0.27, 0.98, 0]} rotation={[0, 0, -0.12]}>
-            <mesh geometry={g.arm} material={smoothMat} />
-          </group>
-          <group ref={rig.armR} position={[0.27, 0.98, 0]} rotation={[0, 0, 0.12]}>
-            <mesh geometry={g.arm} material={smoothMat} />
-            {torch && <group position={[0, -0.37, 0.035]}><Torch /></group>}
-            <group ref={rig.axe} position={[0, -0.37, 0.01]} visible={false}>
-              <mesh geometry={axe} material={smoothMat} />
+          <group ref={rig.torso} position={[0, 0.5, 0]}>
+            <mesh geometry={g.body} material={smoothMat} position={[0, -0.5, 0]} />
+            <group ref={rig.armL} position={[-0.27, 0.48, 0]} rotation={[0, 0, -0.12]}>
+              <mesh geometry={g.arm} material={smoothMat} />
             </group>
-            <group ref={rig.rod} position={[0, -0.37, 0.01]} visible={false}>
-              <mesh geometry={rod} material={smoothMat} />
-              <group ref={rig.rodTip} position={[0, -1.5, 0]} />
-            </group>
-            <group ref={rig.cup} position={[0, -0.37, 0.035]} visible={false}>
-              <mesh geometry={cup} material={smoothMat} />
+            <group ref={rig.armR} position={[0.27, 0.48, 0]} rotation={[0, 0, 0.12]}>
+              <mesh geometry={g.arm} material={smoothMat} />
+              {torch && <group position={[0, -0.37, 0.035]}><Torch /></group>}
+              <group ref={rig.axe} position={[0, -0.37, 0.01]} visible={false}>
+                <mesh geometry={axe} material={smoothMat} />
+              </group>
+              <group ref={rig.rod} position={[0, -0.37, 0.01]} visible={false}>
+                <mesh geometry={rod} material={smoothMat} />
+                <group ref={rig.rodTip} position={[0, -1.5, 0]} />
+              </group>
+              <group ref={rig.cup} position={[0, -0.37, 0.035]} visible={false}>
+                <mesh geometry={cup} material={smoothMat} />
+              </group>
             </group>
           </group>
         </group>
@@ -283,8 +314,7 @@ export function Player() {
       while (d < -Math.PI) d += Math.PI * 2;
       p.yaw += d * Math.min(1, dt * 11);
     }
-    p.y = groundY(p.x, p.z);
-    p.lying += (p.lyingTarget - p.lying) * Math.min(1, dt * 2.2);
+    p.y = walkingSurfaceY(p.x, p.z, g.bridgeBuilt);
 
     // ---- animation
     const moving = Math.min(1, speed / WALK);
@@ -295,6 +325,7 @@ export function Player() {
     let armRx = swing * 0.8;
     let bend = runK * 0.18;
     let bodyY = Math.abs(Math.cos(p.step)) * (0.04 + runK * 0.05) * moving + Math.sin(rt.time * 2.2) * 0.006;
+    let gathering = false;
     const act = p.action;
     if (act) {
       const actionKind: string = act.kind;
@@ -302,10 +333,13 @@ export function Player() {
       const t = (rt.time - act.t0) / duration;
       if (t >= 1) p.action = null;
       else if (actionKind === "gather") {
-        const e = ease(t);
-        bend = 0.75 * e;
-        bodyY -= 0.2 * e;
-        armLx = armRx = -1.2 * e;
+        // Fade the crouch out as movement resumes; input is never held for recovery.
+        const e = pickupAmount(t) * (1 - moving);
+        gathering = true;
+        bend = 0.35 * e;
+        bodyY = -0.19 * e;
+        armLx = -0.35 * e;
+        armRx = -0.95 * e;
       } else if (actionKind === "eat") {
         armRx = -2.3 * ease(Math.min(1, t * 1.6));
         bodyY += Math.sin(t * Math.PI * 6) * 0.01;
@@ -355,13 +389,39 @@ export function Player() {
     }
     if (rig.legL.current) rig.legL.current.rotation.x = swing;
     if (rig.legR.current) rig.legR.current.rotation.x = -swing;
+    for (const [side, hip, knee, foot] of [
+      [-1, rig.legL.current, rig.kneeL.current, rig.footL.current],
+      [1, rig.legR.current, rig.kneeR.current, rig.footR.current]
+    ] as const) {
+      if (!hip || !knee || !foot) continue;
+      hip.scale.y = foot.scale.y = 1;
+      knee.rotation.x = foot.rotation.x = foot.rotation.z = 0;
+      if (gathering && !p.lying) {
+        const x = p.x + Math.cos(p.yaw) * side * 0.09;
+        const z = p.z - Math.sin(p.yaw) * side * 0.09;
+        const leg = plantedLeg(bodyY, walkingSurfaceY(x, z, g.bridgeBuilt) - p.y);
+        hip.rotation.x = leg.hip;
+        knee.rotation.x = leg.knee;
+        // Tip each shoe with the local walking plane, including sloped banks.
+        const forwardX = Math.sin(p.yaw) * 0.16;
+        const forwardZ = Math.cos(p.yaw) * 0.16;
+        const rightX = Math.cos(p.yaw) * 0.08;
+        const rightZ = -Math.sin(p.yaw) * 0.08;
+        const height = (dx: number, dz: number) => walkingSurfaceY(x + dx, z + dz, g.bridgeBuilt);
+        foot.rotation.x = leg.ankle - Math.atan2(height(forwardX, forwardZ) - height(-forwardX, -forwardZ), 0.32);
+        foot.rotation.z = Math.atan2(height(rightX, rightZ) - height(-rightX, -rightZ), 0.16);
+        hip.scale.y = leg.stretch;
+        foot.scale.y = 1 / leg.stretch;
+      }
+    }
     if (rig.armL.current) rig.armL.current.rotation.x = armLx;
     if (rig.armR.current) rig.armR.current.rotation.x = armRx;
     if (rig.pose.current) {
-      rig.pose.current.rotation.x = bend - p.lying * (Math.PI / 2 - 0.05);
+      rig.pose.current.rotation.x = -p.lying * (Math.PI / 2 - 0.05);
       rig.pose.current.position.y = bodyY + p.lying * 0.2;
       rig.pose.current.position.z = -p.lying * 0.6;
     }
+    if (rig.torso.current) rig.torso.current.rotation.x = bend;
     if (rig.root.current) {
       rig.root.current.position.set(p.x, p.y, p.z);
       rig.root.current.rotation.y = p.yaw;
@@ -501,7 +561,7 @@ export function Kai() {
         if (rig.armR.current) rig.armR.current.rotation.x = -1.5;
       }
     }
-    const y = groundY(k.x, k.z);
+    const y = walkingSurfaceY(k.x, k.z, g.bridgeBuilt);
     if (rig.root.current) {
       rig.root.current.visible = !g.inCave;
       rig.root.current.position.set(k.x, y, k.z);

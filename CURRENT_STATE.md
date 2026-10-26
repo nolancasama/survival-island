@@ -1,5 +1,103 @@
 # Current State
 
+## Ten-issue polish pass — 2026-10-27
+
+The supplied plan was accepted with shared fade/surface helpers and focused
+regression coverage. Local `main` was clean and matched fetched GitHub
+`origin/main` at `3d61a58` before implementation.
+
+1. **Standing/lying:** opening, bedtime, mornings, migrated mornings and
+   faint/recovery switch completed poses under the existing fade overlay.
+   The flow checks actual CSS opacity and renders the new pose under black;
+   it no longer interpolates body rotation. Lying shots, sleeping overlay,
+   dialogue and day progression remain.
+2. **Pickup:** procedural thigh, knee and ankle pivots lower the hips, reach,
+   and return smoothly. Each shoe samples the current walking surface and
+   follows its slope. Movement resumes during recovery; no new dependency.
+3. **Wreck:** one merged low-poly mesh now has a tapered open hull, ribs,
+   fractured planks, partial deck, snapped mast, torn sail and broken rails.
+   Position, scale, collision and existing debris remain compatible.
+4. **Tent:** all active English/Japanese display and speech/tapping sentences
+   use tent / テント. Internal `shelter` and phrase/building/save IDs remain.
+5. **Day cards:** removed Title from day-complete and Rescue cards. Next day /
+   Keep exploring remain; Settings still has Title.
+6. **Roof:** overlapping leaf bands and ridge caps meet without gaps, with
+   varied greens and economical bindings. One merged mesh still supports the
+   existing preview and roof construction animation.
+7. **Cup:** all active display and sentence wording uses cup / カップ. The
+   `container` ID, recipes and water/drinking behavior remain unchanged.
+8. **Bridge:** character feet previously used depressed river terrain while
+   the visible deck had a separate height and narrower width. A shared
+   `walkingSurfaceY` now matches the plank top and smooth bank approaches;
+   collision follows the usable visible width. Feet, follow camera and shadow
+   use that surface. `groundY` and saved placements are unchanged. Approaches
+   merge into the existing rail mesh, adding no bridge draw call.
+9. **Cave artifact:** rendered isolation proved the wall occlusion shader was
+   discarding cave-floor fragments. Hiding blob shadows left the semicircle;
+   using the opaque material removed it. The existing floor is now a separate
+   opaque mesh; walls keep their fade/camera behavior. Walkable bridge geometry
+   also uses the opaque ground material to avoid the same shader problem.
+10. **Cave exit:** the old tiny circle was off-centre relative to the visible
+    corridor opening. The trigger covers its illuminated throat at z ≥ 997.2;
+    entry at (994, 995) stays safely inside. Q remains help. New tests walk
+    from the chamber through two lanes with different camera orientations.
+
+Important files: `game/flow/transition.ts`, `days.ts`, `session.ts`, `cave.ts`;
+`game/world/surface.ts`, `collision.ts`, `phase3.ts`; `scene/Characters.tsx`,
+`pickup.ts`, `Buildings.tsx`, `Environment.tsx`, `Phase3World.tsx`, model
+generators; `game/types.ts`, `logic/english.ts`, `quest.ts`, UI labels/cards;
+focused unit/E2E specs and the two existing screenshot scripts. Paths above
+are under `src/` unless stated otherwise. Design rationale is recorded in
+`DESIGN_DECISIONS.md`.
+
+**Verification:** `npm run typecheck`, `npm test` (153), `npm run build` and
+`npm run e2e` (36) pass. Browser coverage includes normal-speed fade opacity
+at every pose switch, sleep/faint recovery, real keyboard bridge movement
+both directions walking/running near both edges, two chamber-to-exit cave
+routes, one-button day/Rescue cards, normal/classroom × speech/tapping
+craft/inventory/save-resume, and legacy v1/v2 migration coverage. The Windows
+runner stalled stopping its preview server after all cases completed; stopping
+that test-owned server released teardown and the command exited 0.
+
+**Rendering, SwiftShader 1024×768; calls / triangles before → after:**
+
+| View | Before | After |
+| --- | ---: | ---: |
+| Beach spawn | 66 / 137,691 | 70 / 137,851 |
+| Forest gap | 75 / 142,059 | 79 / 142,219 |
+| Forest centre | 47 / 112,331 | 51 / 112,491 |
+| Bridge | 39 / 53,162 | 43 / 53,462 |
+| Pond | 36 / 52,500 | 40 / 52,660 |
+| Camp at night | 95 / 149,968 | 99 / 150,964 |
+| Cave chamber | 18 / 6,220 | 23 / 6,380 |
+| Clifftop, worst view | 107 / 153,576 | 111 / 155,594 |
+
+The extra four outdoor calls are the articulated player legs; the cave adds
+one opaque floor call. Wreck: 272 → 1,294 triangles; roof: 168 → 864, each
+still one merged mesh. Bridge approaches add 140 triangles inside an existing
+draw call. The 120-call / 200,000-triangle budget is preserved.
+
+`npm run shots:world` passes with 41 views, including the new wreck, player on
+the deck, and pickup/recovery on flat ground and a cliff slope. Evidence is
+in `.tmp/shots/world`, `.tmp/shots/polish-animation` (normal-speed lying,
+standing, faint recovery and sleeping overlay), `.tmp/shots/polish-models`
+(wreck angles, tent frame/built/ridge), and `.tmp/cave-isolate-*.png` (causal
+material/shadow isolation). Logs: `.tmp/polish-final-{typecheck,unit,e2e}.log`,
+`.tmp/polish-baseline-world.log`, `.tmp/polish-after-world.log`.
+
+The existing story screenshot script also passes:
+`npm run shots -- http://127.0.0.1:5287/ 1024x768 --tap` produced 118 frames
+covering Days 1–5, Rescue, Day 6 and the classroom pass. It verifies the actual
+tent preview/build sequence, tent/cup prompts and inventory, one-button day
+and Rescue cards, cave transitions, and classroom counts/hints. Frames are
+`.tmp/shots/1024x768-tap-*.png`; log `.tmp/polish-story-shots.log`. No browser
+console errors occurred; the existing `THREE.Clock` deprecation warning remains.
+
+**Remaining:** real school Chromebook GPU, real speech/audio, and classroom
+timing still require hardware/student trials. Browser speech/audio are
+stubbed; software rendering statistics are not a hardware FPS benchmark.
+Claude retains final aesthetic review of the captured frames.
+
 ## Vegetation overhaul — 2026-10-22
 - Procedural vegetation now targets a shared stylized tropical family, with
   jungle archetypes, continuous palm trunks and leaflet crowns, darker layered
@@ -76,7 +174,7 @@ decision sections after it. Read those first. Phase 2 sections still apply.
    Chromebooks, real speech recognition and real audio.
 2. Phase 4 (polish) per the brief: environmental events (rain, the fire
    going out, an animal stealing food with the fence, Kai's missing tool),
-   character animation, music/SFX pass, Free Survival mode (camp expansion,
+   additional character animation, music/SFX pass, Free Survival mode (camp expansion,
    optional challenges, storage box, cooking station). It needs a design pass
    frozen before any worker builds it, like Phases 2 and 3.
 3. Optional small polish seen in review: Kai half-hidden behind the CLIFF
@@ -93,6 +191,7 @@ decision sections after it. Read those first. Phase 2 sections still apply.
   background.
 
 ## Codex / Delegated Work
-No run is in flight, and none is pending review. Codex usage ran out on
-2026-10-15, after story slice B finished; the router checks availability
-itself. Phase 3 work orders and results are in `.ai/p3-*.json` (gitignored).
+The ten-issue polish work is integrated, with focused model, wording/UI and
+world investigations. No delegated work remains. Phase 3 work orders and
+results are in `.ai/p3-*.json` (gitignored); the latest acceptance evidence is
+listed above. Claude's final aesthetic review remains separate.

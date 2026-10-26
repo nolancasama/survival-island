@@ -88,6 +88,17 @@ export function legGeometry(o: Outfit): THREE.BufferGeometry {
   return b.build();
 }
 
+/** Player-only jointed legs. Each geometry hangs from its own joint. */
+export function pickupLegGeometry(o: Outfit) {
+  const thigh = new PartBuilder(0);
+  thigh.add(new THREE.CapsuleGeometry(0.072, 0.08, 3, 8), o.skin, [0, -0.105, 0]);
+  const shin = new PartBuilder(0);
+  shin.add(new THREE.CapsuleGeometry(0.064, 0.085, 3, 8), o.skin, [0, -0.105, 0]);
+  const shoe = new PartBuilder(0);
+  shoe.add(new THREE.CapsuleGeometry(0.08, 0.1, 4, 8), o.shoes, [0, 0, 0.04], [Math.PI / 2, 0, 0], [1, 1.25, 1]);
+  return { thigh: thigh.build(), shin: shin.build(), shoe: shoe.build() };
+}
+
 export function armGeometry(o: Outfit): THREE.BufferGeometry {
   const b = new PartBuilder(0);
   b.add(new THREE.CapsuleGeometry(0.07, 0.08, 4, 8), o.shirt, [0, -0.06, 0]);

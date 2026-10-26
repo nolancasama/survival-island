@@ -116,7 +116,7 @@ async function getWater(id: string) {
   if (!spot) return;
   if (count(getGame().bag, "container") === 0) {
     audio.play("error");
-    toast({ en: "You need a water container.", ja: "みずいれが ひつようだよ。", icon: "container", tone: "warn" });
+    toast({ en: "You need a cup.", ja: "カップが ひつようだよ。", icon: "container", tone: "warn" });
     return;
   }
   if (isFull(getGame().bag, "water")) {
@@ -290,14 +290,14 @@ async function gather(nodeId: string) {
   if (item === "leaves" && !getGame().unlocked.includes("shelter")) await discoverShelter();
 }
 
-/** The first leaves: "Leaves! I can make a shelter!" The student finds the recipe by saying "I can ___". */
+/** The first leaves: "Leaves! I can make a tent!" The student finds the recipe by saying "I can ___". */
 async function discoverShelter() {
   setGame({ mode: "busy", focus: null });
   await wait(500);
-  await say("self", "Leaves! I can make a shelter!", "はっぱだ！ こやが つくれる！");
+  await say("self", "Leaves! I can make a tent!", "はっぱだ！ テントが つくれる！");
   setGame({ unlocked: [...getGame().unlocked, "shelter"], craftPulse: true, mode: "explore" });
   audio.play("unlock");
-  toast({ en: "New recipe: shelter", ja: "あたらしい レシピ: こや", icon: "shelter", tone: "good" }, 3500);
+  toast({ en: "New recipe: tent", ja: "あたらしい レシピ: テント", icon: "shelter", tone: "good" }, 3500);
   updateHint();
   save();
 }
@@ -334,7 +334,7 @@ async function cutFallenTree() {
   save();
 }
 
-/** A shelter frame is built with "Build a shelter."; a finished shelter is where you sleep. */
+/** A shelter frame is built with "Build a tent."; a finished shelter is where you sleep. */
 async function useShelter(id: string) {
   const b = getGame().buildings.find((x) => x.id === id);
   if (!b || b.type !== "shelter") return;
@@ -347,7 +347,7 @@ async function useShelter(id: string) {
   audio.play("build");
   setGame({ buildings: getGame().buildings.map((x) => (x.id === id ? { ...x, built: true } : x)) });
   rt.builtT0.set(id, rt.time);
-  floatText("Shelter!", b.x, groundY(b.x, b.z) + 2.6, b.z);
+  floatText("Tent!", b.x, groundY(b.x, b.z) + 2.6, b.z);
   refreshQuest();
   save();
 }

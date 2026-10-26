@@ -14,6 +14,7 @@ import { getGame, setGame, useGame } from "./game/store";
 import { rt } from "./game/runtime";
 import { tts } from "./audio/tts";
 import { audio } from "./audio/audio";
+import { fadeDuration } from "./game/flow/transition";
 
 /** Drag anywhere on the 3D view to turn the camera; the wheel zooms. */
 function useCameraDrag(ref: React.RefObject<HTMLDivElement | null>) {
@@ -67,7 +68,7 @@ function useCameraDrag(ref: React.RefObject<HTMLDivElement | null>) {
 
 function Fade() {
   const fade = useGame((s) => s.fade);
-  return <div className="fade" style={{ opacity: fade }} />;
+  return <div className="fade" style={{ opacity: fade, transitionDuration: `${fadeDuration()}ms` }} />;
 }
 
 /** Bottom stack: the prompt or dialogue above the bag. */

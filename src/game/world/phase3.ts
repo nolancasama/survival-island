@@ -4,7 +4,13 @@ import type { NodeDef } from "./island";
 export const CAVE_CHAMBER = { x: 1000, z: 980, width: 12, depth: 16, y: 0 };
 export const CAVE_CORRIDOR = { x0: 992, x1: 998, z0: 984, z1: 1000 };
 export const CAVE_ENTRY = { x: 994, z: 995, yaw: Math.PI };
-export const CAVE_EXIT = { id: "caveExit", x: 994, z: 998, r: 0.9 };
+// The whole illuminated corridor mouth is the exit, rather than a tiny off-centre circle.
+export const CAVE_EXIT = { id: "caveExit", x: 995, z: 998, r: 2.5 };
+export const CAVE_EXIT_THRESHOLD = 997.2;
+
+export function isAtCaveExit(x: number, z: number): boolean {
+  return x >= CAVE_CORRIDOR.x0 && x <= CAVE_CORRIDOR.x1 && z >= CAVE_EXIT_THRESHOLD && z <= CAVE_CORRIDOR.z1;
+}
 export const CAVE_OUTSIDE = { x: 22, z: -41.7, yaw: 0 };
 export const CAVE_BOX = { id: "caveBox", x: 1002, z: 974, rot: 0.15 };
 export const METAL_NODES: NodeDef[] = [

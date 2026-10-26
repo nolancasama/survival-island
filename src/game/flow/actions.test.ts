@@ -101,7 +101,7 @@ describe("Day 3 actions", () => {
     setGame({ bridgeBuilt: true });
     focus("water", WATER_SPOTS[0].id);
     await interact();
-    expect(getGame().toasts.at(-1)?.en).toBe("You need a water container.");
+    expect(getGame().toasts.at(-1)?.en).toBe("You need a cup.");
     focus("fish", FISH_SPOTS[0].id);
     await interact();
     expect(getGame().toasts.at(-1)?.en).toBe("You need a fishing rod.");

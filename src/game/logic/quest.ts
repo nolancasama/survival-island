@@ -101,13 +101,13 @@ export const DAYS: DayDef[] = [
     { id: "path", en: "Cut the big tree", ja: "おおきな 木を きろう", done: f => f.pathCleared },
     { id: "leaves", en: "Get leaves", ja: "はっぱを あつめよう", goal: goal("leaves", "shelter"), done: counted("leaves", "shelter") },
     { id: "wood", en: "Get wood", ja: "木を あつめよう", goal: goal("wood", "shelter"), done: counted("wood", "shelter") },
-    { id: "shelter", en: "Make a shelter", ja: "こやを つくろう", done: made("shelter") },
-    { id: "build", en: "Build the shelter", ja: "こやを たてよう", done: f => f.builtShelters > 0 },
+    { id: "shelter", en: "Make a tent", ja: "テントを つくろう", done: made("shelter") },
+    { id: "build", en: "Build the tent", ja: "テントを たてよう", done: f => f.builtShelters > 0 },
     { id: "sleep", en: "Sleep", ja: "ねむろう", done: sleep(2) }
   ] },
   { day: 3, en: "Day 3: Explore", ja: "3にちめ: たんけんしよう", steps: [
     { id: "bridge", en: "Build the bridge", ja: "はしを つくろう", done: f => f.bridgeBuilt },
-    { id: "container", en: "Make a water container", ja: "みずいれを つくろう", done: made("container") },
+    { id: "container", en: "Make a cup", ja: "カップを つくろう", done: made("container") },
     { id: "water", en: "Get water", ja: "みずを くもう", done: f => f.gotWater > 0 },
     { id: "drink", en: "Drink water", ja: "みずを のもう", done: f => f.drank > 0 },
     { id: "rod", en: "Make a fishing rod", ja: "つりざおを つくろう", done: made("rod") },

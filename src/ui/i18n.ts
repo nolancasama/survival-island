@@ -68,32 +68,32 @@ export function hints(classroom: boolean): Record<string, { keys: Bi; touch: Bi 
       touch: { en: "Cut trees with your axe: go to a tree and tap the hand.", ja: "おので 木を きろう。木の ちかくで て を タップ" }
     },
     shelter: {
-      keys: { en: "Press C to make a shelter.", ja: "C キーで こやを つくろう" },
-      touch: { en: "Tap the hammer to make a shelter.", ja: "ハンマーを タップして こやを つくろう" }
+      keys: { en: "Press C to make a tent.", ja: "C キーで テントを つくろう" },
+      touch: { en: "Tap the hammer to make a tent.", ja: "ハンマーを タップして テントを つくろう" }
     },
     placeShelter: {
-      keys: { en: "Click the shelter in your bag to put it down.", ja: "バッグの こやを クリックして おこう" },
-      touch: { en: "Tap the shelter in your bag to put it down.", ja: "バッグの こやを タップして おこう" }
+      keys: { en: "Click the tent in your bag to put it down.", ja: "バッグの テントを クリックして おこう" },
+      touch: { en: "Tap the tent in your bag to put it down.", ja: "バッグの テントを タップして おこう" }
     },
     build: {
-      keys: { en: "Go to your shelter and press E to build it.", ja: "こやの ちかくで E を おして たてよう" },
-      touch: { en: "Go to your shelter and tap the hand to build it.", ja: "こやの ちかくで て を タップして たてよう" }
+      keys: { en: "Go to your tent and press E to build it.", ja: "テントの ちかくで E を おして たてよう" },
+      touch: { en: "Go to your tent and tap the hand to build it.", ja: "テントの ちかくで て を タップして たてよう" }
     },
     sleep: {
-      keys: { en: "Sleep in your shelter (or by the fire): press E there.", ja: "こや（か 火の そば）で E を おして ねよう" },
-      touch: { en: "Sleep in your shelter (or by the fire): tap the hand there.", ja: "こや（か 火の そば）で て を タップして ねよう" }
+      keys: { en: "Sleep in your tent (or by the fire): press E there.", ja: "テント（か 火の そば）で E を おして ねよう" },
+      touch: { en: "Sleep in your tent (or by the fire): tap the hand there.", ja: "テント（か 火の そば）で て を タップして ねよう" }
     },
     bridge: {
       keys: { en: `Take ${bridgeWood} wood to the broken bridge. Press E.`, ja: `木 ${bridgeWood}つを はしへ はこぼう。ちかくで E` },
       touch: { en: `Take ${bridgeWood} wood to the broken bridge. Tap the hand.`, ja: `木 ${bridgeWood}つを はしへ はこぼう。ちかくで てを タップ` }
     },
     container: {
-      keys: { en: `Make a water container: ${container.coconut} coconut + ${container.leaves} leaves. Press C.`, ja: `ココナッツ ${container.coconut}つと はっぱ ${container.leaves}つで みずいれを つくろう。C キー` },
-      touch: { en: `Make a water container: ${container.coconut} coconut + ${container.leaves} leaves. Tap the hammer.`, ja: `ココナッツ ${container.coconut}つと はっぱ ${container.leaves}つで みずいれを つくろう。ハンマーを タップ` }
+      keys: { en: `Make a cup: ${container.coconut} coconut + ${container.leaves} leaves. Press C.`, ja: `ココナッツ ${container.coconut}つと はっぱ ${container.leaves}つで カップを つくろう。C キー` },
+      touch: { en: `Make a cup: ${container.coconut} coconut + ${container.leaves} leaves. Tap the hammer.`, ja: `ココナッツ ${container.coconut}つと はっぱ ${container.leaves}つで カップを つくろう。ハンマーを タップ` }
     },
     water: {
-      keys: { en: "Take your container to the pond shore. Press E.", ja: "みずいれを もって いけの ほとりへ。E を おそう" },
-      touch: { en: "Take your container to the pond shore. Tap the hand.", ja: "みずいれを もって いけの ほとりへ。てを タップ" }
+      keys: { en: "Take your cup to the pond shore. Press E.", ja: "カップを もって いけの ほとりへ。E を おそう" },
+      touch: { en: "Take your cup to the pond shore. Tap the hand.", ja: "カップを もって いけの ほとりへ。てを タップ" }
     },
     drink: {
       keys: { en: "Drink: click the water in your bag, or press F.", ja: "バッグの みずを クリックして のもう。F キーでも のめるよ" },

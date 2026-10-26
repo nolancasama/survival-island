@@ -1,5 +1,32 @@
 # Design Decisions
 
+## 2026-10-27 — Targeted polish pass
+
+- Standing/lying changes use the single screen overlay through `flow/transition.ts`.
+  The flow waits for its actual CSS opacity and renders the completed pose under
+  black before revealing it. The shipwreck opening, bedtime, mornings, migrated
+  mornings and faint/recovery retain their lying shots and dialogue. A small
+  procedural knee/ankle rig plants pickup feet on each sampled walking surface;
+  movement can resume during recovery. No animation dependency was added.
+- Player-facing names are **tent / テント** and **cup / カップ**. Existing `shelter`,
+  `container`, phrase, quest, building and save IDs remain unchanged. Speech uses
+  conservative variants of the new nouns. Day-complete and Rescue cards have
+  one continuation button; Title remains available in Settings.
+- Bridge walking has its own surface, shared by the visible deck and low bank
+  approaches. Terrain `groundY` is unchanged, preserving placements and saves.
+  Walkability fits the actual plank width. The approaches join the existing
+  rail mesh; both use an opaque ground material rather than the occlusion fade.
+- The cave's floor is split from the existing wall mesh and uses the opaque
+  ground material. Isolated rendered tests showed that wall occlusion was
+  discarding floor fragments below the player; hiding blob shadows did not
+  remove the artifact. Walls retain their camera fade/collision behavior.
+  The exit covers the illuminated corridor mouth, with the entry safely inland.
+- The wreck stays one merged procedural mesh: tapered open hull, broken ribs,
+  planks, mast, rails and torn sail. The tent roof stays one merged mesh with
+  sealed slopes, overlapping leaf bands and ridge bindings. Both retain their
+  existing world placement and construction/preview behavior. No downloaded
+  assets, extra textures or dependencies were introduced.
+
 This file records meaningful product, UX, visual, architectural, or behavioral decisions for this project.
 
 For each significant decision, record:

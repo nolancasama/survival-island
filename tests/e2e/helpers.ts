@@ -35,7 +35,7 @@ export interface SiState {
   placing: { item: string; rot: number; problem: string | null } | null;
   placeOk: boolean;
   hint: string | null;
-  player: { x: number; z: number; yaw: number };
+  player: { x: number; y: number; z: number; yaw: number; speed: number; lying: number; lyingTarget: number };
   taken: string[];
   beacons: string[];
   hasSave: boolean;

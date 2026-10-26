@@ -176,7 +176,7 @@ for (const branch of [{ yes: true, have: "radio" }, { yes: false, have: "metal" 
     await until(page, "Kai's Day 4 evening promise", (s) => s.line?.en === "Tomorrow we go home!");
     expect((await state(page)).quest.done).toContain("showKai");
     await page.keyboard.press("KeyE");
-    await until(page, "Kai's shelter reminder", (s) => s.line?.en === "It's getting dark. Let's sleep in the shelter!");
+    await until(page, "Kai's shelter reminder", (s) => s.line?.en === "It's getting dark. Let's sleep in the tent!");
     await fast(page, true);
     await page.keyboard.press("KeyE");
     await until(page, "show Kai completed and signal fire unlocked", (s, have) => s.kai.have === have && s.unlocked.includes("signalFire") && s.quest.done.includes("showKai") && s.mode === "explore", branch.have);

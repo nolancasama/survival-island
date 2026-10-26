@@ -180,6 +180,9 @@ async function rescue(page: Page, choice: "needHelp" | "needWater") {
   await line(page, "We did it! We're going home!");
   await until(page, "Rescue card displayed", (s) => s.screen === "dayEnd" && s.rescued && s.quest.complete);
   await expect(page.getByRole("heading", { name: "Rescued!" })).toBeVisible();
+  await expect(page.getByTestId("keep-exploring")).toBeVisible();
+  await expect(page.getByTestId("dayend").getByRole("button")).toHaveCount(1);
+  await expect(page.getByTestId("to-title")).toHaveCount(0);
   await expect(page.getByTestId("said")).toContainText("I'm hungry.");
   await expect(page.getByTestId("said")).toContainText("Go in the cave.");
   await expect(page.getByTestId("said")).toContainText("Can you help me?");

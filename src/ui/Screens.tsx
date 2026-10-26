@@ -1,5 +1,5 @@
 import { useGame, setGame } from "../game/store";
-import { continueGame, newGame, toTitle } from "../game/flow/session";
+import { continueGame, newGame } from "../game/flow/session";
 import { nextDay } from "../game/flow/days";
 import { PHRASES } from "../game/logic/english";
 import { dayDef } from "../game/logic/quest";
@@ -105,7 +105,7 @@ export function TitleScreen() {
 /** What each story day achieved, for its card. */
 const DAY_DONE: Record<number, { en: string; ja: string; icon: IconId }> = {
   1: { en: "You found food, met Kai and made a fire.", ja: "たべものを みつけて、カイに あって、火を つけたね！", icon: "fire" },
-  2: { en: "You made an axe, opened the forest and built a shelter.", ja: "おのを つくって、もりを ひらいて、こやを たてたね！", icon: "shelter" },
+  2: { en: "You made an axe, opened the forest and built a tent.", ja: "おのを つくって、もりを ひらいて、テントを たてたね！", icon: "shelter" },
   3: { en: "You built a bridge, found water and cooked a fish.", ja: "はしを つくって、みずを みつけて、さかなを やいたね！", icon: "grilledFish" },
   4: { en: "You explored the cave and found an old radio.", ja: "どうくつを たんけんして、ふるい ラジオを みつけたね！", icon: "radio" }
 };
@@ -166,9 +166,6 @@ export function DayEndScreen() {
           <button className="primary big" onClick={() => void nextDay()} data-testid={rescue ? "keep-exploring" : "next-day"}>
             {rescue ? "Keep exploring" : `Day ${day + 1} →`}
             <Ja>{rescue ? "もっと たんけんする" : `${day + 1}にちめへ`}</Ja>
-          </button>
-          <button className="secondary big" onClick={() => toTitle()} data-testid="to-title">
-            Title <Ja>タイトルへ</Ja>
           </button>
         </div>
       </div>

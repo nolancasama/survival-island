@@ -5,7 +5,6 @@ import { between, rockGeometry } from "./nature";
 export function caveShellGeometry(x: number, z: number): THREE.BufferGeometry {
   const b = new PartBuilder(0.7);
   // A high roof stays above the follow camera; the south wall is a low cutaway.
-  b.box(14, 0.45, 18, x, -0.45, z, "#a28c72");
   b.box(14, 0.5, 18, x, 13.5, z, "#615e60");
   for (const side of [-1, 1]) {
     for (let i = 0; i < 8; i++) {
@@ -20,8 +19,15 @@ export function caveShellGeometry(x: number, z: number): THREE.BufferGeometry {
   // The entrance bends around the west end of the chamber's low front wall.
   b.box(2, 1.15, 10, x - 1, 0, z + 15, "#726e73");
   b.box(2, 1.15, 14, x - 9, 0, z + 13, "#69666d");
-  b.box(6, 0.4, 16, x - 5, -0.4, z + 12, "#ad957a");
   for (let i = 0; i < 16; i++) b.add(rockGeometry(0.3, 0.15, 300 + i, 0), "#91857b", [x - 5 + (i * 3.7) % 10, 0.01, z - 7 + (i * 5.3) % 14]);
+  return b.build();
+}
+
+/** Ground must remain opaque: the wall occlusion shader otherwise cuts a dark hole below the player. */
+export function caveFloorGeometry(x: number, z: number): THREE.BufferGeometry {
+  const b = new PartBuilder(0.7);
+  b.box(14, 0.45, 18, x, -0.45, z, "#a28c72");
+  b.box(6, 0.4, 16, x - 5, -0.4, z + 12, "#ad957a");
   return b.build();
 }
 

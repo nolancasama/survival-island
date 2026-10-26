@@ -21,6 +21,8 @@ const W = {
   fire: ["fire", "fires", "fired", "fyre", "fier", "fair", "far", "fiya", "fiyah", "campfire", "bonfire", "fireplace"],
   campfire: ["campfire", "campfires", "campfire's", "camp", "fire", "fires", "bonfire"],
   want: ["want", "wants", "wanna", "wanted", "won't", "wont", "won", "wand"],
+  tent: ["tent", "tents", "tent's", "tento"],
+  cup: ["cup", "cups", "cup's", "kappu"],
   need: ["need", "needs", "needed", "neat", "knead", "kneed", "knee", "niid", "nead"],
   hungry: ["hungry", "hungary", "hungrier", "angry", "hangry", "hunger", "hungy"],
   water: ["water", "waters", "wata", "watah", "waiter", "walter", "warter", "wauter"],
@@ -121,14 +123,14 @@ export const PHRASES: Record<PhraseId, Phrase> = {
   },
   craftContainer: {
     id: "craftContainer",
-    en: "I want to make a water container.",
-    keys: [[...W.want, ...W.make], ["container", "containers", "contain", "contena", "watercontainer"]],
+    en: "I want to make a cup.",
+    keys: [[...W.want, ...W.make], W.cup],
     distractors: ["craftRod", "craftCampfire"]
   },
   craftShelter: {
     id: "craftShelter",
-    en: "I want to make a shelter.",
-    keys: [[...W.want, ...W.make], ["shelter", "shelters", "sheltar", "shelta", "shoulder", "helter"]]
+    en: "I want to make a tent.",
+    keys: [[...W.want, ...W.make], W.tent]
   },
   craftSignalFire: {
     id: "craftSignalFire",
@@ -145,7 +147,7 @@ export const PHRASES: Record<PhraseId, Phrase> = {
   noICant: { id: "noICant", en: "No, I can't.", keys: [W.no] },
   cutTree: { id: "cutTree", en: "Cut the tree.", keys: [W.cut, W.tree], distractors: ["getLeaves", "buildShelter"] },
   getLeaves: { id: "getLeaves", en: "Get the leaves.", keys: [W.get, W.leaves], distractors: ["cutTree", "getWater"] },
-  buildShelter: { id: "buildShelter", en: "Build a shelter.", keys: [W.build, ["shelter", "shelters", "sheltar", "shelta", "shoulder", "helter"]], distractors: ["buildBridge", "getLeaves"] },
+  buildShelter: { id: "buildShelter", en: "Build a tent.", keys: [W.build, W.tent], distractors: ["buildBridge", "getLeaves"] },
   buildBridge: { id: "buildBridge", en: "Build a bridge.", keys: [W.build, W.bridge], distractors: ["buildShelter", "getWater"] },
   getWater: { id: "getWater", en: "Get some water.", keys: [W.get, W.water], distractors: ["getLeaves", "catchFish"] },
   drinkWater: { id: "drinkWater", en: "Drink the water.", keys: [W.drink, W.water], distractors: ["getWater", "eatFish"] },

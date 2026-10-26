@@ -1,17 +1,18 @@
 import { getGame, setGame } from "../store";
 import { rt } from "../runtime";
 import { count } from "../logic/inventory";
-import { CAVE_ENTRY, CAVE_EXIT, CAVE_OUTSIDE } from "../world/phase3";
+import { CAVE_ENTRY, CAVE_OUTSIDE, isAtCaveExit } from "../world/phase3";
 import { groundY } from "../world/island";
 import { ask, say } from "./ask";
-import { refreshQuest, save, updateHint, wait } from "./session";
+import { refreshQuest, save, updateHint } from "./session";
+import { fadeFromBlack, fadeToBlack } from "./transition";
 import { audio } from "../../audio/audio";
 
 /** Enter and leave the separate cave set through the same short fade. */
 async function crossCave(inside: boolean) {
-  setGame({ mode: "busy", focus: null, fade: 1 });
+  setGame({ mode: "busy", focus: null });
   rt.beacons = { ids: [], until: 0 };
-  await wait(650);
+  await fadeToBlack();
   const at = inside ? CAVE_ENTRY : CAVE_OUTSIDE;
   setGame({ inCave: inside, enteredCave: getGame().enteredCave || inside });
   const p = rt.player;
@@ -26,8 +27,7 @@ async function crossCave(inside: boolean) {
   rt.camera.yaw = at.yaw + Math.PI;
   rt.camera.snap = true;
   refreshQuest();
-  setGame({ fade: 0 });
-  await wait(650);
+  await fadeFromBlack();
   setGame({ mode: "explore" });
   updateHint();
   save();
@@ -54,7 +54,7 @@ export async function enterCave() {
 export function checkCaveExit() {
   const g = getGame();
   if (!g.inCave || g.mode !== "explore" || g.settingsOpen) return;
-  if (Math.hypot(rt.player.x - CAVE_EXIT.x, rt.player.z - CAVE_EXIT.z) <= CAVE_EXIT.r) {
+  if (isAtCaveExit(rt.player.x, rt.player.z)) {
     void crossCave(false);
   }
 }

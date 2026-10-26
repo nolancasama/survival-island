@@ -10,7 +10,8 @@ craft it, and "I need water." when you are stuck.
 helicopter rescue, followed by free play from Day 6. Days 4–5 add the torch,
 cave, old radio, Kai's walk, clearing the cliff path together and the signal
 fire. Classroom mode plays the same story with smaller counts and automatic
-hints. Controller acceptance and final visual review are pending.
+hints. Automated acceptance passes; school hardware trials and Claude's final
+aesthetic review remain.
 See `CURRENT_STATE.md`.
 Design decisions and the reasons for them are in `DESIGN_DECISIONS.md`.
 
@@ -54,16 +55,18 @@ npm run typecheck    # TypeScript, including the E2E specs
 npm run build        # TypeScript + production bundle
 npm run e2e          # build + Playwright: full Day 1 by speech and by tapping, help ladder, mic blocked,
                      # interim acceptance, save/resume, beacons, fainting, placement rules;
-                     # Day 2 axe/forest/shelter/night; Day 3 tapping, both Kai choices,
+                     # Day 2 axe/forest/tent/night; Day 3 tapping, both Kai choices,
                      # bridge/tool gates, water/fishing/cooking and night resume;
                      # Day 3-to-4 transition; Day 4 tapping, both torch and inventory answers,
                      # cave gates, metal/radio, cave save/resume and v2 migration;
                      # Day 5 tapping, Kai's walk/wait, help command, gathering/crafting,
                      # climb/pad gates, radio help/water answers, rescue and Day 6;
                      # Day 5 stage saves and interrupted Kai walks;
-                     # classroom counts (including Day 5), Settings switching and automatic hints
+                     # classroom counts (including Day 5), Settings switching and automatic hints;
+                     # normal-speed pose fades, bridge/cave keyboard movement, tent/cup mode/pace matrix
 npm run shots        # screenshots of a whole playthrough into .tmp/shots (needs `npm run preview -- --port 5287`)
                      # options: node scripts/shots.mjs <url> 1024x768 --touch --tap
+npm run shots:world  # world/detail views and rendering counts, including wreck, bridge and pickups on slopes
 ```
 
 Test-only URL flags: `?e2e=1` exposes `window.__si` (state + teleport helpers),

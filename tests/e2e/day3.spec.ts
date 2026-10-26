@@ -177,6 +177,9 @@ test("tapping: Day 3 Explore through the card, then the Day 4 morning", async ({
   await expect(page.getByTestId("dayend")).toContainText("Next: Day 4: Discover");
   await expect(page.getByTestId("dayend")).not.toContainText("To be continued");
   await expect(page.getByTestId("next-day")).toHaveText(/Day 4/);
+  await expect(page.getByTestId("dayend").getByRole("button")).toHaveCount(1);
+  await expect(page.getByTestId("to-title")).toHaveCount(0);
+  await expect(page.getByTestId("said")).toContainText("I want to make a cup.");
   await page.getByTestId("next-day").click();
   await until(page, "Day 4 torch question", (st) => st.day === 4 && st.prompt?.question === "Can you make a torch?");
   await answer(page, "yesICan");
@@ -228,7 +231,7 @@ test("Day 3 gates and refusals: bridge wood, container, rod and water beacons", 
   await until(page, "missing pond tools", (s) => !s.bag.container && !s.bag.rod);
   await at(page, "water-1");
   await page.keyboard.press("KeyE");
-  await until(page, "container refusal", (s) => s.toasts.includes("You need a water container."));
+  await until(page, "container refusal", (s) => s.toasts.includes("You need a cup."));
   expect((await state(page)).prompt).toBeNull();
   expect((await state(page)).counters.gotWater).toBe(0);
   await at(page, "fish-2");
