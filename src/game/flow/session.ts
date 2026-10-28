@@ -111,6 +111,8 @@ async function checkMicrophone(): Promise<boolean> {
 async function prepareMic() {
   // Each Start/Continue tries speaking, even after an earlier teacher fallback.
   setGame((s) => ({ settings: { ...s.settings, mic: true }, micState: "unknown", micStartupProblem: false }));
+  // Unit tests run in Node without a browser or microphone device.
+  if (typeof document === "undefined") return;
   if (await checkMicrophone()) return;
   setGame({ micStartupProblem: true });
   await new Promise<void>((resolve) => { resolveStartupMic = resolve; });
