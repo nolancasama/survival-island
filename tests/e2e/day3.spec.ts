@@ -132,7 +132,13 @@ async function resume(page: Page) {
   await page.getByTestId("settings-title").click();
   await page.reload();
   await precondition("saved game Continue button", () => expect(page.getByTestId("continue")).toBeVisible());
+  // Continue starts with speaking each time: simulate missing hardware and let
+  // the teacher intentionally restore tapping for this classroom session.
+  await page.evaluate(() => { (window as unknown as { __micUnavailable: boolean }).__micUnavailable = true; });
   await page.getByTestId("continue").click();
+  await expect(page.getByTestId("mic-startup-overlay")).toBeVisible();
+  await page.getByTestId("teacher-options").click();
+  await page.getByTestId("teacher-tap").click();
   await until(page, "save restored into exploration", idle);
 }
 

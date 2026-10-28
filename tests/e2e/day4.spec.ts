@@ -254,7 +254,11 @@ test("v2 free-play save migrates to Day 4 morning with prior inventory", async (
   }));
   await page.reload();
   await precondition("legacy save Continue available", () => expect(page.getByTestId("continue")).toBeVisible());
+  await page.evaluate(() => { (window as unknown as { __micUnavailable: boolean }).__micUnavailable = true; });
   await page.getByTestId("continue").click();
+  await expect(page.getByTestId("mic-startup-overlay")).toBeVisible();
+  await page.getByTestId("teacher-options").click();
+  await page.getByTestId("teacher-tap").click();
   await until(page, "legacy save Day 4 morning question", (s) => s.day === 4 && s.prompt?.question === "Can you make a torch?");
   const s = await state(page);
   expect(s.freePlay).toBe(false);
