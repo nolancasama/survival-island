@@ -30,8 +30,11 @@ async function expectCoveredSwitches(page: Page, minimum: number) {
 test('normal-time intro and faint recovery switch poses only under black', async ({ page }) => {
   const errors = await boot(page);
   await page.goto('/?e2e=1&seed=5');
-  await page.getByTestId('mode-tap').click();
+  await page.evaluate(() => { (window as unknown as { __micUnavailable: boolean }).__micUnavailable = true; });
   await page.getByTestId('start').click();
+  await expect(page.getByTestId('mic-startup-overlay')).toBeVisible();
+  await page.getByTestId('teacher-options').click();
+  await page.getByTestId('teacher-tap').click();
   await waitFor(page, (s) => s.player.lying === 1 && s.fade === 0);
   await watchPoses(page);
   await page.screenshot({ path: '.tmp/shots/polish-animation/intro-lying.png' });
@@ -59,7 +62,7 @@ test('normal-time intro and faint recovery switch poses only under black', async
 test('normal-time bedtime keeps the sleeping overlay and wakes under black', async ({ page }) => {
   const errors = await boot(page);
   await page.goto('/?e2e=1&seed=5');
-  await page.getByTestId('mode-tap').click();
+  await hook(page, 'setMic', false);
   await hook(page, 'startDay', 6);
   await waitFor(page, (s) => s.line?.en === "Good morning! Let's explore the island!");
   await page.keyboard.press('KeyE');

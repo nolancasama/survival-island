@@ -5,7 +5,7 @@ for (const classroom of [false, true]) {
   for (const how of ["speak", "tap"] as const) {
     test(`${classroom ? "classroom" : "normal"} ${how}: tent and cup crafting, inventory and resume`, async ({ page }) => {
       const errors = await boot(page);
-      if (how === "tap") await page.getByTestId("mode-tap").click();
+      if (how === "tap") await hook(page, "setMic", false);
       if (classroom) await page.getByTestId("mode-classroom").click();
       await hook(page, "startDay", 3, classroom);
       await waitFor(page, (s) => s.prompt?.question === "What do you want to do?", 30_000);

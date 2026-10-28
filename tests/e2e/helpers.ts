@@ -153,8 +153,15 @@ export async function tap(page: Page, id: string) {
 
 /** Start a new game and get through the intro (the "I'm hungry." prompt) by speaking or tapping. */
 export async function startGame(page: Page, how: "speak" | "tap" = "speak") {
-  if (how === "tap") await page.getByTestId("mode-tap").click();
+  if (how === "tap") {
+    await page.evaluate(() => { (window as unknown as { __micUnavailable: boolean }).__micUnavailable = true; });
+  }
   await page.getByTestId("start").click();
+  if (how === "tap") {
+    await expect(page.getByTestId("mic-startup-overlay")).toBeVisible();
+    await page.getByTestId("teacher-options").click();
+    await page.getByTestId("teacher-tap").click();
+  }
   await waitFor(page, promptOpen);
   if (how === "speak") await speak(page, "I'm hungry");
   else await tap(page, "hungry");

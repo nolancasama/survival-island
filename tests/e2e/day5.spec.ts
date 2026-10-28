@@ -46,7 +46,7 @@ async function line(page: Page, en: string) {
 }
 
 async function morning(page: Page, classroom = false) {
-  await page.getByTestId("mode-tap").click();
+  await hook(page, "setMic", false);
   await fast(page, false);
   await hook(page, "startDay", 5, classroom);
   await until(page, "Day 5 title", (s) => s.day === 5 && s.dayTitle === 5);
@@ -230,7 +230,11 @@ test("tapping: Day 5 escape, radio help, Rescue card and Day 6 free play", async
 async function reloadContinue(page: Page) {
   await page.reload();
   await precondition("saved Continue button available", () => expect(page.getByTestId("continue")).toBeVisible());
+  await page.evaluate(() => { (window as unknown as { __micUnavailable: boolean }).__micUnavailable = true; });
   await page.getByTestId("continue").click();
+  await expect(page.getByTestId("mic-startup-overlay")).toBeVisible();
+  await page.getByTestId("teacher-options").click();
+  await page.getByTestId("teacher-tap").click();
 }
 
 async function savedStage(page: Page, label: string, pred: (s: SiState) => boolean) {

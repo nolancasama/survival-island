@@ -27,7 +27,7 @@ async function answer(page: Page, phrase: string, how: "tap" | "speak" = "tap") 
 }
 
 async function morning(page: Page, how: "tap" | "speak" = "tap") {
-  if (how === "tap") await page.getByTestId("mode-tap").click();
+  if (how === "tap") await hook(page, "setMic", false);
   await hook(page, "startDay", 3);
   await until(page, "Day 3 morning question", (s) => s.day === 3 && s.prompt?.question === "What do you want to do?");
   await answer(page, how === "tap" ? "wantWater" : "wantFish", how);
@@ -132,7 +132,13 @@ async function resume(page: Page) {
   await page.getByTestId("settings-title").click();
   await page.reload();
   await precondition("saved game Continue button", () => expect(page.getByTestId("continue")).toBeVisible());
+  // Continue starts with speaking each time: simulate missing hardware and let
+  // the teacher intentionally restore tapping for this classroom session.
+  await page.evaluate(() => { (window as unknown as { __micUnavailable: boolean }).__micUnavailable = true; });
   await page.getByTestId("continue").click();
+  await expect(page.getByTestId("mic-startup-overlay")).toBeVisible();
+  await page.getByTestId("teacher-options").click();
+  await page.getByTestId("teacher-tap").click();
   await until(page, "save restored into exploration", idle);
 }
 

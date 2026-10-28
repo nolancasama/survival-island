@@ -93,16 +93,47 @@ export function clearSave() {
 
 // ---------------------------------------------------------------- startup
 
-async function prepareMic() {
-  const g = getGame();
+/** Only Start/Continue can display the teacher-assistance screen. */
+let resolveStartupMic: (() => void) | null = null;
+
+async function checkMicrophone(): Promise<boolean> {
   if (!recognition.supported) {
     setGame({ micState: "unsupported" });
-    return;
+    return false;
   }
-  if (!g.settings.mic || g.micState === "ready") return;
-  const r = await requestMicPermission(8000);
-  setGame({ micState: r === "granted" || r === "timeout" ? "ready" : "blocked" });
-  if (r === "denied" || r === "unavailable") setGame({ hint: "micBlocked" });
+  // A timeout does not establish microphone availability.
+  const result = await requestMicPermission(8000);
+  const ready = result === "granted";
+  setGame({ micState: ready ? "ready" : "blocked" });
+  return ready;
+}
+
+async function prepareMic() {
+  // Each Start/Continue tries speaking, even after an earlier teacher fallback.
+  setGame((s) => ({ settings: { ...s.settings, mic: true }, micState: "unknown", micStartupProblem: false }));
+  // Unit tests run in Node without a browser or microphone device.
+  if (typeof document === "undefined") return;
+  if (await checkMicrophone()) return;
+  setGame({ micStartupProblem: true });
+  await new Promise<void>((resolve) => { resolveStartupMic = resolve; });
+}
+
+export async function retryStartupMicrophone(): Promise<void> {
+  if (!getGame().micStartupProblem) return;
+  if (!(await checkMicrophone())) return;
+  setGame({ micStartupProblem: false });
+  const done = resolveStartupMic;
+  resolveStartupMic = null;
+  done?.();
+}
+
+/** Session-only fallback, accessible through the startup teacher controls. */
+export function teacherUseTapping(): void {
+  if (!getGame().micStartupProblem) return;
+  setGame((s) => ({ settings: { ...s.settings, mic: false }, micStartupProblem: false }));
+  const done = resolveStartupMic;
+  resolveStartupMic = null;
+  done?.();
 }
 
 function startAudio() {
@@ -197,6 +228,8 @@ export async function continueGame() {
   if (data.quest.day === 5 && (data.kai.escapeMorning || data.kaiStage !== "camp" || data.cliffOpen)) restoreEscapeKai();
   enterGame();
   updateHint();
+  setGame({ mode: "busy" });
+  await prepareMic();
   // A day that ended with sleep (the card was showing) goes straight on to the next morning.
   if (data.sleptDay >= data.quest.day || (data.quest.day === 5 && data.rescued)) {
     setGame({ mode: "busy" });
@@ -207,12 +240,13 @@ export async function continueGame() {
   const needsMorning = (data.quest.day === 4 && (getGame().kai.canTorch === undefined || !getGame().unlocked.includes("torch")))
     || (data.quest.day === 5 && !data.kai.escapeMorning && data.kaiStage === "camp" && !data.cliffOpen);
   if (needsMorning || (data.quest.day === 5 && data.signalLit && !data.rescued)) setGame({ mode: "busy" });
-  await prepareMic();
   if (needsMorning) {
     if (data.quest.day === 5) await resumeDayFiveMorning();
     else await resumeDayFourMorning();
   } else if (data.quest.day === 5 && data.signalLit && !data.rescued) {
     await radioCall();
+  } else {
+    setGame({ mode: "explore" });
   }
 }
 

@@ -6,7 +6,7 @@ import { CraftPanel, PlaceBar } from "./ui/Craft";
 import { WorldOverlay } from "./ui/WorldOverlay";
 import { TouchControls } from "./ui/TouchControls";
 import { SettingsModal } from "./ui/Settings";
-import { DayEndScreen, DayTitle, SleepOverlay, TitleScreen } from "./ui/Screens";
+import { DayEndScreen, DayTitle, SleepOverlay, TitleScreen, MicrophoneStartupOverlay } from "./ui/Screens";
 import { installKeyboard } from "./input/keyboard";
 import { onKey } from "./game/flow/input";
 import { hasSaved } from "./game/flow/session";
@@ -105,6 +105,7 @@ export function App() {
       <Fade />
       <SleepOverlay />
       <DayTitle />
+      <MicrophoneStartupOverlay />
     </div>
   );
 }

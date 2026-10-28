@@ -1,10 +1,9 @@
 import { useGame, setGame } from "../game/store";
-import { continueGame, newGame } from "../game/flow/session";
+import { continueGame, newGame, retryStartupMicrophone, teacherUseTapping } from "../game/flow/session";
+import { useState } from "react";
 import { nextDay } from "../game/flow/days";
 import { PHRASES } from "../game/logic/english";
 import { dayDef } from "../game/logic/quest";
-import { saveSettings } from "../game/store";
-import { recognition } from "../audio/recognition";
 import { Icon, type IconId } from "./icons";
 import { updateSettings } from "./Settings";
 
@@ -18,31 +17,37 @@ function Ja({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AnswerMode() {
-  const settings = useGame((s) => s.settings);
-  const set = (mic: boolean) => {
-    const next = { ...settings, mic };
-    saveSettings(next);
-    setGame({ settings: next });
-  };
+/** Startup-only microphone assistance; no student answer-mode selection. */
+export function MicrophoneStartupOverlay() {
+  const visible = useGame((s) => s.micStartupProblem);
+  const [checking, setChecking] = useState(false);
+  const [teacherOpen, setTeacherOpen] = useState(false);
+  if (!visible) return null;
   return (
-    <div className="answer-mode" role="radiogroup" aria-label="How to answer">
-      <span className="answer-mode-label">
-        Answer by <Ja>こたえかた</Ja>
-      </span>
-      <button className={`seg ${settings.mic ? "on" : ""}`} onClick={() => set(true)} aria-pressed={settings.mic} data-testid="mode-speak">
-        <Icon id="mic" size={22} /> Speaking
-        <Ja>はなす</Ja>
-      </button>
-      <button className={`seg ${!settings.mic ? "on" : ""}`} onClick={() => set(false)} aria-pressed={!settings.mic} data-testid="mode-tap">
-        <Icon id="hand" size={22} /> Tapping
-        <Ja>えらぶ</Ja>
-      </button>
-      {!recognition.supported && settings.mic && (
-        <p className="note" lang="ja">
-          このブラウザでは マイクが つかえません。ぶんを えらんで こたえます。
-        </p>
-      )}
+    <div className="mic-startup-overlay ui" data-testid="mic-startup-overlay">
+      <div className="mic-startup-card" role="alertdialog" aria-modal="true" aria-labelledby="mic-startup-heading">
+        <div className="mic-startup-symbol"><Icon id="mic" size={42} /></div>
+        <h2 id="mic-startup-heading">Microphone unavailable</h2>
+        <p className="ja" lang="ja">マイクが つかえません。</p>
+        <p className="mic-startup-message">Please ask your teacher for help.</p>
+        <p className="mic-startup-ja" lang="ja">せんせいを よんでください。</p>
+        <button className="primary big" type="button" disabled={checking} data-testid="mic-retry"
+          onClick={() => {
+            setChecking(true);
+            void retryStartupMicrophone().finally(() => setChecking(false));
+          }}>
+          {checking ? "Checking…" : "Retry microphone"}
+        </button>
+        <button className="link mic-teacher-link" type="button" data-testid="teacher-options"
+          aria-expanded={teacherOpen} onClick={() => setTeacherOpen((open) => !open)}>
+          Teacher options
+        </button>
+        {teacherOpen && (
+          <button className="secondary" type="button" data-testid="teacher-tap" onClick={() => teacherUseTapping()}>
+            Continue with tapping (teacher)
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -92,7 +97,6 @@ export function TitleScreen() {
             {hasSave ? "New game" : "Start"} <Ja>{hasSave ? "はじめから" : "はじめる"}</Ja>
           </button>
         </div>
-        <AnswerMode />
         <ClassroomMode />
         <button className="link" onClick={() => setGame({ settingsOpen: true })} data-testid="title-settings">
           <Icon id="gear" size={18} /> Settings

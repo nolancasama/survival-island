@@ -1,6 +1,8 @@
 import { BOULDERS, BOUNDS, BRIDGE, CAVE_MOUTH, CRATE, KAI_HOME, LEAN_TO, NODES, PALMS, POND, WRECK, maxZ } from "./island";
 import { CAVE_BOX, CAVE_CHAMBER, CAVE_CORRIDOR, CLIFF_PATH, CLIFF_PATH_R, CLIFFTOP, nearestOnSegment } from "./phase3";
 import { BRIDGE_SURFACE } from "./surface";
+import { treeSpots, vegetationHash, vegetationStretch } from "../../scene/models/vegetationLayout";
+import { JUNGLE_ARCHETYPES } from "../../scene/models/vegetationBroadleaf";
 
 export interface Circle {
   x: number;
@@ -42,12 +44,20 @@ const CAVE_ROOM = {
   z0: CAVE_CHAMBER.z - CAVE_CHAMBER.depth / 2, z1: CAVE_CHAMBER.z + CAVE_CHAMBER.depth / 2
 };
 
+/** Render and collision derive from the same deterministic forest positions. */
+const jungleTrunks: Circle[] = treeSpots().trees.map((spot, index) => {
+  const archetype = JUNGLE_ARCHETYPES[vegetationHash(index) % JUNGLE_ARCHETYPES.length];
+  const stretchX = vegetationStretch(index)[0];
+  return { x: spot.x, z: spot.z, r: Math.max(0.16, archetype.trunkRadius * 1.22 * spot.s * stretchX) };
+});
+
 /** Fixed obstacles. Buildings and Kai are added at runtime. */
 export const STATIC_OBSTACLES: Obstacles = {
   circles: [
     ...PALMS.map((p) => ({ x: p.x, z: p.z, r: 0.42 })),
     ...BOULDERS.map((b) => ({ x: b.x, z: b.z, r: b.r * 0.92 })),
     ...NODES.filter((n) => n.kind === "tree").map((n) => ({ x: n.x, z: n.z, r: 0.45 })),
+    ...jungleTrunks,
     { x: LEAN_TO.x, z: LEAN_TO.z, r: LEAN_TO.r },
     { x: KAI_HOME.x - 1.2, z: KAI_HOME.z + 1.3, r: 0.55 }
   ],
@@ -56,6 +66,27 @@ export const STATIC_OBSTACLES: Obstacles = {
     { x: CAVE_BOX.x, z: CAVE_BOX.z, hw: 0.85, hd: 0.6, rot: CAVE_BOX.rot }
   ]
 };
+
+/** Spatial broadphase for movement: only nine nearby 8 m cells, not every trunk. */
+const COLLISION_CELL = 8;
+const staticCells = new Map<string, Circle[]>();
+const cellKey = (x: number, z: number) => `${x},${z}`;
+for (const circle of STATIC_OBSTACLES.circles) {
+  const key = cellKey(Math.floor(circle.x / COLLISION_CELL), Math.floor(circle.z / COLLISION_CELL));
+  const cell = staticCells.get(key);
+  if (cell) cell.push(circle);
+  else staticCells.set(key, [circle]);
+}
+function nearbyStaticCircles(x: number, z: number): Circle[] {
+  const cx = Math.floor(x / COLLISION_CELL);
+  const cz = Math.floor(z / COLLISION_CELL);
+  const found: Circle[] = [];
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+    const cell = staticCells.get(cellKey(cx + dx, cz + dz));
+    if (cell) found.push(...cell);
+  }
+  return found;
+}
 
 function inRect(x: number, z: number, rect: { x0: number; x1: number; z0: number; z1: number }, margin: number): boolean {
   return x >= rect.x0 + margin && x <= rect.x1 - margin && z >= rect.z0 + margin && z <= rect.z1 - margin;
@@ -197,7 +228,7 @@ export function resolveCollisions(
   let pz = z;
   for (let iter = 0; iter < 3; iter++) {
     for (const set of obstacles) {
-      for (const c of set.circles) {
+      for (const c of set === STATIC_OBSTACLES ? nearbyStaticCircles(px, pz) : set.circles) {
         const dx = px - c.x;
         const dz = pz - c.z;
         const min = c.r + r;

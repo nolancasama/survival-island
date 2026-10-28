@@ -1,5 +1,62 @@
 # Current State
 
+## Microphone startup and solid-object collision release — 2026-10-28
+
+Implemented in [PR #1](https://github.com/nolancasama/survival-island/pull/1),
+on top of the earlier ten-issue polish pass already integrated on `main`
+(commit `79ec58f`). User authorized deployment after successful validation.
+
+### Changes
+
+1. **Mic startup:** Removed the title-screen Speaking/Tapping mode selector
+   and the separate Settings microphone toggle. On Start and Continue,
+   the browser first checks speech recognition support and microphone
+   access. If it cannot confirm a working microphone, a bilingual overlay
+   asks the student to get a teacher, with a Retry action and an expandable
+   teacher-assisted tapping fallback for the session. Mic timeouts no longer
+   count as permission granted. An in-game speech failure still falls back
+   to existing tappable responses, with no recurring startup overlay.
+2. **Solid procedural trees:** Decorative jungle trees now have light
+   collision circles generated from the same deterministic positions and
+   visual trunk dimensions as the rendered trees. Movement checks only
+   nearby fixed colliders using 8 m spatial cells. Existing authored palms,
+   resource trees, boulders, placed buildings and wreck collision remain.
+   Small vegetation stays nonblocking.
+3. **Test harness:** Updated title and saved-game regression tests to use
+   teacher-assisted tapping; updated screenshot scripts; added microphone
+   startup tests and an explicit jungle trunk collision test. Added
+   `.github/workflows/check-pr.yml` for PR unit, build and E2E verification.
+
+### Validation
+
+- GitHub Actions [run 40661957648](https://github.com/nolancasama/survival-island/actions/runs/40661957648):
+  **154/154 unit tests**, TypeScript production build, and
+  **38/38 Chromebook-emulated Playwright E2E tests** passed on the
+  implementation commit `b17c783`.
+- Test coverage includes startup help, microphone Retry, teacher fallback,
+  normal speech and tapped commands, save/Continue migration, quest flow,
+  bridge walking/running, cave exit and tree-collider geometry.
+- CI uses software-rendered Chromium. Real school Chromebook performance,
+  microphone permissions, speech recognition and classroom behavior remain
+  **hardware validation TODOs**. No claims of real-device testing.
+- This file is a documentation-only release update after the successful
+  code verification, prepared before PR merge. GitHub Pages deployment
+  status is authoritative in the `main` workflow after merging.
+
+### Next steps
+
+1. Verify `main` deploy workflow completes successfully and test the
+   published GitHub Pages site.
+2. Trial on real managed school Chromebooks, including unavailable/blocked
+   microphones, microphone reconnection, slow rendering and speech accuracy.
+3. Walk into representative decorative trees, authored trees, palms,
+   large rocks, wreck, tents and other solids; adjust any remaining
+   visually solid scenery missing collision.
+4. After classroom validation, continue optional Phase 4 design work
+   recorded in the historical Next Steps below.
+
+---
+
 ## Ten-issue polish pass — 2026-10-27
 
 The supplied plan was accepted with shared fade/surface helpers and focused
