@@ -19,6 +19,8 @@ import {
   shoreZ
 } from "./island";
 import { PLAYER_R, STATIC_OBSTACLES, isWalkable, overlaps, resolveCollisions, type WorldGates } from "./collision";
+import { treeSpots, vegetationHash, vegetationStretch } from "../../scene/models/vegetationLayout";
+import { JUNGLE_ARCHETYPES } from "../../scene/models/vegetationBroadleaf";
 import { FOOTPRINT, buildingObstacles, placeProblem, previewSpot } from "./placement";
 import { CAVE_BOX, CAVE_CHAMBER, CAVE_ENTRY, CAVE_EXIT, CAVE_OUTSIDE, CLIFF_PATH, CLIFFTOP, HELICOPTER_PAD, KAI_ROUTES, METAL_NODES, ROCKFALL, SIGNAL_PAD, isOnClifftop } from "./phase3";
 import { CAVE_MOUTH } from "./island";
@@ -132,6 +134,19 @@ describe("island layout", () => {
     expect(overlaps(KAI_HOME.x, KAI_HOME.z, 0.4, [STATIC_OBSTACLES])).toBe(false);
     const nearCrate = resolveCollisions(CRATE.x - 1, CRATE.z, PLAYER_R, [STATIC_OBSTACLES]);
     expect(Math.hypot(nearCrate.x - CRATE.x, nearCrate.z - CRATE.z)).toBeLessThan(INTERACT_RANGE);
+  });
+
+  it("collides with procedural jungle trunks at the exact rendered positions", () => {
+    const trees = treeSpots().trees;
+    const index = trees.findIndex((t) => t.x > -26 && t.x < 26 && t.z < -7);
+    expect(index).toBeGreaterThanOrEqual(0);
+    const spot = trees[index];
+    const archetype = JUNGLE_ARCHETYPES[vegetationHash(index) % JUNGLE_ARCHETYPES.length];
+    const expected = Math.max(0.16, archetype.trunkRadius * 1.22 * spot.s * vegetationStretch(index)[0]);
+    const matching = STATIC_OBSTACLES.circles.find((c) => c.x === spot.x && c.z === spot.z);
+    expect(matching?.r).toBeCloseTo(expected, 7);
+    const result = resolveCollisions(spot.x, spot.z, PLAYER_R, [STATIC_OBSTACLES], { pathCleared: true, bridgeBuilt: true, cliffOpen: true });
+    expect(Math.hypot(result.x - spot.x, result.z - spot.z)).toBeGreaterThanOrEqual(expected + PLAYER_R - 1e-5);
   });
 
   it("resolves the island edge and fixed beach obstacles", () => {
