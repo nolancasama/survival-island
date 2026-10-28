@@ -65,10 +65,15 @@ const goTo = async (id) => {
 
 await page.goto(`${base}?e2e=1&seed=3`);
 await page.waitForTimeout(3000);
-if (tap) await page.getByTestId("mode-tap").click();
+if (tap) await page.evaluate(() => { window.__micUnavailable = true; });
 await shot("title");
 
 await page.getByTestId("start").click();
+if (tap) {
+  await page.getByTestId("mic-startup-overlay").waitFor();
+  await page.getByTestId("teacher-options").click();
+  await page.getByTestId("teacher-tap").click();
+}
 await waitLine();
 await page.waitForTimeout(900);
 await shot("intro-where-am-i");
@@ -775,7 +780,13 @@ await stage("title before classroom pass", () => window.__si.state().screen === 
 await page.getByTestId("mode-classroom").click();
 await stage("classroom teacher setting enabled", () => window.__si.state().classroom);
 await shot("classroom-title");
+if (tap) await page.evaluate(() => { window.__micUnavailable = true; });
 await page.getByTestId("start").click();
+if (tap) {
+  await page.getByTestId("mic-startup-overlay").waitFor();
+  await page.getByTestId("teacher-options").click();
+  await page.getByTestId("teacher-tap").click();
+}
 await stage("classroom intro self line", () => window.__si.state().line?.en === "Where am I?");
 await next();
 await stage("classroom storm intro", () => window.__si.state().line?.en.startsWith("A storm broke your ship."));

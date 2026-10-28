@@ -27,7 +27,7 @@ async function answer(page: Page, phrase: string, how: "tap" | "speak" = "tap") 
 }
 
 async function morning(page: Page, how: "tap" | "speak" = "tap") {
-  if (how === "tap") await page.getByTestId("mode-tap").click();
+  if (how === "tap") await hook(page, "setMic", false);
   await hook(page, "startDay", 3);
   await until(page, "Day 3 morning question", (s) => s.day === 3 && s.prompt?.question === "What do you want to do?");
   await answer(page, how === "tap" ? "wantWater" : "wantFish", how);

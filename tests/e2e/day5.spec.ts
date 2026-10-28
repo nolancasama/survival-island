@@ -46,7 +46,7 @@ async function line(page: Page, en: string) {
 }
 
 async function morning(page: Page, classroom = false) {
-  await page.getByTestId("mode-tap").click();
+  await hook(page, "setMic", false);
   await fast(page, false);
   await hook(page, "startDay", 5, classroom);
   await until(page, "Day 5 title", (s) => s.day === 5 && s.dayTitle === 5);

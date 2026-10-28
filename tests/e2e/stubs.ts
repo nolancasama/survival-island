@@ -11,6 +11,7 @@ export const BROWSER_STUBS = `
 (() => {
   const w = window;
   w.__speech = { say: null, error: null, starts: 0 };
+  w.__micUnavailable = false;
   const synth = w.speechSynthesis;
   if (synth) {
     // Like Chrome: speaking ends after a while, and cancel() ends it at once.
@@ -58,7 +59,14 @@ export const BROWSER_STUBS = `
   w.SpeechRecognition = FakeRecognition;
   w.webkitSpeechRecognition = FakeRecognition;
   if (navigator.mediaDevices) {
-    navigator.mediaDevices.getUserMedia = async () => ({ getTracks: () => [] });
+    navigator.mediaDevices.getUserMedia = async () => {
+      if (w.__micUnavailable) {
+        const err = new Error("Microphone not detected");
+        err.name = "NotFoundError";
+        throw err;
+      }
+      return { getTracks: () => [] };
+    };
   }
 })();
 `;

@@ -36,7 +36,7 @@ async function fast(page: Page, on: boolean) {
 }
 
 async function morning(page: Page, yes: boolean) {
-  await page.getByTestId("mode-tap").click();
+  await hook(page, "setMic", false);
   await hook(page, "startDay", 4);
   await until(page, "Day 4 morning torch question", (s) => s.day === 4 && s.prompt?.question === "Can you make a torch?");
   expect((await state(page)).prompt?.choices).toEqual(["yesICan", "noICant"]);
