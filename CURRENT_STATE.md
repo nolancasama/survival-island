@@ -1,76 +1,59 @@
 # Current State
 
-## PAUSED — microphone startup and collision fixes — 2026-10-28
+## Microphone startup and solid-object collision release — 2026-10-28
 
-**Release decision:** On hold at the owner's request. Do not merge, deploy,
-or continue implementation/testing until explicitly asked to resume.
-`main` and the live GitHub Pages game have not received this two-issue pass.
-The earlier ten-issue polish pass is already on `main` (commit `79ec58f`).
+Implemented in [PR #1](https://github.com/nolancasama/survival-island/pull/1),
+on top of the earlier ten-issue polish pass already integrated on `main`
+(commit `79ec58f`). User authorized deployment after successful validation.
 
-**Work preserved:** branch
-`fix/microphone-startup-solid-collisions-20261028`, last code commit
-`147aae9273a7b5396d9e12cc7576e199a0b464b8`.
-Pull request [#1](https://github.com/nolancasama/survival-island/pull/1)
-was **closed without merging** to pause the rollout. Reopen only when
-the owner requests resumption. This handoff update is saved on the
-working branch, not on `main`.
+### Changes
 
-### Implemented on the paused branch (NOT LIVE)
+1. **Mic startup:** Removed the title-screen Speaking/Tapping mode selector
+   and the separate Settings microphone toggle. On Start and Continue,
+   the browser first checks speech recognition support and microphone
+   access. If it cannot confirm a working microphone, a bilingual overlay
+   asks the student to get a teacher, with a Retry action and an expandable
+   teacher-assisted tapping fallback for the session. Mic timeouts no longer
+   count as permission granted. An in-game speech failure still falls back
+   to existing tappable responses, with no recurring startup overlay.
+2. **Solid procedural trees:** Decorative jungle trees now have light
+   collision circles generated from the same deterministic positions and
+   visual trunk dimensions as the rendered trees. Movement checks only
+   nearby fixed colliders using 8 m spatial cells. Existing authored palms,
+   resource trees, boulders, placed buildings and wreck collision remain.
+   Small vegetation stays nonblocking.
+3. **Test harness:** Updated title and saved-game regression tests to use
+   teacher-assisted tapping; updated screenshot scripts; added microphone
+   startup tests and an explicit jungle trunk collision test. Added
+   `.github/workflows/check-pr.yml` for PR unit, build and E2E verification.
 
-- **#11 — Startup microphone workflow:** Removed title-screen
-  Speaking/Tapping options and Settings microphone toggle.
-  Start and Continue now try microphone access with speaking as the
-  default. A missing, denied, unsupported, or timed-out microphone
-  shows a bilingual "Microphone unavailable / ask your teacher"
-  overlay with Retry microphone and an expandable teacher fallback
-  to tapping. A permission timeout is no longer counted as success.
-  The overlay is limited to the startup flow; the existing in-game
-  three-miss tap rescue remains. The teacher option is a labelled
-  control, **not authenticated teacher access**.
-- **#12 — Solid procedural jungle trees:** Forest trees previously
-  existed only in the merged vegetation mesh and lacked trunk colliders.
-  The branch derives small collision circles from the same deterministic
-  tree positions/archetypes/scaling as the rendered trees; nearby
-  static circles are queried using 8-m cells. Authored trees, palms,
-  boulders, major props and buildings retain their existing colliders.
-  This does not imply every decorative object is solid.
-- E2E test helpers, Playwright cases, and screenshot scripts were updated
-  for the new startup gate; a focused tree-collider test was added.
-  A pull-request CI workflow was also added.
+### Validation
 
-### Verification at pause
+- GitHub Actions [run 40661957648](https://github.com/nolancasama/survival-island/actions/runs/40661957648):
+  **154/154 unit tests**, TypeScript production build, and
+  **38/38 Chromebook-emulated Playwright E2E tests** passed on the
+  implementation commit `b17c783`.
+- Test coverage includes startup help, microphone Retry, teacher fallback,
+  normal speech and tapped commands, save/Continue migration, quest flow,
+  bridge walking/running, cave exit and tree-collider geometry.
+- CI uses software-rendered Chromium. Real school Chromebook performance,
+  microphone permissions, speech recognition and classroom behavior remain
+  **hardware validation TODOs**. No claims of real-device testing.
+- This file is a documentation-only release update after the successful
+  code verification, prepared before PR merge. GitHub Pages deployment
+  status is authoritative in the `main` workflow after merging.
 
-- GitHub Actions **unit tests passed (154)** and **production build /
-  TypeScript check passed** on PR run
-  [40652579061](https://github.com/nolancasama/survival-island/actions/runs/40652579061).
-- That run's **Playwright end-to-end tests were still in progress** at the
-  pause point; do not claim E2E or live verification passed.
-- The initial CI run failed on an existing Node-based save-resume test
-  because the new microphone gate waited for a device in Node. Commit
-  `147aae9` restricted the startup gate to the browser test path;
-  the subsequent unit-test run passed.
-- Real school Chromebook microphone/audio and GPU/FPS are still untested.
-  No deployment has been authorized while the task remains paused.
-- The GitHub connector used here does not provide a workflow-cancellation
-  action. Any previously running CI job may finish on its own; no new
-  checks or merge will be initiated from this conversation.
+### Next steps
 
-### TODO — resume only on request
-
-1. Review the final result/logs for Playwright run `40652579061`.
-   Fix any regressions and rerun full CI.
-2. Validate Start and Continue when mic is available/denied/missing,
-   retry after connecting a mic, teacher tapping fallback, ordinary
-   in-game speech/tapping assistance, and day-transition/resume flows.
-3. Walk and run into representative procedural trunks, palms, resource
-   trees, rocks, the wreck and buildings; check smooth sliding,
-   path connectivity, cave/bridge routes, placement checks and reachability.
-   Investigate any other visible solid-looking objects without colliders.
-4. Run screenshot comparisons and measure Chromebook-oriented rendering
-   performance; verify no broken resource access or impossible quest paths.
-5. After all validation and **a fresh instruction to resume**, reopen PR #1,
-   merge to `main`, and verify GitHub Pages deployment and the live site.
-   Do not automatically deploy simply because a CI job completes.
+1. Verify `main` deploy workflow completes successfully and test the
+   published GitHub Pages site.
+2. Trial on real managed school Chromebooks, including unavailable/blocked
+   microphones, microphone reconnection, slow rendering and speech accuracy.
+3. Walk into representative decorative trees, authored trees, palms,
+   large rocks, wreck, tents and other solids; adjust any remaining
+   visually solid scenery missing collision.
+4. After classroom validation, continue optional Phase 4 design work
+   recorded in the historical Next Steps below.
 
 ---
 
