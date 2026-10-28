@@ -151,6 +151,8 @@ export interface GameState {
   mode: Mode;
   settings: Settings;
   micState: MicState;
+  /** Only startup may display microphone assistance. */
+  micStartupProblem: boolean;
   touch: boolean;
   settingsOpen: boolean;
   fade: number;
@@ -295,6 +297,7 @@ export const useGame = create<GameState>(() => ({
   mode: "busy",
   settings: loadSettings(),
   micState: "unknown",
+  micStartupProblem: false,
   touch: false,
   settingsOpen: false,
   fade: 0,

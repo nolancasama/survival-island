@@ -1,6 +1,5 @@
 import { useGame, setGame, saveSettings, type Settings } from "../game/store";
 import { refreshQuest, toTitle } from "../game/flow/session";
-import { recognition } from "../audio/recognition";
 import { audio } from "../audio/audio";
 import { tts } from "../audio/tts";
 
@@ -37,7 +36,6 @@ export function SettingsModal() {
   const open = useGame((s) => s.settingsOpen);
   const s = useGame((st) => st.settings);
   const screen = useGame((st) => st.screen);
-  const micState = useGame((st) => st.micState);
   if (!open) return null;
   return (
     <div className="modal-backdrop ui" onClick={() => setGame({ settingsOpen: false })}>
@@ -45,16 +43,9 @@ export function SettingsModal() {
         <h2>
           Settings <small lang="ja">せってい</small>
         </h2>
-        <Row label="Speak answers (microphone)" ja="マイクで こたえる">
-          <Toggle value={s.mic} onChange={(v) => updateSettings({ mic: v })} testId="toggle-mic" />
-        </Row>
         <Row label="Classroom mode" ja="じゅぎょうモード">
           <Toggle value={s.classroom} onChange={(v) => updateSettings({ classroom: v })} testId="toggle-classroom" />
         </Row>
-        {!recognition.supported && <p className="note" lang="ja">このブラウザでは マイクが つかえません。ぶんを えらんで こたえます。</p>}
-        {recognition.supported && micState === "blocked" && s.mic && (
-          <p className="note" lang="ja">マイクが ブロックされています。ぶんを えらんで こたえます。</p>
-        )}
         <Row label="Music volume" ja="おんがく">
           <input type="range" min={0} max={1} step={0.05} value={s.music} onChange={(e) => updateSettings({ music: Number(e.target.value) })} />
         </Row>
