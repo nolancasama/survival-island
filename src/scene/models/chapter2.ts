@@ -26,7 +26,8 @@ export function cylinderBetween(
   c: readonly [number, number, number],
   radius: number,
   color: THREE.ColorRepresentation,
-  seg = 7
+  seg = 7,
+  openEnded = false
 ) {
   const from = new THREE.Vector3(...a);
   const to = new THREE.Vector3(...c);
@@ -35,21 +36,33 @@ export function cylinderBetween(
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
   const e = new THREE.Euler().setFromQuaternion(q);
   const mid = from.add(to).multiplyScalar(0.5);
-  b.add(new THREE.CylinderGeometry(radius, radius, len, seg, 1), color, [mid.x, mid.y, mid.z], [e.x, e.y, e.z]);
+  b.add(new THREE.CylinderGeometry(radius, radius, len, seg, 1, openEnded), color, [mid.x, mid.y, mid.z], [e.x, e.y, e.z]);
 }
 
 /** A bamboo pole from a to b: a green culm with darker node rings. */
-export function bambooPole(b: PartBuilder, a: readonly [number, number, number], c: readonly [number, number, number], radius = 0.045, tint = 1) {
+export function bambooPole(b: PartBuilder, a: readonly [number, number, number], c: readonly [number, number, number], radius = 0.045, tint = 1, ringStep = 0.42) {
   const color = new THREE.Color(BAMBOO).multiplyScalar(tint);
   cylinderBetween(b, a, c, radius, color, 6);
   const len = Math.hypot(c[0] - a[0], c[1] - a[1], c[2] - a[2]);
-  const rings = Math.max(1, Math.floor(len / 0.42));
+  const rings = Math.max(1, Math.floor(len / ringStep));
   for (let i = 1; i <= rings; i++) {
     const t = i / (rings + 1);
     const p: [number, number, number] = [a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t, a[2] + (c[2] - a[2]) * t];
     const ringA: [number, number, number] = [p[0] - (c[0] - a[0]) * 0.012, p[1] - (c[1] - a[1]) * 0.012, p[2] - (c[2] - a[2]) * 0.012];
     const ringB: [number, number, number] = [p[0] + (c[0] - a[0]) * 0.012, p[1] + (c[1] - a[1]) * 0.012, p[2] + (c[2] - a[2]) * 0.012];
-    cylinderBetween(b, ringA, ringB, radius * 1.18, BAMBOO_DARK, 6);
+    cylinderBetween(b, ringA, ringB, radius * 1.18, BAMBOO_DARK, 6, true);
+  }
+}
+
+/** A spray of narrow drooping bamboo leaves at a node (a few flat blades fanned round it). */
+export function leafSpray(b: PartBuilder, x: number, y: number, z: number, size: number, turn: number, color: THREE.ColorRepresentation = BAMBOO_LEAF) {
+  for (let k = 0; k < 5; k++) {
+    const a = turn + (k / 5) * Math.PI * 2;
+    const len = size * (0.8 + (k % 2) * 0.35);
+    // Each blade points outward and droops: a flattened three-sided cone laid on its side.
+    const ox = Math.sin(a) * len * 0.45;
+    const oz = Math.cos(a) * len * 0.45;
+    b.add(new THREE.ConeGeometry(size * 0.11, len, 3), k % 2 ? color : "#6a9e3d", [x + ox, y - len * 0.12, z + oz], [Math.PI / 2 + 0.35, a, 0], [1, 1, 0.3]);
   }
 }
 
@@ -80,7 +93,10 @@ export function coveShoreGeometry(): THREE.BufferGeometry {
     const x = COVE.x - 10 + rand() * 20;
     const z = 12.5 + rand() * 5.5;
     const y = groundY(x, z) + 0.03;
-    b.boxAt(0.5 + rand() * 0.6, 0.03, 0.12, [x, y, z], [0, rand() * 3.1, 0], i % 2 ? "#3f6b3a" : "#4d7d3d");
+    const a = rand() * 3.1;
+    const l = 0.4 + rand() * 0.4;
+    b.boxAt(l, 0.025, 0.06, [x, y, z], [0, a, 0], i % 2 ? "#2f5530" : "#3d6a36");
+    b.boxAt(l * 0.8, 0.025, 0.05, [x + Math.cos(a) * l * 0.4, y, z - Math.sin(a) * l * 0.4], [0, a + 0.6, 0], "#355f33");
   }
   for (const [x, z, r] of [[59.5, 13.5, 0.9], [69.5, 16.2, 1.2], [74.2, 12.2, 0.7]] as const) {
     const y = groundY(x, z) + 0.02;
@@ -154,9 +170,26 @@ export function canvasNodeGeometry(): THREE.BufferGeometry {
   const sheet = new THREE.ShapeGeometry(shape, 1);
   const p = sheet.attributes.position;
   for (let i = 0; i < p.count; i++) p.setZ(i, 0.06 * Math.sin(p.getX(i) * 3.1) + 0.05 * Math.cos(p.getY(i) * 4.3));
-  b.add(sheet, SAIL, [0, 0.09, 0], [-Math.PI / 2, 0, 0], [1, 1, 1], { flatAo: true });
-  b.add(sheet.clone(), "#d9cda9", [0, 0.07, 0], [Math.PI / 2, 0, 0], [1, 1, 1], { flatAo: true });
-  cylinderBetween(b, [-0.95, 0.12, -0.62], [1.0, 0.12, -0.72], 0.05, "#8a6038", 6);
+  // Draped from a broken spar stuck in the sand: one edge high, the rest on the ground, so it reads from afar.
+  const top = sheet.clone();
+  top.rotateX(-Math.PI / 2);
+  top.rotateZ(-0.62);
+  // The underside: the same outline with its triangles turned over.
+  const under = top.clone();
+  const idx = under.index;
+  if (idx) {
+    for (let i = 0; i < idx.count; i += 3) {
+      const a = idx.getX(i + 1);
+      idx.setX(i + 1, idx.getX(i + 2));
+      idx.setX(i + 2, a);
+    }
+  }
+  b.add(top, SAIL, [0.05, 0.62, 0], [0, 0, 0], [1, 1, 1], { flatAo: true });
+  b.add(under, "#cdbf98", [0.05, 0.6, 0], [0, 0, 0], [1, 1, 1], { flatAo: true });
+  // A patch sewn on the sail.
+  b.boxAt(0.36, 0.012, 0.3, [-0.25, 0.77, 0.1], [0, 0, -0.62], "#b98a5a");
+  cylinderBetween(b, [-0.88, 0, -0.1], [-0.8, 1.25, -0.05], 0.06, "#7a5532", 6);
+  cylinderBetween(b, [-0.86, 1.15, -0.65], [-0.82, 1.18, 0.7], 0.04, "#8a6038", 6);
   return b.build();
 }
 
@@ -220,11 +253,9 @@ export function bambooStalkGeometry(): THREE.BufferGeometry {
   culms.forEach(([x, z, h, r], i) => {
     const lean = 0.04 * (i - 1);
     bambooPole(b, [x, 0, z], [x + lean * h, h, z + lean * 0.5 * h], r, 1 - i * 0.04);
-    for (let k = 0; k < 3; k++) {
-      const t = 0.55 + k * 0.17;
-      const y = h * t;
-      b.add(new THREE.ConeGeometry(0.42, 0.9, 5), BAMBOO_LEAF, [x + lean * y + 0.2, y, z], [0, k * 2.1, 1.2 + k * 0.3], [1, 1, 0.35]);
-      b.add(new THREE.ConeGeometry(0.38, 0.8, 5), "#6a9e3d", [x + lean * y - 0.18, y + 0.25, z + 0.1], [0, k * 2.1 + 1, -1.1], [1, 1, 0.35]);
+    for (let k = 0; k < 4; k++) {
+      const y = h * (0.5 + k * 0.15);
+      leafSpray(b, x + lean * y, y, z + lean * 0.5 * y, 0.85 - k * 0.1, i + k * 1.7);
     }
   });
   return b.build();
@@ -254,8 +285,10 @@ export function groveDecorGeometry(): THREE.BufferGeometry {
     const h = 5 + rand() * 4;
     const y = groundY(x, z);
     const lean = (rand() - 0.5) * 0.12;
-    bambooPole(b, [x, y, z], [x + lean * h, y + h, z + lean * h * 0.5], 0.05 + rand() * 0.03, 0.85 + rand() * 0.2);
-    b.add(new THREE.ConeGeometry(0.6, 1.4, 5), rand() > 0.5 ? BAMBOO_LEAF : "#5f9339", [x + lean * h, y + h - 0.3, z + lean * h * 0.5], [0, rand() * 3, Math.PI], [1, 1, 0.5]);
+    bambooPole(b, [x, y, z], [x + lean * h, y + h, z + lean * h * 0.5], 0.05 + rand() * 0.03, 0.85 + rand() * 0.2, 1.1);
+    const leaf = rand() > 0.5 ? BAMBOO_LEAF : "#5f9339";
+    const turn = rand() * 3;
+    for (const t of [0.7, 0.95]) leafSpray(b, x + lean * h * t, y + h * t, z + lean * h * 0.5 * t, 1.0, turn + t * 4, leaf);
   }
   return b.build();
 }
@@ -270,8 +303,9 @@ export function thicketGeometry(): { standing: THREE.BufferGeometry; fallen: THR
     const dx = -0.8 + rand() * 1.6;
     const h = 4 + rand() * 3.5;
     const lean = (rand() - 0.5) * 0.3;
-    bambooPole(standing, [dx, 0, dz], [dx + lean, h, dz + lean * 0.6], 0.05 + rand() * 0.02);
-    standing.add(new THREE.ConeGeometry(0.55, 1.2, 5), BAMBOO_LEAF, [dx + lean, h - 0.2, dz], [0, rand() * 3, Math.PI], [1, 1, 0.5]);
+    bambooPole(standing, [dx, 0, dz], [dx + lean, h, dz + lean * 0.6], 0.05 + rand() * 0.02, 1, 0.8);
+    const turn = rand() * 3;
+    for (const t of [0.6, 0.8, 0.97]) leafSpray(standing, dx + lean * t, h * t, dz + lean * 0.6 * t, 0.9, turn + t * 4);
     // Fallen culms lie along the trail edges.
     const side = i % 2 ? 1 : -1;
     const len = 2.5 + rand() * 2;

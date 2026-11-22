@@ -152,7 +152,7 @@ function KidMesh({ outfit, rig, scale = 1, torch = false }: { outfit: Outfit; ri
 
 const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : Math.sin(t * Math.PI));
 
-function caughtFishGeometry(): THREE.BufferGeometry {
+export function caughtFishGeometry(): THREE.BufferGeometry {
   const b = new PartBuilder(0);
   b.sphere(0.16, 0, 0, 0, "#66b7b4", [0.7, 1, 1.75]);
   b.sphere(0.12, 0, -0.035, 0.04, "#d5e6c9", [0.72, 0.65, 1.5]);
@@ -378,8 +378,8 @@ export function Player() {
     }
     if (g.inCave) armRx = -1.15;
     if (carrying) {
-      // Both hands out under the load; the swing is small and slow.
-      armLx = armRx = -1.25;
+      // The barrel is held in front; leading the chest, the hands reach back to its end.
+      armLx = armRx = g.carry === "chest" ? 0.45 : -1.25;
       bend = 0.12;
       bodyY *= 0.6;
     } else if (rt.time - rt.carry.strainT0 < 1.1) {

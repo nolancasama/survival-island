@@ -2,9 +2,12 @@ import { freshGameData, getGame, setGame, type GameState } from "./store";
 import { resetRuntime, rt } from "./runtime";
 import { walkKaiRoute } from "./kaiRoute";
 import { seedChoices } from "./flow/ask";
-import { syncStats } from "./flow/session";
+import { startChapterTwo, syncStats } from "./flow/session";
 import { nextDay } from "./flow/days";
-import { currentGates, targetPosition, targetReachable } from "./flow/places";
+import { currentGates, targetPosition, targetReachable, worldPropObstacles } from "./flow/places";
+import { flowOf } from "./flow/chapter2";
+import { stackLimit } from "./logic/inventory";
+import { COVE, COVE_BARREL, COVE_CRATE, COVE_PASSAGE, GROVE, GROVE_GATE, KAI_COVE, SEA_CHEST } from "./world/chapter2";
 import { findFocus } from "./flow/focus";
 import {
   BRIDGE,
@@ -42,9 +45,11 @@ import * as THREE from "three";
 const KNOWN_BY_DAY: Record<number, PhraseId[]> = {
   1: ["hungry", "getCoconut", "eatCoconut", "needWood", "yesICan", "getWood", "getStone", "craftCampfire", "makeFire", "sleep"],
   2: ["yesICan", "craftAxe", "cutTree", "getLeaves", "craftShelter", "buildShelter", "sleep"],
-  3: ["wantWater", "openBox", "buildBridge", "craftContainer", "getWater", "drinkWater", "craftRod", "catchFish", "cookFish", "eatFish", "sleep"],
+  3: ["wantWater", "openBox", "buildBridge", "craftContainer", "getWater", "boilWater", "drinkWater", "craftRod", "catchFish", "cookFish", "eatFish", "sleep"],
   4: ["yesICan", "craftTorch", "goCave", "getMetal", "openBox", "haveRadio", "sleep"],
-  5: ["canHelp", "craftSignalFire", "makeFire", "needHelp"]
+  5: ["canHelp", "craftSignalFire", "makeFire", "needHelp"],
+  6: ["askWhat", "openBox", "getCanvas", "getRope", "carryBox", "tooHeavy", "canHelp", "goBack", "putHere", "foundBox", "sleep"],
+  7: ["cutBamboo", "buildRack", "putHere", "tooLong", "dryFish", "sleep"]
 };
 const UNLOCKED_BY_DAY: Record<number, CraftId[]> = { 1: ["campfire"], 2: ["axe", "shelter"], 3: ["container", "rod"], 4: ["torch", "signalFire"] };
 /** Where startDay puts the camp: the Day 1 fire on the beach, the Day 2 shelter beside it. */
@@ -63,8 +68,8 @@ export function installE2eHook(seed: number) {
       x,
       z,
       PLAYER_R,
-      [STATIC_OBSTACLES, buildingObstacles(g.buildings)],
-      { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt, cliffOpen: g.cliffOpen }
+      [STATIC_OBSTACLES, buildingObstacles(g.buildings), worldPropObstacles()],
+      currentGates()
     );
     rt.player.x = p.x;
     rt.player.z = p.z;
@@ -139,6 +144,14 @@ export function installE2eHook(seed: number) {
         kaiStage: g.kaiStage,
         caveBoxOpened: g.caveBoxOpened,
         reachedClifftop: g.reachedClifftop,
+        chapterTwo: {
+          coveOpen: g.coveOpen, groveOpen: g.groveOpen, reachedCove: g.reachedCove, coveBoxOpened: g.coveBoxOpened,
+          asked: [...g.asked], chestTaken: g.chestTaken, barrelTaken: g.barrelTaken, carry: g.carry,
+          fishDried: g.fishDried, rainCaught: g.rainCaught, rainDone: g.rainDone, boiled: g.boiled, boiledDay: g.boiledDay,
+          found: g.kai.found ?? null, stackLimit: stackLimit(), rainK: rt.rain.k,
+          carryTrail: rt.carry.trail.length,
+          flows: Object.fromEntries(g.buildings.filter((b) => b.type === "catcher").map((b) => [b.id, flowOf(b)]))
+        },
         light: rt.light,
         lightTarget: rt.lightTarget,
         time: rt.time,
@@ -160,7 +173,10 @@ export function installE2eHook(seed: number) {
           cliffOpenT0: rt.cliffOpenT0,
           caveBoxOpenT0: rt.caveBoxOpenT0,
           signalLitT0: rt.signalLitT0,
-          rescueT0: rt.rescueT0
+          rescueT0: rt.rescueT0,
+          coveOpenT0: rt.coveOpenT0,
+          groveOpenT0: rt.groveOpenT0,
+          coveBoxOpenT0: rt.coveBoxOpenT0
         },
         rescue: {
           phase: rt.rescueT0 < 0 ? "none" : rt.time - rt.rescueT0 >= RESCUE_SECONDS ? "landed" : "flight",
@@ -183,7 +199,7 @@ export function installE2eHook(seed: number) {
       if (!at) throw new Error(`no target ${id}`);
       // Any free, walkable spot about 1.4 m from the place, south side first.
       const gates = currentGates();
-      const solid = [STATIC_OBSTACLES, buildingObstacles(getGame().buildings)];
+      const solid = [STATIC_OBSTACLES, buildingObstacles(getGame().buildings), worldPropObstacles()];
       for (let i = 0; i < 16; i++) {
         const a = (i / 16) * Math.PI * 2;
         const x = at.x + Math.sin(a) * 1.4;
@@ -219,6 +235,19 @@ export function installE2eHook(seed: number) {
         Object.assign(bag, { torch: 1, radio: 1, metal: 2 });
         crafted.push("torch");
       }
+      // Chapter 2 days: the rescue is done; Day 7 has the storage box, Day 8 the stable rack.
+      if (n >= 6) crafted.push("signalFire");
+      if (n >= 7) {
+        buildings.push({ id: "bE2eStorage", type: "storage", x: CAMP_FIRE.x + 2.6, z: CAMP_FIRE.z - 1.8, rot: 0 });
+        Object.assign(bag, { canvas: 2, rope: 2 });
+      }
+      if (n >= 8) {
+        buildings.push({
+          id: "bE2eRack", type: "rack", x: CAMP_FIRE.x + 5, z: CAMP_FIRE.z + 1.5, rot: 0,
+          parts: ["leg1", "leg2", "leg3", "leg4", "barN", "barS", "barW", "barE", "braceN", "braceW"], fish: []
+        });
+        Object.assign(bag, { driedFish: 1 });
+      }
       const lastDay = DAYS.find((d) => d.day === before);
       resetRuntime();
       setGame({
@@ -230,7 +259,9 @@ export function installE2eHook(seed: number) {
         quest: { day: before, done: lastDay ? lastDay.steps.map((s) => s.id) : [], complete: Boolean(lastDay) },
         ate: 1,
         metKai: true,
-        kai: n >= 5 ? { need: "wood", canFire: true, canAxe: true, want: "water", canTorch: true, have: "radio" }
+        kai: n >= 7 ? { need: "wood", canFire: true, canAxe: true, want: "water", canTorch: true, have: "radio", escapeMorning: true, found: "box" }
+          : n >= 6 ? { need: "wood", canFire: true, canAxe: true, want: "water", canTorch: true, have: "radio", escapeMorning: true }
+          : n >= 5 ? { need: "wood", canFire: true, canAxe: true, want: "water", canTorch: true, have: "radio" }
           : n >= 4 ? { need: "wood", canFire: true, canAxe: true, want: "water" }
           : n >= 3 ? { need: "wood", canFire: true, canAxe: true } : { need: "wood", canFire: true },
         known,
@@ -248,6 +279,19 @@ export function installE2eHook(seed: number) {
         drank: n >= 4 ? 1 : 0,
         caught: n >= 4 ? 1 : 0,
         cooked: n >= 4 ? 1 : 0,
+        boiled: n >= 4 ? 1 : 0,
+        boiledDay: n >= 4 ? 3 : 0,
+        cliffOpen: n >= 6,
+        reachedClifftop: n >= 6,
+        signalLit: n >= 6,
+        rescued: n >= 6,
+        coveOpen: n >= 7,
+        reachedCove: n >= 7,
+        coveBoxOpened: n >= 7,
+        chestTaken: n >= 7,
+        asked: n >= 7 ? ["chest", "barrel", "canvas", "rope", "metal"] : [],
+        groveOpen: n >= 8,
+        fishDried: n >= 8 ? 1 : 0,
         sleptDay: before,
         hint: null,
         fade: 0,
@@ -344,16 +388,40 @@ export function installE2eHook(seed: number) {
       rt.player.lying = rt.player.lyingTarget = 0;
       rt.walked = Math.max(rt.walked, 10);
     },
-    setGates(next: { pathCleared?: boolean; bridgeBuilt?: boolean; cliffOpen?: boolean }) {
+    setGates(next: { pathCleared?: boolean; bridgeBuilt?: boolean; cliffOpen?: boolean; coveOpen?: boolean; groveOpen?: boolean }) {
       const g = getGame();
       const pathCleared = next.pathCleared ?? g.pathCleared;
       const bridgeBuilt = next.bridgeBuilt ?? g.bridgeBuilt;
       const cliffOpen = next.cliffOpen ?? g.cliffOpen;
+      const coveOpen = next.coveOpen ?? g.coveOpen;
+      const groveOpen = next.groveOpen ?? g.groveOpen;
       if (pathCleared !== g.pathCleared) rt.pathClearedT0 = pathCleared ? rt.time : -1;
       if (bridgeBuilt !== g.bridgeBuilt) rt.bridgeBuiltT0 = bridgeBuilt ? rt.time : -1;
       if (cliffOpen !== g.cliffOpen) rt.cliffOpenT0 = cliffOpen ? rt.time : -1;
-      setGame({ pathCleared, bridgeBuilt, cliffOpen });
-      return { pathCleared, bridgeBuilt, cliffOpen };
+      if (coveOpen !== g.coveOpen) rt.coveOpenT0 = coveOpen ? rt.time : -1;
+      if (groveOpen !== g.groveOpen) rt.groveOpenT0 = groveOpen ? rt.time : -1;
+      setGame({ pathCleared, bridgeBuilt, cliffOpen, coveOpen, groveOpen });
+      return { pathCleared, bridgeBuilt, cliffOpen, coveOpen, groveOpen };
+    },
+    /** Chapter 2 world facts (gates go through setGates). */
+    setChapterTwo(next: Partial<Pick<GameState, "reachedCove" | "coveBoxOpened" | "asked" | "chestTaken" | "barrelTaken" | "carry" | "fishDried" | "rainCaught" | "rainDone" | "boiled" | "boiledDay">>) {
+      const g = getGame();
+      if (next.coveBoxOpened !== undefined && next.coveBoxOpened !== g.coveBoxOpened) rt.coveBoxOpenT0 = next.coveBoxOpened ? rt.time : -1;
+      if (next.carry !== undefined && next.carry !== g.carry) {
+        rt.carry.liftT0 = next.carry ? rt.time : -100;
+        rt.carry.trail = next.carry ? [{ x: rt.player.x, z: rt.player.z }] : [];
+      }
+      setGame(next);
+    },
+    /** Rain weight now (0..1); the weather eases back toward what the day wants. */
+    setRain(k: number) {
+      rt.rain.k = Math.max(0, Math.min(1, k));
+      return rt.rain.k;
+    },
+    /** The title's "Chapter 2" start (Day 6 morning with Chapter 1 complete). */
+    startChapterTwo() {
+      void startChapterTwo();
+      return true;
     },
     setWorldFacts(next: Partial<Pick<GameState, "signalLit" | "rescued" | "kaiStage" | "caveBoxOpened">>) {
       const g = getGame();
@@ -434,7 +502,10 @@ export function installE2eHook(seed: number) {
           toRockfall: KAI_ROUTES.toRockfall.map((p) => ({ ...p })),
           toClifftop: KAI_ROUTES.toClifftop.map((p) => ({ ...p }))
         },
-        nodes: NODES.map((n) => ({ ...n }))
+        nodes: NODES.map((n) => ({ ...n })),
+        cove: { ...COVE }, covePassage: COVE_PASSAGE.map((p) => ({ ...p })), coveCrate: { ...COVE_CRATE },
+        seaChest: { ...SEA_CHEST }, coveBarrel: { ...COVE_BARREL }, kaiCove: { ...KAI_COVE },
+        grove: { ...GROVE }, groveGate: { ...GROVE_GATE }
       };
     },
     setMic(on: boolean) {
