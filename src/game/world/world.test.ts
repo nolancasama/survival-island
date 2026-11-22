@@ -28,7 +28,7 @@ import { isReachable } from "./reach";
 
 const closed: WorldGates = { pathCleared: false, bridgeBuilt: false, cliffOpen: false };
 const forestOpen: WorldGates = { pathCleared: true, bridgeBuilt: false, cliffOpen: false };
-const allOpen: WorldGates = { pathCleared: true, bridgeBuilt: true, cliffOpen: false };
+const allOpen: WorldGates = { pathCleared: true, bridgeBuilt: true, cliffOpen: false, coveOpen: true, groveOpen: true };
 const cliffOpen: WorldGates = { ...allOpen, cliffOpen: true };
 
 const PHASE_1_NODES = [

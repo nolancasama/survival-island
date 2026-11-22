@@ -10,6 +10,7 @@ import { PLAYER_R, STATIC_OBSTACLES, resolveCollisions, type Obstacles } from ".
 import { buildingObstacles } from "../game/world/placement";
 import { canRun } from "../game/logic/stats";
 import { findFocus } from "../game/flow/focus";
+import { currentGates, worldPropObstacles } from "../game/flow/places";
 import { audio } from "../audio/audio";
 import { tts } from "../audio/tts";
 import { smoothMat, shadowMaterial } from "./materials";
@@ -278,8 +279,10 @@ export function Player() {
       dz /= len;
     }
     const wantRun = keys.has("ShiftLeft") || keys.has("ShiftRight") || rt.runToggle;
-    p.running = wantRun && len > 0.1 && canRun(rt.stats.stamina, p.exhausted);
-    const top = p.running ? RUN : WALK;
+    // Carrying: 0.6x walking speed, no running.
+    const carrying = g.carry !== null;
+    p.running = !carrying && wantRun && len > 0.1 && canRun(rt.stats.stamina, p.exhausted);
+    const top = carrying ? WALK * 0.6 : p.running ? RUN : WALK;
     const accel = Math.min(1, dt * 10);
     p.vx += (dx * top - p.vx) * accel;
     p.vz += (dz * top - p.vz) * accel;
@@ -292,7 +295,9 @@ export function Player() {
     if (speed > 0.01) {
       kaiObstacle.circles[0].x = rt.kai.x;
       kaiObstacle.circles[0].z = rt.kai.z;
-      const obstacles = [STATIC_OBSTACLES, buildingObstacles(g.buildings), kaiObstacle];
+      // Kai holds the other end of the chest, so he is not in the way.
+      const obstacles = [STATIC_OBSTACLES, buildingObstacles(g.buildings), worldPropObstacles(), ...(g.carry === "chest" ? [] : [kaiObstacle])];
+      const gates = currentGates();
       const steps = Math.max(1, Math.ceil((speed * dt) / 0.1));
       const ox = p.x;
       const oz = p.z;
@@ -302,6 +307,12 @@ export function Player() {
         p.z = r.z;
       }
       rt.walked += Math.hypot(p.x - ox, p.z - oz);
+      if (carrying) {
+        const tr = rt.carry.trail;
+        const last = tr[tr.length - 1];
+        if (!last || Math.hypot(p.x - last.x, p.z - last.z) > 0.15) tr.push({ x: p.x, z: p.z });
+        if (tr.length > 80) tr.splice(0, tr.length - 80);
+      }
     }
     if (speed > 0.3) {
       const target = Math.atan2(p.vx, p.vz);
@@ -366,6 +377,18 @@ export function Player() {
       bend = 0.35;
     }
     if (g.inCave) armRx = -1.15;
+    if (carrying) {
+      // Both hands out under the load; the swing is small and slow.
+      armLx = armRx = -1.25;
+      bend = 0.12;
+      bodyY *= 0.6;
+    } else if (rt.time - rt.carry.strainT0 < 1.1) {
+      // "It's too heavy.": pull back on the chest and shake.
+      const s = rt.time - rt.carry.strainT0;
+      armLx = armRx = -1.35 + Math.sin(s * 40) * 0.05;
+      bend = 0.42;
+      bodyY = -0.12 * Math.min(1, s * 5);
+    }
     const activeKind: string | undefined = act?.kind;
     if (rig.axe.current) rig.axe.current.visible = activeKind === "chop" && act !== null && (rt.time - act.t0) / 0.75 < 1;
     if (rig.cup.current) rig.cup.current.visible = activeKind === "drink" && p.action !== null;
@@ -472,6 +495,22 @@ function bangTexture(): THREE.CanvasTexture {
   return t;
 }
 
+/** The point `back` metres behind (px, pz) measured along the trail (oldest point first). */
+function trailBack(trail: Array<{ x: number; z: number }>, px: number, pz: number, back: number): { x: number; z: number } {
+  let left = back;
+  let hx = px;
+  let hz = pz;
+  for (let i = trail.length - 1; i >= 0; i--) {
+    const q = trail[i];
+    const d = Math.hypot(q.x - hx, q.z - hz);
+    if (d >= left) return { x: hx + ((q.x - hx) / d) * left, z: hz + ((q.z - hz) / d) * left };
+    left -= d;
+    hx = q.x;
+    hz = q.z;
+  }
+  return { x: hx, z: hz };
+}
+
 export function Kai() {
   const rig = useRig();
   const bang = useRef<THREE.Sprite>(null);
@@ -483,7 +522,22 @@ export function Kai() {
     const p = rt.player;
     const g = getGame();
     let moving = 0;
-    if (k.route.length && !g.inCave) {
+    const coCarry = g.carry === "chest" && !g.inCave;
+    if (coCarry && rt.carry.trail.length) {
+      // Kai holds the far end: 1.8 m back along the player's path.
+      const at = trailBack(rt.carry.trail, p.x, p.z, 1.8);
+      const ax = at.x - k.x;
+      const az = at.z - k.z;
+      const d = Math.hypot(ax, az);
+      if (d > 0.01) {
+        const v = Math.min(d, Math.max(WALK, d * 6) * dt);
+        k.x += (ax / d) * v;
+        k.z += (az / d) * v;
+        moving = d > 0.03 ? 1 : 0;
+      }
+      // Face the player across the chest.
+      k.yaw = Math.atan2(p.x - k.x, p.z - k.z);
+    } else if (k.route.length && !g.inCave) {
       let remaining = WALK * dt;
       while (remaining > 0 && k.route.length) {
         const point = k.route[0];
@@ -541,6 +595,13 @@ export function Kai() {
         rig.armR.current.rotation.z = 0.5 + Math.sin(rt.time * 9) * 0.35;
       } else {
         rig.armR.current.rotation.x = talking ? -0.5 + Math.sin(rt.time * 5) * 0.25 : swing * 0.8;
+        rig.armR.current.rotation.z = 0.12;
+      }
+    }
+    if (coCarry) {
+      if (rig.armL.current) rig.armL.current.rotation.x = -1.25;
+      if (rig.armR.current) {
+        rig.armR.current.rotation.x = -1.25;
         rig.armR.current.rotation.z = 0.12;
       }
     }

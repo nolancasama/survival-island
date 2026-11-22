@@ -80,9 +80,11 @@ describe("quest (Days 4–5)", () => {
     expect(stepGoal(dayDef(5).steps.find(s => s.id === "wood")!, true)).toEqual({ item: "wood", n: 2 });
   });
 
-  it("advances into Days 4 and 5, then free play", () => {
+  it("advances into Days 4 and 5, then Chapter 2 and free play after Day 8", () => {
     expect(advanceDay({ day: 3, done: [], complete: true }, facts()).day).toBe(4);
     expect(advanceDay({ day: 4, done: [], complete: true }, facts()).day).toBe(5);
-    expect(dayDef(6).steps).toEqual([]);
+    expect(dayDef(6).steps.map((s) => s.id)).toContain("cove");
+    expect(dayDef(8).steps.map((s) => s.id)).toContain("catchRain");
+    expect(dayDef(9).steps).toEqual([]);
   });
 });

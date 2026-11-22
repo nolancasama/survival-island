@@ -17,6 +17,8 @@ import {
 } from "./models/nature";
 import { crateBodyGeometry, crateLidGeometry } from "./models/props";
 import { metalGeometry } from "./models/metal";
+import { bambooStalkGeometry, bambooStumpGeometry, canvasNodeGeometry, ropeCoilGeometry } from "./models/chapter2";
+import { isCaveInterior } from "../game/world/phase3";
 
 /**
  * Collectible resources. Each node is its own small mesh so it can vanish when
@@ -31,12 +33,16 @@ export function ResourceNodes() {
       coconut: coconutGeometry(),
       leaves: leafBushGeometry(),
       tree: choppableTreeGeometry(),
-      metal: metalGeometry(0)
+      metal: metalGeometry(0),
+      canvas: canvasNodeGeometry(),
+      rope: ropeCoilGeometry(),
+      bamboo: bambooStalkGeometry()
     }),
     []
   );
   const stump = useMemo(stumpGeometry, []);
-  const kinds = useMemo(() => (["wood", "stone", "coconut", "leaves"] as NodeKind[]), []);
+  const bambooStump = useMemo(bambooStumpGeometry, []);
+  const kinds = useMemo(() => (["wood", "stone", "coconut", "leaves", "canvas", "rope"] as NodeKind[]), []);
   const byKind = useMemo(() => new Map(kinds.map((kind) => [kind, NODES.filter((n) => n.kind === kind)])), [kinds]);
   const instances = useRef(new Map<NodeKind, THREE.InstancedMesh>());
   const shadows = useRef<THREE.InstancedMesh>(null);
@@ -47,7 +53,8 @@ export function ResourceNodes() {
   const metalGeos = useMemo(() => [geos.metal, metalGeometry(1), metalGeometry(2)], [geos]);
   const metalMat = useMemo(() => new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 65, specular: "#d2e5e9", side: THREE.DoubleSide }), []);
   const glints = useRef<THREE.Points>(null);
-  const treeNodes = useMemo(() => NODES.filter((n) => n.kind === "tree"), []);
+  // Trees and bamboo stand as their own groups so a cut one can show its stump.
+  const treeNodes = useMemo(() => NODES.filter((n) => n.kind === "tree" || n.kind === "bamboo"), []);
   const shadow = useMemo(() => shadowMaterial(0.22), []);
   const glintGeo = useMemo(() => {
     const geo = new THREE.BufferGeometry();
@@ -110,14 +117,14 @@ export function ResourceNodes() {
       const mesh = metalRoots.current[i];
       if (!mesh) return;
       const focused = focus?.kind === "node" && focus.id === n.id;
-      mesh.visible = g.inCave && !rt.taken.has(n.id);
+      mesh.visible = isCaveInterior(n.x, n.z) === g.inCave && !rt.taken.has(n.id);
       mesh.scale.setScalar(scaleFor(n.id, focused));
       mesh.position.y = groundY(n.x, n.z) + (focused ? 0.05 + Math.sin(rt.time * 5) * 0.04 : 0);
     });
     if (shadows.current) {
       NODES.forEach((n, i) => {
-        const show = !rt.taken.has(n.id) || n.kind === "tree";
-        const sx = n.kind === "tree" || n.kind === "leaves" ? 1.7 : n.kind === "wood" ? 2 : 1.1;
+        const show = !rt.taken.has(n.id) || n.kind === "tree" || n.kind === "bamboo";
+        const sx = n.kind === "tree" || n.kind === "leaves" || n.kind === "bamboo" ? 1.7 : n.kind === "wood" ? 2 : 1.1;
         dummy.position.set(n.x, groundY(n.x, n.z) + 0.025, n.z);
         dummy.rotation.set(-Math.PI / 2, 0, n.rot);
         dummy.scale.set(show ? sx : 0.001, show ? (n.kind === "wood" ? 1 : sx) : 0.001, 1);
@@ -132,7 +139,7 @@ export function ResourceNodes() {
       const visible = !rt.taken.has(n.id);
       const phase = (rt.time * 0.45 + i * 0.37) % 3;
       const tw = visible && phase < 0.35 ? Math.sin((phase / 0.35) * Math.PI) : 0;
-      gp.setXYZ(i, n.x + 0.15, groundY(n.x, n.z) + (n.kind === "tree" ? 3.4 : n.kind === "leaves" ? 1.05 : 0.5), n.z + 0.1);
+      gp.setXYZ(i, n.x + 0.15, groundY(n.x, n.z) + (n.kind === "tree" || n.kind === "bamboo" ? 3.4 : n.kind === "leaves" ? 1.05 : 0.5), n.z + 0.1);
       gc.setXYZ(i, tw, tw * 0.96, tw * 0.74);
     });
     gp.needsUpdate = true;
@@ -151,8 +158,8 @@ export function ResourceNodes() {
       ))}
       {treeNodes.map((n, i) => (
         <group key={n.id} ref={(el) => void (treeRoots.current[i] = el)} position={[n.x, groundY(n.x, n.z), n.z]} rotation={[0, n.rot, 0]}>
-          <mesh ref={(el) => void (treeCrowns.current[i] = el)} geometry={geos.tree} material={occluderMat} />
-          <mesh geometry={stump} material={occluderMat} visible={false} />
+          <mesh ref={(el) => void (treeCrowns.current[i] = el)} geometry={n.kind === "bamboo" ? geos.bamboo : geos.tree} material={occluderMat} />
+          <mesh geometry={n.kind === "bamboo" ? bambooStump : stump} material={occluderMat} visible={false} />
         </group>
       ))}
       {metalNodes.map((n, i) => (

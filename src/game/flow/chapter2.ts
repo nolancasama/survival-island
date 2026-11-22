@@ -8,7 +8,7 @@ import { currentStep, CATCHER_POLES, RACK_POLES } from "../logic/quest";
 import { spend } from "../logic/stats";
 import { HEAVY, FIRE_OUT_SECONDS, RAIN_DAY, easeRain, rainWanted } from "../logic/weather";
 import {
-  BARREL, CATCHER_CORNERS, START_HEIGHTS, catcherBuilt, catcherFlow, dryFish, fillBarrel, flowAnswer, openSockets, rackFrameComplete, rackSlots,
+  START_HEIGHTS, catcherBuilt, catcherFlow, dryFish, fillBarrel, flowAnswer, openSockets, rackFrameComplete, rackSlots,
   rackStable, toLocal, type Flow, type FlowProblem
 } from "../logic/structures";
 import { groundY, KAI_HOME } from "../world/island";

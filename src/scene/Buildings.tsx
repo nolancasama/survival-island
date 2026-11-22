@@ -8,6 +8,7 @@ import { CRATE, NODES, groundY } from "../game/world/island";
 import { SIGNAL_PAD } from "../game/world/phase3";
 import { STATIC_OBSTACLES } from "../game/world/collision";
 import { FOOTPRINT, buildingObstacles, cameraForwardYaw, placeProblem, previewSpot, type PlacedBuilding } from "../game/world/placement";
+import { currentGates, worldPropObstacles } from "../game/flow/places";
 import { audio } from "../audio/audio";
 import { PartBuilder } from "./partBuilder";
 import { additiveSprite, occluderMat } from "./materials";
