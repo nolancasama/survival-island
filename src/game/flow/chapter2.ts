@@ -427,7 +427,8 @@ export async function putDown() {
   if (!kind) return;
   const spot = putDownSpot(kind);
   const type = kind === "chest" ? "storage" : "barrel";
-  const keepClear = [{ x: rt.player.x, z: rt.player.z, r: 0.3 }];
+  // The chest comes down between the pair, at the player's hands: only the barrel keeps clear of their feet.
+  const keepClear = kind === "chest" ? [] : [{ x: rt.player.x, z: rt.player.z, r: 0.3 }];
   const problem = placeProblem(type, spot.x, spot.z, [STATIC_OBSTACLES, buildingObstacles(g.buildings), worldPropObstacles()], keepClear, currentGates());
   if (problem) {
     audio.play("error");
@@ -631,7 +632,11 @@ async function afterPart(b: PlacedBuilding, before: string[], parts: string[]) {
       rt.steadyT0.set(b.id, rt.time);
       audio.play("sparkle");
       floatText("Strong!", pos.x, pos.y + 0.3, pos.z);
-      if (Math.hypot(rt.kai.x - b.x, rt.kai.z - b.z) < 14) await say("kai", "Great! It's strong now!", "すごい！ じょうぶに なったね！");
+      if (Math.hypot(rt.kai.x - b.x, rt.kai.z - b.z) < 14) {
+        await say("kai", "Great! It's strong now!", "すごい！ じょうぶに なったね！");
+        // say() leaves the game in talk mode; hand control back.
+        if (getGame().mode === "talk") setGame({ mode: "explore" });
+      }
     }
     return;
   }

@@ -5,58 +5,40 @@
 **Branch `feature/chapter2-better-camp`. NOT merged, NOT deployed. The live site and `main` (`813196e`) are unchanged.**
 The user asked for the expansion plan to be analysed, implemented and pushed live. Claude is building it directly
 (the user said "no codex"). The plan, review, conflicts and roadmap are in `EXPANSION_PLAN.md`. The frozen design is
-in `DESIGN_DECISIONS.md` "2026-11-23 — Chapter 2 (Milestones 1–3) design". Read both first.
+in `DESIGN_DECISIONS.md` "2026-11-23 — Chapter 2 (Milestones 1–3) design", including "Changes made while building".
 
-**Committed:** `97731a1` (docs: plan, review, frozen design, README link). **Everything below is a WIP commit on top.**
-
-### Done (code written; not yet typechecking cleanly, nothing run in a browser)
-- **Logic:** `types.ts` (items `boiledWater`, `driedFish`, `canvas`, `pole`, `shortPole`, kits `rack`/`catcher`; buildings
-  `rack`/`catcher`/`barrel`; nodes `canvas`/`rope`/`bamboo`). `english.ts`: 29 new phrases. `quest.ts`: Day 3 `boil` step;
-  Days 6–8; `LAST_STORY_DAY = 8`; fixed-count goals. `pace.ts`: bamboo yield, catcher canvas, drying and rain-stop times.
-  `inventory.ts`: live stack limit (20 with a storage box). `save.ts`: **v4** with a v3 migration (water becomes boiled
-  water; Day 6+ free play resumes at the Day 6 morning). New pure modules `logic/structures.ts` (rack and catcher
-  sockets, stability, `catcherFlow`, barrel fill, drying) and `logic/weather.ts` (Day 8 rain, daily showers from Day 9).
-- **World:** `world/chapter2.ts` (cove ellipse, tidal passage, rocks, hull, mast, crate, sea chest, barrel, grove,
-  trail, thicket gate, salvage and bamboo nodes, Kai's cove route). Wired into `island.ts` (`coveGroundY` for x ≥ 50,
-  nodes; boulder (37,8.5) moved to (37.7,5.6)), `collision.ts` (gates `coveOpen`/`groveOpen`, regions, clamps,
-  obstacles; trail trees skipped by their original index), `placement.ts` (footprints, structure obstacles), and
-  `nature.ts` (the headland rock moved to (48.8,19.6), r7).
-- **Flow:** `flow/chapter2.ts`: morning talks 6–8, Kai's help, "What is this?", cove crate, carrying (the chest with Kai,
-  the barrel alone), put down / storage, "What did you find?", thicket, sockets ("Put it here.", "It's too
-  long/short."), rack drying, corner higher/lower, the catcher test ("How is it?" → "Let's try again." + hint), barrel
-  move left/right and water, boiling, rain ticks, restore, the Chapter 2 camp.
-  `flow/chapter2Focus.ts`: focus candidates and compound part ids. Integrated into `store.ts`, `runtime.ts`,
-  `places.ts`, `focus.ts`, `actions.ts` (dispatch, bamboo, boil, drink boiled only, no fire in the rain, I need box
-  and poles), `session.ts` (save and load fields, facts, stack limit, hints, targets, tick, faint drop,
-  **`startChapterTwo()`**), `days.ts` (`resumeMorning`, Day 8 `rainDawn`), and `kai.ts` (Day 3 boil lines, Chapter 2
-  mornings, help and evenings).
-- **UI and scene so far:** `icons.tsx` (new icons). `audio.ts` `setRain`. `Environment.tsx` (rain darkens the sky,
-  fog and sun; cove and grove terrain colours; `labelTexture` exported). `vegetationLayout.ts` (trail trees skipped).
-  `scene/models/chapter2.ts` (all new model builders).
+### Done
+- **Logic, world, flows, saves (v4)** as designed: see the design section. Pure modules `logic/structures.ts`,
+  `logic/weather.ts`; `world/chapter2.ts`; `flow/chapter2.ts`, `flow/chapter2Focus.ts`.
+- **Scene:** `scene/Chapter2World.tsx` (cove, tide, crate, chest, barrel, signs, grove, thicket, falling bamboo,
+  storage/rack/catcher/barrel, socket ghost, carried object, rain streaks); new node meshes in `Nodes.tsx`;
+  carry speed/poses and Kai's co-carry follow in `Characters.tsx`; frame-kit previews in `Buildings.tsx`.
+- **UI:** hint texts for every new HintKey (`ui/i18n.ts`), Day 6–8 cards, title "Chapter 2" button, Rescue card
+  "Chapter 2 →" (test id `keep-exploring`).
+- **Tests:** typecheck clean; **187 unit tests pass** (new `logic/chapter2.test.ts`, `flow/chapter2.test.ts`, Chapter 2
+  world tests, v4 save tests). E2E hook extended (`chapterTwo` state, `setChapterTwo`, `setRain`, `startChapterTwo`,
+  `openSockets`, `standBarrelUnder`, `startDay(6..9)`). **`tests/e2e/chapter2.spec.ts` passes 4/4**: the title
+  Chapter 2 start and Day 6 (cove, "What is this?", crate, canvas, carrying the chest with Kai, carry speed cap,
+  storage box, "What did you find?"), Day 7 (thicket, poles, rack plan, frame with "It's too long.", long-face
+  braces still shaking, strong, Kai's fish, drying), Day 8 (rain morning, barrel, catcher, flat test → "Let's try
+  again.", corners, working test, rain caught and stopping, barrel water, relit fire, boiling), and a v3 free-play
+  save resuming at the Day 6 morning. Day 3 (boil step), Day 4 (v4 save key), Day 5 (Chapter 2 after the rescue)
+  and animation (Day 9) specs updated. The Day 8 spec moves the barrel under the stream with a hook
+  (`standBarrelUnder`); moving it left/right is covered by code review only.
+- **Bugs found by the new tests and fixed (each with a test that fails on the old code):** the chest could never be
+  put down (0.9 m from the player vs a 1.0 m clearance ring); a strong rack could never be focused to hang fish (its
+  open sockets are always nearer than its middle: now a focus bias when it has work, and no spare braces once
+  strong); after the last brace Kai's "Great! It's strong now!" left the game stuck in talk mode. Also the bag only
+  grows once the storage box is at camp.
+- **Rendered and judged:** `node scripts/shots-ch2.mjs http://127.0.0.1:5287/` (needs `npx vite --port 5287`)
+  writes 18 views to `.tmp/shots/chapter2`; all within budget (worst 107 calls / 165k triangles).
+- `scripts/shots.mjs` (story screenshots) now boils water on Day 3 and shows the Chapter 2 Day 6 morning; not yet
+  re-run.
 
 ### Next (in order)
-1. **Make it compile:** `scene/Characters.tsx` Player uses an undefined `gates` (use `currentGates()`), and it and
-   `Buildings.tsx` need imports for `currentGates` and `worldPropObstacles` from `game/flow/places`. `Nodes.tsx` needs
-   geometries for `canvas`/`rope`/`bamboo` (models exist), and metal nodes must show outside the cave
-   (`isCaveInterior(n) === inCave`). Remove unused `BARREL` and `CATCHER_CORNERS` imports in `flow/chapter2.ts`.
-   Update `save.test.ts` to v4.
-2. **New `scene/Chapter2World.tsx`:** cove rocks, shore, hull, mast, crate (lid uses `rt.coveBoxOpenT0`), sea chest
-   and barrel (hidden once taken), tide water over the passage while `!coveOpen`, signs (COVE/CAMP/BAMBOO), grove decor,
-   thicket (falls at `rt.groveOpenT0`), structures (storage = chest model; rack and catcher parts merged per building;
-   ghost of the focused socket; rack wobble from `rackSway`; canvas mesh from the corner heights; streams, puddle and
-   splash from `flowOf()`; barrel water level), the carried object (between the player and Kai, or held), and rain
-   streaks around the camera (`rt.rain.k`). Add it to `GameScene.tsx`.
-3. **Characters:** carry speed 0.6×, no running, carry pose; append `rt.carry.trail` and have Kai follow 1.8 m back
-   along it when `carry === "chest"`; strain pose at `rt.carry.strainT0`; exclude Kai's obstacle while co-carrying.
-4. **UI:** hint texts for the new `HintKey`s (`ui/i18n.ts` / Hud), focus labels; Screens: the title "Chapter 2" button
-   → `startChapterTwo()`; the Rescue card button "Chapter 2 →" (keep test id `keep-exploring`); the placement ghost
-   for `rack`/`catcher`.
-5. **e2e hook** (`game/e2e.ts`): expose the Chapter 2 state and setters; use `currentGates()`.
-6. **Tests:** unit tests for structures, weather, save v4 migration, walkability (cove/grove), stack limit; update the
-   vegetation tile test (skipped trees) and the world tests if the moved boulder affects them. Update the day3 e2e
-   (boil step) and the day5 e2e (Day 6 is now Chapter 2, not free play). Add `chapter2.spec.ts` (Days 6–8 by tapping).
-7. Render and judge the cove, grove, rack and catcher (rain on and off), measure perf (≤120 calls / 200k tris), run the
-   full e2e, then merge to `main` and push (the user asked for it to go live when finished).
+1. Full `npx playwright test` on the current build (log `.tmp/ch2-e2e-full.log`); fix anything red.
+2. Run `npm run shots:world` and `npm run shots` (long; background) to check nothing regressed in Chapter 1 views.
+3. Merge to `main` and push (the user asked for it to go live when finished); confirm the Pages deploy.
 
 ## Microphone startup and solid-object collision release — 2026-10-28
 

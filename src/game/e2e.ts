@@ -6,6 +6,8 @@ import { startChapterTwo, syncStats } from "./flow/session";
 import { nextDay } from "./flow/days";
 import { currentGates, targetPosition, targetReachable, worldPropObstacles } from "./flow/places";
 import { flowOf } from "./flow/chapter2";
+import { offeredSockets } from "./flow/chapter2Focus";
+import { pourPoint, toWorld } from "./logic/structures";
 import { stackLimit } from "./logic/inventory";
 import { COVE, COVE_BARREL, COVE_CRATE, COVE_PASSAGE, GROVE, GROVE_GATE, KAI_COVE, SEA_CHEST } from "./world/chapter2";
 import { findFocus } from "./flow/focus";
@@ -417,6 +419,22 @@ export function installE2eHook(seed: number) {
     setRain(k: number) {
       rt.rain.k = Math.max(0, Math.min(1, k));
       return rt.rain.k;
+    },
+    /** A frame's open sockets, in the order the focus offers them (shelves after the frame). */
+    openSockets(id: string) {
+      const b = getGame().buildings.find((x) => x.id === id);
+      if (!b) throw new Error(`no building ${id}`);
+      return offeredSockets(b).map((s) => s.id);
+    },
+    /** Stand the barrel exactly under a catcher corner's stream. */
+    standBarrelUnder(catcherId: string, corner: number) {
+      const g = getGame();
+      const c = g.buildings.find((x) => x.id === catcherId);
+      if (!c) throw new Error(`no catcher ${catcherId}`);
+      const p = pourPoint(corner);
+      const w = toWorld(c, p.x, p.z);
+      setGame({ buildings: g.buildings.map((b) => (b.type === "barrel" ? { ...b, x: w.x, z: w.z } : b)) });
+      return w;
     },
     /** The title's "Chapter 2" start (Day 6 morning with Chapter 1 complete). */
     startChapterTwo() {

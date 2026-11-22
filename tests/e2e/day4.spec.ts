@@ -212,8 +212,8 @@ test("save inside cave resumes at mouth with cave facts, metal and radio", async
   await page.getByTestId("btn-settings").click();
   await page.getByTestId("settings-title").click();
   const outside = (await hook<{ caveOutside: { x: number; z: number } }>(page, "world")).caveOutside;
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("si.save.v3") ?? "null") as { player: { x: number; z: number }; enteredCave: boolean; caveBoxOpened: boolean } | null);
-  if (!saved) throw new Error("HARNESS_PRECONDITION_FAILED: v3 cave save exists");
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("si.save.v4") ?? "null") as { player: { x: number; z: number }; enteredCave: boolean; caveBoxOpened: boolean } | null);
+  if (!saved) throw new Error("HARNESS_PRECONDITION_FAILED: v4 cave save exists");
   expect(saved.player.x).toBe(outside.x);
   expect(saved.player.z).toBe(outside.z);
   await page.reload();
@@ -239,9 +239,11 @@ test("v2 free-play save migrates to Day 4 morning with prior inventory", async (
   await page.getByTestId("btn-settings").click();
   await page.getByTestId("settings-title").click();
   await precondition("create valid legacy free-play fixture", () => page.evaluate(() => {
-    const saved = localStorage.getItem("si.save.v3");
-    if (!saved) throw new Error("v3 source save missing");
+    const saved = localStorage.getItem("si.save.v4");
+    if (!saved) throw new Error("v4 source save missing");
     const old = JSON.parse(saved);
+    // Back to the v3 fields first (Chapter 2 facts did not exist), then to v2.
+    for (const field of ["boiled", "boiledDay", "coveOpen", "groveOpen", "reachedCove", "coveBoxOpened", "asked", "chestTaken", "barrelTaken", "carry", "fishDried", "rainCaught", "rainDone"]) delete old[field];
     old.v = 2;
     old.quest = { day: 6, done: [], complete: false };
     old.sleptDay = 5;
@@ -249,7 +251,7 @@ test("v2 free-play save migrates to Day 4 morning with prior inventory", async (
     old.kai = { need: "wood", canFire: true, canAxe: true, want: "water" };
     old.unlocked = old.unlocked.filter((id: string) => id !== "torch");
     for (const field of ["enteredCave", "caveBoxOpened", "cliffOpen", "reachedClifftop", "signalLit", "rescued", "kaiStage"]) delete old[field];
-    localStorage.removeItem("si.save.v3");
+    localStorage.removeItem("si.save.v4");
     localStorage.setItem("si.save.v2", JSON.stringify(old));
   }));
   await page.reload();

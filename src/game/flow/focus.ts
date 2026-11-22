@@ -20,6 +20,8 @@ interface Candidate {
   x: number;
   z: number;
   reach: number;
+  /** Metres of preference over nearer candidates (a structure's own action when it has something to do). */
+  bias?: number;
 }
 
 const SIGNS = [FOREST_GAP.sign, CAVE_SIGN, CLIFF_SIGN, COVE_SIGN, CAMP_SIGN, GROVE_SIGN];
@@ -139,7 +141,7 @@ export function findFocus(px: number, pz: number, yaw: number): Focus | null {
     // Prefer things in front; behind still counts when very close.
     const facing = d > 0.01 ? (dx * fx + dz * fz) / d : 1;
     if (facing < -0.2 && d > 1.1) continue;
-    const score = d - facing * 0.8;
+    const score = d - facing * 0.8 - (c.bias ?? 0);
     if (score < bestScore) {
       bestScore = score;
       best = c.focus;

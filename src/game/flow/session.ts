@@ -584,7 +584,7 @@ export function facts(): Facts {
 /** Re-check the story after anything changed. */
 export function refreshQuest() {
   // The storage box at camp doubles what the bag holds (Chapter 2).
-  setStackLimit(getGame().buildings.some((b) => b.type === "storage") ? STORAGE_STACK : BASE_STACK);
+  setStackLimit(storageAtCamp(getGame().buildings) ? STORAGE_STACK : BASE_STACK);
   const g = getGame();
   const q = evaluate(g.quest, facts());
   if (q !== g.quest) {

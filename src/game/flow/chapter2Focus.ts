@@ -4,7 +4,7 @@ import { count } from "../logic/inventory";
 import { INTERACT_RANGE } from "../world/island";
 import { COVE_BARREL, COVE_CRATE, GROVE_GATE, KAI_COVE, SEA_CHEST } from "../world/chapter2";
 import {
-  CATCHER, CATCHER_CORNERS, CATCHER_SOCKETS, RACK_SOCKETS, catcherBuilt, openSockets, rackFrameComplete, socketMiddle, toWorld, type Socket
+  CATCHER, CATCHER_CORNERS, CATCHER_SOCKETS, RACK_SOCKETS, catcherBuilt, openSockets, rackFrameComplete, rackSlots, rackStable, socketMiddle, toWorld, type Socket
 } from "../logic/structures";
 import type { PlacedBuilding } from "../world/placement";
 import type { NodeKind } from "../types";
@@ -20,6 +20,8 @@ export interface Candidate {
   x: number;
   z: number;
   reach: number;
+  /** Preferred over nearer candidates by this many metres (see focus.ts). */
+  bias?: number;
 }
 
 /** Salvage kinds Kai can name in the cove ("What is this?"). */
@@ -61,6 +63,14 @@ export function partPosition(id: string): { x: number; z: number } | null {
   if (!socket) return null;
   const m = socketMiddle(socket);
   return toWorld(b, m.x, m.z);
+}
+
+/** The open sockets the player is offered: shelves once the frame stands, no spare braces once the rack is strong. */
+export function offeredSockets(b: PlacedBuilding): Socket[] {
+  const parts = b.parts ?? [];
+  const stable = b.type === "rack" && rackStable(parts);
+  return openSockets(socketsOf(b), parts).filter((s) =>
+    b.type === "catcher" || ((s.kind !== "shelf" || rackFrameComplete(parts)) && !(stable && s.kind === "brace")));
 }
 
 export function socketsOf(b: PlacedBuilding): readonly Socket[] {
@@ -111,14 +121,16 @@ export function chapterTwoCandidates(): Candidate[] {
       out.push({ focus: { id: b.id, kind: "barrel", verb: barrelVerb(b), noun: "the barrel", icon: "barrel" }, x: b.x, z: b.z, reach: INTERACT_RANGE + 0.2 });
     } else if (b.type === "rack" || b.type === "catcher") {
       const parts = b.parts ?? [];
-      const open = openSockets(socketsOf(b), parts).filter((s) => b.type === "catcher" || s.kind !== "shelf" || rackFrameComplete(parts));
-      for (const s of open) {
+      const stable = b.type === "rack" && rackStable(parts);
+      for (const s of offeredSockets(b)) {
         const m = socketMiddle(s);
         const w = toWorld(b, m.x, m.z);
         out.push({ focus: { id: `${b.id}:${s.id}`, kind: "socket", verb: "Put", noun: SOCKET_NOUN[s.kind], icon: s.uses === "canvas" ? "canvas" : "pole" }, x: w.x, z: w.z, reach: INTERACT_RANGE + 0.6 });
       }
       if (b.type === "rack" && rackFrameComplete(parts)) {
-        out.push({ focus: { id: b.id, kind: "rack", verb: rackVerb(b), noun: "the rack", icon: "rack" }, x: b.x, z: b.z, reach: INTERACT_RANGE + 1.0 });
+        // Its sockets are always nearer than its middle: with a fish to hang or to take, the rack wins.
+        const busy = stable && (rackHasDried(b) || (count(getGame().bag, "fish") > 0 && (b.fish ?? []).length < rackSlots(parts)));
+        out.push({ focus: { id: b.id, kind: "rack", verb: rackVerb(b), noun: "the rack", icon: "rack" }, x: b.x, z: b.z, reach: INTERACT_RANGE + 1.0, bias: busy ? 2 : 0 });
       }
       if (b.type === "catcher" && catcherBuilt(parts)) {
         CATCHER_CORNERS.forEach(([lx, lz], i) => {
@@ -136,7 +148,9 @@ function barrelVerb(b: PlacedBuilding): string {
   return (b.water ?? 0) >= 1 && count(getGame().bag, "container") > 0 ? "Use" : "Move";
 }
 
+const rackHasDried = (b: PlacedBuilding) => (b.fish ?? []).some((left) => left <= 0);
+
 function rackVerb(b: PlacedBuilding): string {
-  if ((b.fish ?? []).some((left) => left <= 0)) return "Get fish from";
+  if (rackHasDried(b)) return "Get fish from";
   return count(getGame().bag, "fish") > 0 ? "Hang fish on" : "Look at";
 }

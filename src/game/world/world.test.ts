@@ -25,6 +25,9 @@ import { FOOTPRINT, buildingObstacles, placeProblem, previewSpot } from "./place
 import { CAVE_BOX, CAVE_CHAMBER, CAVE_ENTRY, CAVE_EXIT, CAVE_OUTSIDE, CLIFF_PATH, CLIFFTOP, HELICOPTER_PAD, KAI_ROUTES, METAL_NODES, ROCKFALL, SIGNAL_PAD, isOnClifftop } from "./phase3";
 import { CAVE_MOUTH } from "./island";
 import { isReachable } from "./reach";
+import {
+  CHAPTER_TWO_NODES, COVE_BARREL, COVE_CRATE, COVE_PASSAGE, GROVE, GROVE_GATE, GROVE_GATE_X, GROVE_TRAIL, KAI_COVE, KAI_COVE_ROUTE, SEA_CHEST, clearForGrove
+} from "./chapter2";
 
 const closed: WorldGates = { pathCleared: false, bridgeBuilt: false, cliffOpen: false };
 const forestOpen: WorldGates = { pathCleared: true, bridgeBuilt: false, cliffOpen: false };
@@ -270,5 +273,57 @@ describe("placement", () => {
     const placed = [{ id: "a", type: "campfire" as const, x: 2, z: 7, rot: 0 }];
     expect(placeProblem("campfire", 2, 7 + FOOTPRINT.campfire, [STATIC_OBSTACLES, buildingObstacles(placed)], clear)).toBe("blocked");
     expect(placeProblem("campfire", 2, 10, [STATIC_OBSTACLES, buildingObstacles(placed)], clear)).toBeNull();
+  });
+});
+
+describe("Chapter 2 world", () => {
+  const before: WorldGates = { pathCleared: true, bridgeBuilt: true, cliffOpen: true, coveOpen: false, groveOpen: false };
+  const open: WorldGates = { ...before, coveOpen: true, groveOpen: true };
+  const walkable = (p: { x: number; z: number }, gates: WorldGates) => isWalkable(p.x, p.z, gates, PLAYER_R);
+
+  it("floods the cove passage until low tide", () => {
+    const mid = COVE_PASSAGE[2];
+    expect(walkable(mid, before)).toBe(false);
+    expect(walkable(KAI_COVE, before)).toBe(false);
+    expect(walkable(mid, open)).toBe(true);
+    expect(walkable(KAI_COVE, open)).toBe(true);
+  });
+
+  it("walks the whole passage and Kai's cove route at low tide", () => {
+    for (let i = 1; i < COVE_PASSAGE.length; i++) {
+      const a = COVE_PASSAGE[i - 1];
+      const b = COVE_PASSAGE[i];
+      for (let t = 0; t <= 1; t += 0.1) {
+        const p = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
+        expect(walkable(p, open), `${p.x.toFixed(1)},${p.z.toFixed(1)}`).toBe(true);
+      }
+    }
+    for (const p of KAI_COVE_ROUTE) expect(walkable(p, open), `${p.x},${p.z}`).toBe(true);
+  });
+
+  it("keeps the trail beyond the thicket and the grove closed until the bamboo is cut", () => {
+    const pastGate = { x: GROVE_GATE_X + 1.5, z: GROVE_TRAIL[GROVE_TRAIL.length - 1].z };
+    expect(walkable(pastGate, before)).toBe(false);
+    expect(walkable(GROVE, before)).toBe(false);
+    expect(walkable(pastGate, open)).toBe(true);
+    expect(walkable(GROVE, open)).toBe(true);
+    // The trail up to the thicket is open from Day 2's forest on.
+    expect(walkable(GROVE_TRAIL[1], before)).toBe(true);
+  });
+
+  it("puts the salvage, the cove props and the bamboo within reach once open", () => {
+    for (const n of CHAPTER_TWO_NODES) {
+      expect(isReachable(n.x, n.z, before), `${n.id} closed`).toBe(false);
+      expect(isReachable(n.x, n.z, open), `${n.id} open`).toBe(true);
+    }
+    for (const p of [COVE_CRATE, SEA_CHEST, COVE_BARREL]) expect(isReachable(p.x, p.z, open), p.id).toBe(true);
+    expect(isReachable(GROVE_GATE.x, GROVE_GATE.z, before)).toBe(true);
+  });
+
+  it("only touches decorative trees along the new trail", () => {
+    const { trees } = treeSpots();
+    const cleared = trees.filter((t) => clearForGrove(t.x, t.z));
+    expect(cleared.length).toBeGreaterThan(0);
+    for (const t of cleared) expect(t.x).toBeGreaterThan(0);
   });
 });

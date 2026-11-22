@@ -63,10 +63,10 @@ test('normal-time bedtime keeps the sleeping overlay and wakes under black', asy
   const errors = await boot(page);
   await page.goto('/?e2e=1&seed=5');
   await hook(page, 'setMic', false);
-  await hook(page, 'startDay', 6);
-  await waitFor(page, (s) => s.line?.en === "Good morning! Let's explore the island!");
+  await hook(page, 'startDay', 9);
+  await waitFor(page, (s) => s.line?.en === "Good morning! When it rains, our barrel gets water.");
   await page.keyboard.press('KeyE');
-  await waitFor(page, (s) => s.mode === 'explore' && s.day === 6);
+  await waitFor(page, (s) => s.mode === 'explore' && s.day === 9);
   await hook(page, 'setClock', 1);
   await goTo(page, 'bE2eShelter');
   await watchPoses(page);
@@ -74,7 +74,7 @@ test('normal-time bedtime keeps the sleeping overlay and wakes under black', asy
   await tap(page, 'sleep');
   await expect(page.getByTestId('sleeping')).toBeVisible({ timeout: 15_000 });
   await page.screenshot({ path: '.tmp/shots/polish-animation/sleeping-overlay.png' });
-  await waitFor(page, (s) => s.mode === 'explore' && s.day === 7);
+  await waitFor(page, (s) => s.mode === 'explore' && s.day === 10);
   await expectCoveredSwitches(page, 2);
   expect(errors).toEqual([]);
 });

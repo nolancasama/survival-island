@@ -69,11 +69,17 @@ export interface SiState {
   reachedClifftop: boolean;
   signalLit: boolean;
   rescued: boolean;
-  kaiStage: "camp" | "rockfall" | "clifftop";
+  kaiStage: "camp" | "rockfall" | "clifftop" | "cove";
   kaiRouteEmpty: boolean;
   fade: number;
   rescue: { phase: "none" | "flight" | "landed"; elapsed: number; duration: number };
-  worldAnimation: { caveBoxOpenT0: number; cliffOpenT0: number; signalLitT0: number; rescueT0: number };
+  worldAnimation: { caveBoxOpenT0: number; cliffOpenT0: number; signalLitT0: number; rescueT0: number; coveOpenT0: number; groveOpenT0: number; coveBoxOpenT0: number };
+  chapterTwo: {
+    coveOpen: boolean; groveOpen: boolean; reachedCove: boolean; coveBoxOpened: boolean; asked: string[];
+    chestTaken: boolean; barrelTaken: boolean; carry: "chest" | "barrel" | null; fishDried: number; rainCaught: number;
+    rainDone: boolean; boiled: number; boiledDay: number; found: string | null; stackLimit: number; rainK: number; carryTrail: number;
+    flows: Record<string, { flat: boolean; efficiency: number; problem: string | null; streams: Array<{ corner: number; caught: boolean }> }>;
+  };
 }
 
 /** Open the game with speech stubs, fast pacing and the test hook. Returns collected page errors. */

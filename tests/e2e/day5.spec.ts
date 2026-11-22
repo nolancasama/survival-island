@@ -181,6 +181,7 @@ async function rescue(page: Page, choice: "needHelp" | "needWater") {
   await until(page, "Rescue card displayed", (s) => s.screen === "dayEnd" && s.rescued && s.quest.complete);
   await expect(page.getByRole("heading", { name: "Rescued!" })).toBeVisible();
   await expect(page.getByTestId("keep-exploring")).toBeVisible();
+  await expect(page.getByTestId("keep-exploring")).toContainText("Chapter 2");
   await expect(page.getByTestId("dayend").getByRole("button")).toHaveCount(1);
   await expect(page.getByTestId("to-title")).toHaveCount(0);
   await expect(page.getByTestId("said")).toContainText("I'm hungry.");
@@ -200,19 +201,18 @@ async function rescue(page: Page, choice: "needHelp" | "needWater") {
   expect(s.isNight).toBe(false);
 }
 
-async function freePlay(page: Page) {
+/** After the Rescue card: Chapter 2 starts at the Day 6 morning (the tide goes out). */
+async function chapterTwo(page: Page) {
   await fast(page, true);
-  await until(page, "Day 6 free play", (s) => s.day === 6 && s.freePlay && s.kaiStage === "camp" && s.mode === "explore" && s.dayTitle === null);
+  await until(page, "Chapter 2 Day 6", (s) => s.day === 6 && !s.freePlay && s.chapterTwo.coveOpen && s.step === "cove" && s.mode === "explore" && s.dayTitle === null);
   const s = await state(page);
   expect(s.worldAnimation.rescueT0).toBe(-1);
-  expect(s.kaiRouteEmpty).toBe(true);
   expect(s.signalLit).toBe(true);
-  expect(s.step).toBeNull();
-  await expect(page.getByTestId("objective")).toContainText("Free time: explore the island!");
-  await expect(page.locator('[data-testid^="step-"]')).toHaveCount(0);
+  expect(s.beacons).toContain("covePassage");
+  await expect(page.getByTestId("step-cove")).toBeVisible();
 }
 
-test("tapping: Day 5 escape, radio help, Rescue card and Day 6 free play", async ({ page }) => {
+test("tapping: Day 5 escape, radio help, Rescue card and Chapter 2", async ({ page }) => {
   const errors = await precondition("game boot", () => boot(page));
   await morning(page);
   await rockfall(page, true);
@@ -223,7 +223,7 @@ test("tapping: Day 5 escape, radio help, Rescue card and Day 6 free play", async
   await rescue(page, "needHelp");
   await fast(page, true);
   await page.getByTestId("keep-exploring").click();
-  await freePlay(page);
+  await chapterTwo(page);
   expect(errors).toEqual([]);
 });
 
@@ -245,7 +245,7 @@ async function savedStage(page: Page, label: string, pred: (s: SiState) => boole
   await reloadContinue(page);
 }
 
-test("Day 5 save stages resume Kai routes, lit fire radio and rescued Day 6; water radio answer also rescues", async ({ page }) => {
+test("Day 5 save stages resume Kai routes, lit fire radio and rescued Chapter 2; water radio answer also rescues", async ({ page }) => {
   const errors = await precondition("game boot", () => boot(page));
   await morning(page);
   // A save from the in-progress walk settles Kai at the end of that route.
@@ -274,7 +274,7 @@ test("Day 5 save stages resume Kai routes, lit fire radio and rescued Day 6; wat
   await rescue(page, "needWater");
   await fast(page, true);
   await reloadContinue(page);
-  await freePlay(page);
+  await chapterTwo(page);
   expect((await state(page)).rescued).toBe(true);
   expect(errors).toEqual([]);
 });

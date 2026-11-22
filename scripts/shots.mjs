@@ -1,4 +1,4 @@
-// Visual check: plays all five days, Day 6 and a classroom pass into .tmp/shots.
+// Visual check: plays all five days, the Chapter 2 Day 6 morning and a classroom pass into .tmp/shots.
 // Usage: node scripts/shots.mjs [baseUrl] [viewport WxH] [--touch] [--tap]
 //   --tap: play in mic-free mode (tap the sentences)
 import { chromium } from "@playwright/test";
@@ -465,7 +465,18 @@ await page.keyboard.press("KeyE");
 await answer("get some water", "getWater");
 await stage("water collected", () => window.__si.state().counters.gotWater >= 1 && window.__si.state().bag.water >= 1);
 await shot("day3-got-water");
+// Safe water: collected water is boiled at the fire before it is drunk.
 await page.getByTestId("slot-water").click();
+await stage("boil-first reminder", () => window.__si.state().toasts.includes("Boil it first! Use a fire."));
+await shot("day3-boil-first");
+const boilFire = (await st()).buildings.find((b) => b.type === "campfire" && b.lit);
+if (!boilFire) throw new Error("HARNESS_PRECONDITION_FAILED: no lit campfire to boil water");
+await day3Target(boilFire.id);
+await page.keyboard.press("KeyE");
+await answer("boil the water", "boilWater");
+await stage("water boiled", () => (window.__si.state().bag.boiledWater ?? 0) >= 1 && window.__si.state().mode === "explore");
+await shot("day3-boiled-water");
+await page.getByTestId("slot-boiledWater").click();
 await answerForAnimation("drink the water", "drinkWater");
 await stage("drinking animation", () => window.__si.state().counters.drank >= 1 && window.__si.state().action?.kind === "drink");
 await shot("day3-drinking");
@@ -764,14 +775,24 @@ await stage("Rescue card", () => window.__si.state().screen === "dayEnd" && wind
 await settleStoryCamera();
 await shot("day5-rescue-card");
 await page.getByTestId("keep-exploring").click();
-await stage("Day 6 generic morning", () => window.__si.state().day === 6 && window.__si.state().line?.en === "Good morning! Let's explore the island!");
+// Chapter 2 begins: the Day 6 morning, low tide and the walk to the cove.
+await stage("Day 6 Chapter 2 morning", () => window.__si.state().day === 6 && window.__si.state().line?.en === "Good morning! Let's make our camp better!");
+await shot("day6-chapter2-morning");
 await next();
-await stage("Day 6 free play with Kai at camp", () => {
+await stage("Day 6 big box line", () => window.__si.state().line?.en === "Our bags are full. We need a big box.");
+await next();
+await stage("Day 6 low tide look", () => window.__si.state().line?.en === "Look! The water is low. We can walk to the next cove!");
+await settleStoryCamera();
+await shot("day6-low-tide");
+await next();
+await stage("Day 6 meet in the cove", () => window.__si.state().line?.en === "Let's go! I'll meet you there.");
+await next();
+await stage("Day 6 Chapter 2 exploring", () => {
   const s = window.__si.state();
-  return s.day === 6 && s.freePlay && s.kaiStage === "camp" && s.worldAnimation.rescueT0 === -1 && s.mode === "explore" && s.step === null;
+  return s.day === 6 && !s.freePlay && s.chapterTwo.coveOpen && s.step === "cove" && s.worldAnimation.rescueT0 === -1 && s.mode === "explore";
 });
 await settleStoryCamera();
-await shot("day6-free-play");
+await shot("day6-cove-goal");
 
 // A separate Day 1 pass shows the teacher setting and the active smaller counts.
 await page.getByTestId("btn-settings").click();

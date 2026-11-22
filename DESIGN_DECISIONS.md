@@ -205,6 +205,41 @@ structures, flow, weather, the save migration, walkability and stack limits.
 A tapping playthrough e2e spec covers Days 6–8. The world screenshot script
 gains the cove, the grove, the rack and the catcher, including rain.
 
+### Changes made while building (2026-11-23)
+
+- **Four lashing notches, not three:** 0.7, 1.1, 1.5 and 1.9 m, starting at
+  1.1 m. Lowering a fresh corner once puts it below the rim (0.95 m), so "It's
+  too low." is still one tap away, and the other corners have two notches of
+  room to go higher. Rejected: three heights, which leave only one way to make
+  a corner the single lowest.
+- **Chapter 2 scenery is its own merged meshes** (`scene/Chapter2World.tsx`),
+  not part of the 40 m vegetation tiles: the cove and the grove are each one
+  small area, so frustum culling of a few meshes does the same job. Measured
+  (SwiftShader 1024×768, `scripts/shots-ch2.mjs`): passage 58 calls / 84k
+  triangles, cove 49 / 39k, grove 46 / 98k, camp with rack, catcher and rain
+  107 / 165k. Bamboo node rings on background culms are open-ended and sparser
+  (the grove ring was 53k triangles before, 16k after).
+- **Bamboo leaves are sprays of narrow drooping blades**, not cones (cones read
+  as inverted green pyramids).
+- **Torn sails stand up on a broken spar**, so the canvas nodes read from across
+  the cove; flat on the sand they disappeared.
+- **Co-carrying:** the player leads with the chest behind them, hands reaching
+  back; Kai faces the player across it, 1.8 m back along the player's path.
+- **Buildings.tsx draws only campfires and tents**; the Chapter 2 buildings
+  are drawn by Chapter2World (it had been drawing a campfire under each).
+- **The title's Chapter 2 start is a secondary button** under Start, labelled
+  "Chapter 2" (test id `chapter-two`).
+- **The chest can rest anywhere**, not only at camp: "Put it here." away from
+  camp sets it down ("Take it to the camp!"), and it is lifted again with Kai.
+  The bag only grows to 20 once the box stands at camp. Rejected: refusing to
+  put it down outside camp, which strands a pair that walked the wrong way.
+  The chest comes down between the pair with no clearance ring round the
+  player's feet (the old 0.3 m ring made it impossible to put down at all).
+- **A strong rack's own action wins the focus** when it has a fish to hang or
+  dried fish to take (a 2 m focus bias). Its open shelf sockets are always
+  nearer than its middle, so without this the rack could never be used.
+  Spare brace sockets stop being offered once the rack is strong.
+
 ## 2026-10-27 — Targeted polish pass
 
 - Standing/lying changes use the single screen overlay through `flow/transition.ts`.
