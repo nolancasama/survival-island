@@ -297,11 +297,7 @@ export function Player() {
       const ox = p.x;
       const oz = p.z;
       for (let i = 0; i < steps; i++) {
-        const r = resolveCollisions(p.x + (p.vx * dt) / steps, p.z + (p.vz * dt) / steps, PLAYER_R, obstacles, {
-          pathCleared: g.pathCleared,
-          bridgeBuilt: g.bridgeBuilt,
-          cliffOpen: g.cliffOpen
-        });
+        const r = resolveCollisions(p.x + (p.vx * dt) / steps, p.z + (p.vz * dt) / steps, PLAYER_R, obstacles, gates);
         p.x = r.x;
         p.z = r.z;
       }
@@ -514,11 +510,7 @@ export function Kai() {
         k.walkTo = null;
       } else {
         const v = Math.min(2.8, d * 3) * dt;
-        const r = resolveCollisions(k.x + (ax / d) * v, k.z + (az / d) * v, 0.35, [STATIC_OBSTACLES, buildingObstacles(g.buildings)], {
-          pathCleared: g.pathCleared,
-          bridgeBuilt: g.bridgeBuilt,
-          cliffOpen: g.cliffOpen
-        });
+        const r = resolveCollisions(k.x + (ax / d) * v, k.z + (az / d) * v, 0.35, [STATIC_OBSTACLES, buildingObstacles(g.buildings), worldPropObstacles()], currentGates());
         k.x = r.x;
         k.z = r.z;
         k.yaw = Math.atan2(ax, az);

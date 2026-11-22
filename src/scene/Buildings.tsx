@@ -272,9 +272,9 @@ function Preview({
       type,
       spot.x,
       spot.z,
-      [STATIC_OBSTACLES, buildingObstacles(g.buildings)],
+      [STATIC_OBSTACLES, buildingObstacles(g.buildings), worldPropObstacles()],
       keepClear,
-      { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt, cliffOpen: g.cliffOpen }
+      currentGates()
     );
     rt.place.x = spot.x;
     rt.place.z = spot.z;

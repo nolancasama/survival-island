@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { FOREST_GAP, NODES, PALMS, POND, STREAM, groundY } from "../../game/world/island";
+import { clearForGrove } from "../../game/world/chapter2";
 import { makeRng } from "../../game/logic/rng";
 import { bucketByTile } from "../tiles";
 import { bushGeometry, jungleTreeGeometry, palmGeometry, createPalmCrowns } from "./nature";
@@ -121,6 +122,8 @@ export function vegetationTiles(): THREE.BufferGeometry[] {
   const parts: { x: number; z: number; geometry: THREE.BufferGeometry }[] = [];
   try {
     trees.forEach((spot, index) => {
+      // Chapter 2: trees on the new grove trail are skipped by their original index (nothing rerolls).
+      if (clearForGrove(spot.x, spot.z)) return;
       const hash = vegetationHash(index);
       parts.push({ ...spot, geometry: bakeVegetationSpot(treeLibrary[hash % 5][(hash >>> 8) % 3], spot, index) });
     });

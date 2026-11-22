@@ -44,7 +44,36 @@ const W = {
   metal: ["metal", "metals", "medal", "middle", "meadow", "iron", "metaru"],
   have: ["have", "has", "had", "half", "hab"],
   radio: ["radio", "radios", "rajio", "radial", "video"],
-  help: ["help", "helps", "helped", "health", "hell", "herb", "heap"]
+  help: ["help", "helps", "helped", "health", "hell", "herb", "heap"],
+  // Chapter 2 (Days 6–8).
+  what: ["what", "what's", "whats", "wat", "watt", "white"],
+  this: ["this", "these", "dis", "thiz", "is"],
+  canvas: ["canvas", "canvases", "campus", "canvass", "kanbasu", "cloth", "sail"],
+  rope: ["rope", "ropes", "robe", "roup", "lope", "loop"],
+  carry: ["carry", "carries", "carried", "carrying", "kerry", "cary", "curry", "pick", "lift", "take"],
+  heavy: ["heavy", "heavier", "heavey", "hebby", "hevy", "heavily", "evie"],
+  back: ["back", "bag", "pack", "buck", "bak", "home", "camp"],
+  put: ["put", "puts", "putting", "but", "pot", "putt", "place"],
+  here: ["here", "hear", "hair", "hia", "heer", "there"],
+  found: ["found", "find", "finds", "fond", "fund", "faund"],
+  bamboo: ["bamboo", "bamboos", "bambu", "banbu", "panda"],
+  rack: ["rack", "racks", "rock", "rag", "lack", "rak", "wreck"],
+  long: ["long", "longer", "wrong", "lung", "lawn", "rong"],
+  short: ["short", "shorter", "shot", "shoot", "shorts", "sort"],
+  pole: ["pole", "poles", "pool", "paul", "pole's", "pour", "poll", "bamboo"],
+  rain: ["rain", "raining", "rains", "rainy", "lane", "rein", "reign", "rainin"],
+  barrel: ["barrel", "barrels", "barre", "baral", "bareru", "beryl"],
+  high: ["higher", "high", "hire", "hyer", "taller", "up"],
+  low: ["lower", "low", "lou", "rower", "down"],
+  tooLow: ["low", "lou", "row", "law"],
+  move: ["move", "moves", "moving", "moo", "moob", "push"],
+  left: ["left", "lift", "lef", "reft"],
+  right: ["right", "write", "rite", "light", "wright", "ride"],
+  flow: ["flowing", "flow", "flows", "floating", "floor", "flowin", "blowing", "running", "going", "works", "working"],
+  work: ["work", "works", "working", "walk", "wark", "worked"],
+  not: ["doesn't", "dosent", "does", "not", "don't", "dont", "isn't", "no"],
+  try: ["try", "tries", "trying", "tried", "tri", "chai", "cry", "again"],
+  boil: ["boil", "boils", "boiled", "boiling", "boy", "bowl", "foil", "oil", "spoil"]
 } as const;
 
 export type PhraseId =
@@ -87,7 +116,36 @@ export type PhraseId =
   | "haveMetal"
   | "canHelp"
   | "needHelp"
-  | "needMetal";
+  | "needMetal"
+  | "askWhat"
+  | "getCanvas"
+  | "getRope"
+  | "carryBox"
+  | "tooHeavy"
+  | "goBack"
+  | "putHere"
+  | "foundRope"
+  | "foundCanvas"
+  | "foundBox"
+  | "needBox"
+  | "cutBamboo"
+  | "buildRack"
+  | "tooLong"
+  | "tooShort"
+  | "dryFish"
+  | "needPoles"
+  | "raining"
+  | "weNeedWater"
+  | "carryBarrel"
+  | "higher"
+  | "lower"
+  | "moveLeft"
+  | "moveRight"
+  | "flowing"
+  | "notWork"
+  | "tooLow"
+  | "tryAgain"
+  | "boilWater";
 
 export interface Phrase {
   id: PhraseId;
@@ -164,7 +222,40 @@ export const PHRASES: Record<PhraseId, Phrase> = {
   canHelp: { id: "canHelp", en: "Can you help me?", keys: [W.help], distractors: ["cutTree", "getStone"] },
   needHelp: { id: "needHelp", en: "I need help.", keys: [W.need, W.help], distractors: ["needWater", "sleep"] },
   needMetal: { id: "needMetal", en: "I need metal.", keys: [W.need, W.metal], distractors: ["needWood", "needStone"] },
-  wantFish: { id: "wantFish", en: "I want to catch a fish.", keys: [[...W.want, ...W.catch], W.fish], distractors: ["wantWater", "needWater"] }
+  wantFish: { id: "wantFish", en: "I want to catch a fish.", keys: [[...W.want, ...W.catch], W.fish], distractors: ["wantWater", "needWater"] },
+
+  // Chapter 2: Shipwreck Cove (Day 6).
+  askWhat: { id: "askWhat", en: "What is this?", keys: [W.what], distractors: ["openBox", "canHelp"] },
+  getCanvas: { id: "getCanvas", en: "Get the canvas.", keys: [W.get, W.canvas], distractors: ["getRope", "openBox"] },
+  getRope: { id: "getRope", en: "Get the rope.", keys: [W.get, W.rope], distractors: ["getCanvas", "getWood"] },
+  carryBox: { id: "carryBox", en: "Carry the box.", keys: [W.carry, W.box], distractors: ["openBox", "getWood"] },
+  tooHeavy: { id: "tooHeavy", en: "It's too heavy.", keys: [W.heavy], distractors: ["tooLong", "hungry"] },
+  goBack: { id: "goBack", en: "Let's go back.", keys: [W.go, W.back], distractors: ["putHere", "goCave"] },
+  putHere: { id: "putHere", en: "Put it here.", keys: [W.put, W.here], distractors: ["goBack", "openBox"] },
+  foundRope: { id: "foundRope", en: "I found a rope.", keys: [W.found, W.rope] },
+  foundCanvas: { id: "foundCanvas", en: "I found canvas.", keys: [W.found, W.canvas] },
+  foundBox: { id: "foundBox", en: "I found a box.", keys: [W.found, W.box] },
+  needBox: { id: "needBox", en: "I need a box.", keys: [W.need, W.box], distractors: ["needWood", "needPoles"] },
+  // Chapter 2: the Bamboo Grove (Day 7).
+  cutBamboo: { id: "cutBamboo", en: "Cut the bamboo.", keys: [W.cut, W.bamboo], distractors: ["cutTree", "getWood"] },
+  buildRack: { id: "buildRack", en: "Let's build a rack.", keys: [W.build, W.rack], distractors: ["buildShelter", "buildBridge"] },
+  tooLong: { id: "tooLong", en: "It's too long.", keys: [W.long], forbid: W.short, distractors: ["tooShort", "tooHeavy"] },
+  tooShort: { id: "tooShort", en: "It's too short.", keys: [W.short], forbid: W.long, distractors: ["tooLong", "tooHeavy"] },
+  dryFish: { id: "dryFish", en: "Put the fish on the rack.", keys: [W.put, W.fish], distractors: ["cookFish", "eatFish"] },
+  needPoles: { id: "needPoles", en: "I need poles.", keys: [W.need, W.pole], distractors: ["needWood", "needBox"] },
+  // Chapter 2: rain (Day 8).
+  raining: { id: "raining", en: "It's raining.", keys: [W.rain], distractors: ["tooHeavy", "hungry"] },
+  weNeedWater: { id: "weNeedWater", en: "We need water.", keys: [W.need, W.water], distractors: ["needBox", "needPoles"] },
+  carryBarrel: { id: "carryBarrel", en: "Carry the barrel.", keys: [W.carry, W.barrel], distractors: ["carryBox", "getWater"] },
+  higher: { id: "higher", en: "Make it higher.", keys: [W.high], forbid: ["lower", "low"] },
+  lower: { id: "lower", en: "Make it lower.", keys: [W.low], forbid: ["higher", "high"] },
+  moveLeft: { id: "moveLeft", en: "Move it left.", keys: [W.left], forbid: ["right"] },
+  moveRight: { id: "moveRight", en: "Move it right.", keys: [W.right], forbid: ["left"] },
+  flowing: { id: "flowing", en: "The water is flowing.", keys: [W.flow], forbid: ["doesn't", "not", "low"] },
+  notWork: { id: "notWork", en: "It doesn't work.", keys: [W.work], forbid: ["low", "flowing"] },
+  tooLow: { id: "tooLow", en: "It's too low.", keys: [W.tooLow], forbid: ["flowing", "work"] },
+  tryAgain: { id: "tryAgain", en: "Let's try again.", keys: [W.try], distractors: ["goBack", "putHere"] },
+  boilWater: { id: "boilWater", en: "Boil the water.", keys: [W.boil, W.water], distractors: ["drinkWater", "cookFish"] }
 };
 
 export function phrase(id: PhraseId): Phrase {

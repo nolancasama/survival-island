@@ -12,6 +12,8 @@ import { facts, refreshQuest, save, setMood, showPlaces, syncStats, updateHint, 
 import { dayThreeThanks, morningTalk } from "./kai";
 import { audio } from "../../audio/audio";
 import { changePose, fadeFromBlack, fadeToBlack } from "./transition";
+import { rainDawn } from "./chapter2";
+import { RAIN_DAY } from "../logic/weather";
 
 /**
  * The shape of a day: the evening (Day 1's celebration, or Kai's evening line
@@ -165,6 +167,8 @@ export async function nextDay() {
       setGame({ kaiStage: "camp" });
     }
     const q = advanceDay(getGame().quest, facts());
+    // Chapter 2: Day 8 dawns raining, and the open campfire is out.
+    if (q.day === RAIN_DAY) rainDawn();
     rt.clock = dayStartT(q.day);
     rt.light = rt.lightTarget = lightAt(rt.clock);
     rt.eveningDay = 0;
@@ -218,6 +222,22 @@ export async function resumeDayFourMorning() {
   setGame({ dayTitle: null });
   await changePose(0);
   await morningTalk(4);
+  refreshQuest();
+}
+
+/** An interrupted Chapter 2 morning (Days 6–8) replays at camp with its title. */
+export async function resumeMorning(day: number) {
+  setGame({ mode: "busy", focus: null, daySaid: [], dayNew: [] });
+  await fadeToBlack();
+  wakeAtCamp();
+  setGame({ dayTitle: day });
+  await fadeFromBlack();
+  audio.play("morning");
+  await wait(2600);
+  setGame({ dayTitle: null });
+  await changePose(0);
+  await morningTalk(day);
+  setGame({ mode: "explore" });
   refreshQuest();
 }
 

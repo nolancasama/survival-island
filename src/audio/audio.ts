@@ -68,6 +68,8 @@ class AudioEngine {
   private speaking = false;
   private listening = false;
   private ocean: { near: GainNode; swell: GainNode } | null = null;
+  /** Chapter 2: the rain hiss, created on the first rain. */
+  private rainGain: GainNode | null = null;
   private fire: GainNode | null = null;
   private fireTimer = 0;
   private fireLevel = 0;
@@ -500,6 +502,30 @@ class AudioEngine {
   setDaylight(d: number) {
     this.daylight = Math.max(0, Math.min(1, d));
     this.updateOceanLevel();
+  }
+
+  /** Rain on leaves and sand (Chapter 2): a soft filtered hiss that follows the rain weight 0..1. */
+  setRain(k: number) {
+    if (!this.ctx) return;
+    if (!this.rainGain) {
+      if (k <= 0.01) return;
+      const ctx = this.ctx;
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      const high = ctx.createBiquadFilter();
+      high.type = "highpass";
+      high.frequency.value = 900;
+      const low = ctx.createBiquadFilter();
+      low.type = "lowpass";
+      low.frequency.value = 5200;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      src.connect(high).connect(low).connect(gain).connect(this.ambBus);
+      src.start(0, Math.random() * 2);
+      this.rainGain = gain;
+    }
+    this.rainGain.gain.setTargetAtTime(Math.max(0, Math.min(1, k)) * 0.45, this.ctx.currentTime, 0.4);
   }
 
   /** Night keeps the surf present, but softer under the crickets. */

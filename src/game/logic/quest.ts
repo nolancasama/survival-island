@@ -14,7 +14,12 @@ export type StepId =
   | "axe" | "path" | "leaves" | "shelter" | "build"
   | "bridge" | "container" | "water" | "drink" | "rod" | "fish" | "cook"
   | "torch" | "cave" | "metal" | "radio" | "showKai"
-  | "cliff" | "signalFire" | "clifftop" | "signal" | "help";
+  | "cliff" | "signalFire" | "clifftop" | "signal" | "help"
+  // Safe water (Day 3 and Day 8) and Chapter 2 (Days 6–8).
+  | "boil"
+  | "cove" | "askKai" | "coveBox" | "canvas" | "carryBox"
+  | "grove" | "poles" | "rackSite" | "rackFrame" | "rackStrong" | "dryFish"
+  | "barrel" | "catcherSite" | "catcherBuilt" | "catchRain" | "boilRain";
 export interface Facts {
   ate: number;
   metKai: boolean;
@@ -51,16 +56,40 @@ export interface Facts {
   rescued?: boolean;
   /** Classroom pace: counted goals follow its smaller recipes. */
   classroom?: boolean;
+  /** Times collected water was boiled (Day 3), and the last day it happened (Day 8). */
+  boiled?: number;
+  boiledDay?: number;
+  /** Chapter 2 world facts (Days 6–8). */
+  reachedCove?: boolean;
+  /** "What is this?" was asked about at least one thing in the cove. */
+  askedKai?: boolean;
+  coveBoxOpened?: boolean;
+  /** The sea chest stands as the storage box within reach of the camp. */
+  storageAtCamp?: boolean;
+  groveOpen?: boolean;
+  rackPlaced?: boolean;
+  rackFrame?: boolean;
+  rackStable?: boolean;
+  /** Fish ever hung on a rack to dry. */
+  fishDried?: number;
+  barrelAtCamp?: boolean;
+  catcherPlaced?: boolean;
+  catcherBuilt?: boolean;
+  /** Cups caught by a catcher while every stream fell into the barrel. */
+  rainCaught?: number;
 }
 
-type GoalItem = "wood" | "stone" | "leaves" | "metal";
+type GoalItem = "wood" | "stone" | "leaves" | "metal" | "canvas" | "pole";
 
 export interface StepDef {
   id: StepId;
   en: string;
   ja: string;
-  /** For counted steps: what is counted, and the recipe whose need sets the goal (n is the normal pace). */
-  goal?: { item: GoalItem; n: number; recipe: CraftId };
+  /**
+   * For counted steps: what is counted, and either the recipe whose need sets
+   * the goal or a fixed count per pace (n is the normal pace).
+   */
+  goal?: { item: GoalItem; n: number; recipe?: CraftId; count?: { normal: number; classroom: number } };
   done(f: Facts): boolean;
 }
 
@@ -75,15 +104,30 @@ const made = (id: CraftId) => (f: Facts) => f.crafted.includes(id);
 const sleep = (day: number) => (f: Facts) => f.sleptDay >= day;
 const goal = (item: GoalItem, recipe: CraftId): NonNullable<StepDef["goal"]> => ({ item, recipe, n: recipeNeeds(recipe, false)[item] ?? 0 });
 
+/** A counted step with a fixed goal per pace (Chapter 2 gathering). */
+const fixedGoal = (item: GoalItem, normal: number, classroom: number): NonNullable<StepDef["goal"]> => ({ item, n: normal, count: { normal, classroom } });
+
 /** Resolve a counted-step goal for the active teacher pace. */
 export function stepGoal(step: StepDef, classroom: boolean): { item: GoalItem; n: number } | undefined {
-  return step.goal && { item: step.goal.item, n: recipeNeeds(step.goal.recipe, classroom)[step.goal.item] ?? 0 };
+  if (!step.goal) return undefined;
+  if (step.goal.count) return { item: step.goal.item, n: classroom ? step.goal.count.classroom : step.goal.count.normal };
+  return { item: step.goal.item, n: step.goal.recipe ? recipeNeeds(step.goal.recipe, classroom)[step.goal.item] ?? 0 : step.goal.n };
 }
 
 /** The bag holds enough of an item for the recipe at the facts' pace. */
 const hasGoal = (item: GoalItem, recipe: CraftId) => (f: Facts) => count(f.bag, item) >= (recipeNeeds(recipe, f.classroom)[item] ?? 0);
 /** A counted step: done once the recipe it feeds is made, or the bag holds enough. */
 const counted = (item: GoalItem, recipe: CraftId) => (f: Facts) => made(recipe)(f) || hasGoal(item, recipe)(f);
+/** A fixed-goal counted step: the bag holds enough at the facts' pace, or what it feeds already exists. */
+const countedFixed = (item: GoalItem, normal: number, classroom: number, fed: (f: Facts) => boolean = () => false) =>
+  (f: Facts) => fed(f) || count(f.bag, item) >= (f.classroom ? classroom : normal);
+
+/** The Day 6 canvas goal is what the rain catcher will need. */
+export const CANVAS_GOAL = { normal: 2, classroom: 1 } as const;
+/** Long poles for a stable rack: 4 legs, 2 long bars, 2 braces, and one cut into the 2 short bars. */
+export const RACK_POLES = 9;
+/** Long poles for the rain catcher's four corner posts. */
+export const CATCHER_POLES = 4;
 
 export const DAYS: DayDef[] = [
   { day: 1, en: "Day 1: Survive", ja: "1にちめ: いきのびよう", steps: [
@@ -109,6 +153,8 @@ export const DAYS: DayDef[] = [
     { id: "bridge", en: "Build the bridge", ja: "はしを つくろう", done: f => f.bridgeBuilt },
     { id: "container", en: "Make a cup", ja: "カップを つくろう", done: made("container") },
     { id: "water", en: "Get water", ja: "みずを くもう", done: f => f.gotWater > 0 },
+    // Safe water: all collected water is boiled before drinking (2026-11-23).
+    { id: "boil", en: "Boil the water", ja: "みずを わかそう", done: f => (f.boiled ?? 0) > 0 },
     { id: "drink", en: "Drink water", ja: "みずを のもう", done: f => f.drank > 0 },
     { id: "rod", en: "Make a fishing rod", ja: "つりざおを つくろう", done: made("rod") },
     { id: "fish", en: "Catch a fish", ja: "さかなを つろう", done: f => f.caught > 0 },
@@ -132,10 +178,44 @@ export const DAYS: DayDef[] = [
     { id: "clifftop", en: "Go to the clifftop", ja: "がけの うえへ いこう", done: f => !!f.reachedClifftop },
     { id: "signal", en: "Light the signal fire", ja: "のろしに 火を つけよう", done: f => !!f.signalLit },
     { id: "help", en: "Call for help", ja: "たすけを よぼう", done: f => !!f.rescued }
+  ] },
+  // Chapter 2 "A Better Camp" (Milestones 1–3 of EXPANSION_PLAN.md).
+  { day: 6, en: "Day 6: Shipwreck Cove", ja: "6にちめ: なんぱせんの いりえ", steps: [
+    { id: "cove", en: "Go to the cove", ja: "いりえへ いこう", done: f => !!f.reachedCove },
+    { id: "askKai", en: "Ask Kai about things", ja: "カイに きこう", done: f => !!f.askedKai },
+    { id: "coveBox", en: "Open the box", ja: "はこを あけよう", done: f => !!f.coveBoxOpened },
+    { id: "canvas", en: "Get canvas", ja: "ぬのを あつめよう", goal: fixedGoal("canvas", CANVAS_GOAL.normal, CANVAS_GOAL.classroom),
+      done: countedFixed("canvas", CANVAS_GOAL.normal, CANVAS_GOAL.classroom, f => !!f.catcherBuilt) },
+    { id: "carryBox", en: "Bring the big box to camp", ja: "おおきな はこを キャンプへ はこぼう", done: f => !!f.storageAtCamp },
+    { id: "sleep", en: "Sleep", ja: "ねむろう", done: sleep(6) }
+  ] },
+  { day: 7, en: "Day 7: Bamboo Grove", ja: "7にちめ: たけの はやし", steps: [
+    { id: "grove", en: "Cut the bamboo", ja: "たけを きろう", done: f => !!f.groveOpen },
+    { id: "poles", en: "Get bamboo poles", ja: "たけの ぼうを あつめよう", goal: fixedGoal("pole", RACK_POLES, RACK_POLES),
+      done: countedFixed("pole", RACK_POLES, RACK_POLES, f => !!f.rackStable) },
+    { id: "rackSite", en: "Put the rack down", ja: "ほしだなを おこう", done: f => !!f.rackPlaced },
+    { id: "rackFrame", en: "Build the rack", ja: "ほしだなを くみたてよう", done: f => !!f.rackFrame },
+    { id: "rackStrong", en: "Make it strong", ja: "じょうぶに しよう", done: f => !!f.rackStable },
+    { id: "dryFish", en: "Dry a fish", ja: "さかなを ほそう", done: f => (f.fishDried ?? 0) > 0 },
+    { id: "sleep", en: "Sleep", ja: "ねむろう", done: sleep(7) }
+  ] },
+  { day: 8, en: "Day 8: Rain", ja: "8にちめ: あめ", steps: [
+    { id: "poles", en: "Get bamboo poles", ja: "たけの ぼうを あつめよう", goal: fixedGoal("pole", CATCHER_POLES, CATCHER_POLES),
+      done: countedFixed("pole", CATCHER_POLES, CATCHER_POLES, f => !!f.catcherBuilt) },
+    { id: "barrel", en: "Bring the barrel to camp", ja: "たるを キャンプへ はこぼう", done: f => !!f.barrelAtCamp },
+    { id: "catcherSite", en: "Put the rain catcher down", ja: "あまみず あつめを おこう", done: f => !!f.catcherPlaced },
+    { id: "catcherBuilt", en: "Build the rain catcher", ja: "あまみず あつめを つくろう", done: f => !!f.catcherBuilt },
+    { id: "catchRain", en: "Catch the rain", ja: "あまみずを ためよう", done: f => (f.rainCaught ?? 0) > 0 },
+    { id: "boilRain", en: "Boil the water", ja: "みずを わかそう", done: f => (f.boiledDay ?? 0) >= 8 },
+    { id: "sleep", en: "Sleep", ja: "ねむろう", done: sleep(8) }
   ] }
 ];
-/** The final authored story day; later days are free play. */
-export const LAST_STORY_DAY = 5;
+/** The final authored story day; later days are free play. Day 5 ends Chapter 1 with the rescue. */
+export const LAST_STORY_DAY = 8;
+/** The rescue day: the end of Chapter 1. */
+export const RESCUE_DAY = 5;
+/** Chapter 2 "A Better Camp" days. */
+export const CHAPTER_TWO_FIRST_DAY = 6;
 export interface QuestState {
   day: number;
   done: StepId[];
