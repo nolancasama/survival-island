@@ -23,7 +23,9 @@ export function PromptPanel() {
   const mic = micUsable();
   const speakHint = touch ? UI.speakTouch : UI.speakKeys;
   const status =
-    p.status === "listening"
+    p.status === "starting"
+      ? { en: "Starting microphone…", ja: "マイクを じゅんびしています…" }
+      : p.status === "listening"
       ? UI.listening
       : p.status === "miss"
         ? p.misses >= 2 && p.misses < 3
@@ -94,6 +96,7 @@ export function PromptPanel() {
               <button
                 className={`mic ${p.status === "listening" ? "on" : ""}`}
                 onClick={() => micPress()}
+                disabled={p.status === "starting"}
                 aria-label="Speak"
                 data-testid="mic"
               >

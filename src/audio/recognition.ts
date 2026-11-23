@@ -20,6 +20,7 @@ interface Rec {
   interimResults: boolean;
   maxAlternatives: number;
   continuous: boolean;
+  onstart: (() => void) | null;
   onresult: ((e: RecEvent) => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
@@ -38,13 +39,15 @@ function ctor(): RecCtor | null {
 export interface ListenHandlers {
   /** Ranked alternatives of the latest result. */
   onResult(alternatives: string[], isFinal: boolean): void;
+  /** Browser confirmed speech recognition is running. */
+  onStart?(): void;
   onError(error: string): void;
   /** Called exactly once when the session is over. */
   onEnd(): void;
 }
 
 /** Errors that mean speech cannot work here (switch to buttons). */
-export const HARD_ERRORS = new Set(["not-allowed", "service-not-allowed", "audio-capture", "unsupported", "start-failed"]);
+export const HARD_ERRORS = new Set(["not-allowed", "service-not-allowed", "audio-capture", "unsupported"]);
 
 export const recognition = {
   get supported(): boolean {
@@ -56,10 +59,14 @@ export const recognition = {
     const Ctor = ctor();
     let ended = false;
     let timer = 0;
+    let startupTimer = 0;
+    let started = false;
+    let timedOut = false;
     const end = () => {
       if (ended) return;
       ended = true;
       window.clearTimeout(timer);
+      window.clearTimeout(startupTimer);
       h.onEnd();
     };
     if (!Ctor) {
@@ -72,6 +79,12 @@ export const recognition = {
     rec.interimResults = true;
     rec.maxAlternatives = 8;
     rec.continuous = false;
+    rec.onstart = () => {
+      if (ended) return;
+      started = true;
+      window.clearTimeout(startupTimer);
+      h.onStart?.();
+    };
     rec.onresult = (e) => {
       if (ended) return;
       const res = e.results[e.results.length - 1];
@@ -86,6 +99,11 @@ export const recognition = {
     rec.onend = end;
     // Safety cap: some recognisers never fire onend.
     timer = window.setTimeout(() => {
+      if (ended) return;
+      if (!started && !timedOut) {
+        timedOut = true;
+        h.onError("start-timeout");
+      }
       try {
         rec.stop();
       } catch {
@@ -95,11 +113,21 @@ export const recognition = {
     }, maxMs);
     try {
       rec.start();
+      // Some managed browsers never emit onstart or onerror. Do not show
+      // "Listening" indefinitely when startup never completes.
+      startupTimer = window.setTimeout(() => {
+        if (ended || started) return;
+        timedOut = true;
+        h.onError("start-timeout");
+        try { rec.abort(); } catch { /* ignore */ }
+        window.setTimeout(end, 350);
+      }, 3000);
     } catch {
       h.onError("start-failed");
       end();
     }
     return () => {
+      if (ended) return;
       try {
         rec.abort();
       } catch {
