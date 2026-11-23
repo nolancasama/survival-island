@@ -1,5 +1,17 @@
 # Design Decisions
 
+## 2026-11-23 — Debug day picker
+
+- **A hidden "Debug: start at day" row on the title screen, shown only with
+  `?debug=1` in the address** (the user asked for one in a debug menu). Buttons
+  1–9: Day 1 is the normal Start (intro); Days 2–9 start that day's real morning
+  as if the earlier days were played, after the same microphone check as Start,
+  and replace the saved game. Day 9 is free play with a working rain catcher.
+- The setup is shared with the e2e hook's `startDay` (`game/flow/dayStart.ts`),
+  so the picker starts days exactly as the tests do. Rejected: a Settings entry
+  (students open Settings), and a production-only setup that could drift from
+  the tested one.
+
 ## 2026-11-23 — Chapter 2 (Milestones 1–3) design
 
 The user supplied a long-term expansion plan (`EXPANSION_PLAN.md`, Part B) and

@@ -9,6 +9,7 @@ import {
   CHAPTER_ONE_PHRASES, CHAPTER_TWO_CAMP, dropCarried, nearCamp, restoreChapterTwo, showChapterTwoTarget, storageAtCamp, tickChapterTwo, weatherFrame
 } from "./chapter2";
 import { catcherBuilt, rackFrameComplete, rackStable } from "../logic/structures";
+import { dayStartState, placeAtStartCamp } from "./dayStart";
 import { checkCraft } from "../logic/crafting";
 import { pace, recipeNeeds } from "../logic/pace";
 import { NODE_BY_ID, NODES, FALLEN_TREE, FISH_SPOTS, WATER_SPOTS, BRIDGE, CRATE } from "../world/island";
@@ -345,6 +346,24 @@ export async function startChapterTwo() {
   refreshQuest();
   await prepareMic();
   // The rescue day is complete: the next morning is Day 6.
+  await nextDay();
+}
+
+/**
+ * Debug (title, only with ?debug=1): start at the morning of day n (2–9) as
+ * if the earlier days were played (flow/dayStart.ts). Like Start, it
+ * replaces the saved game and checks the microphone first.
+ */
+export async function startAtDay(n: number) {
+  clearSave();
+  resetRuntime();
+  startAudio();
+  setGame({ ...freshGameData(), ...dayStartState(n), hint: null, needsPulse: false, craftPulse: false, fade: 1, mode: "busy" });
+  placeAtStartCamp();
+  enterGame();
+  placeKaiAtCamp();
+  refreshQuest();
+  await prepareMic();
   await nextDay();
 }
 
