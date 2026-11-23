@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { rt } from "../game/runtime";
 import { getGame } from "../game/store";
@@ -19,13 +19,18 @@ import { crateBodyGeometry, crateLidGeometry } from "./models/props";
 import { metalGeometry } from "./models/metal";
 import { bambooStalkGeometry, bambooStumpGeometry, canvasNodeGeometry, ropeCoilGeometry } from "./models/chapter2";
 import { isCaveInterior } from "../game/world/phase3";
+import { COVE, DETAIL_DISTANCE } from "../game/world/chapter2";
 
 /**
  * Collectible resources. Each node is its own small mesh so it can vanish when
  * taken and pop back in when it regrows. A periodic glint helps children spot
  * them; the focused one bobs gently.
  */
+/** The cove's salvage (canvas, rope, old metal) is only drawn with the camera near the cove. */
+const coveDetail = (camera: THREE.Camera) => Math.hypot(camera.position.x - COVE.x, camera.position.z - COVE.z) < DETAIL_DISTANCE;
+
 export function ResourceNodes() {
+  const camera = useThree((st) => st.camera);
   const geos = useMemo<Record<NodeKind, THREE.BufferGeometry>>(
     () => ({
       wood: driftwoodGeometry(),
@@ -53,8 +58,11 @@ export function ResourceNodes() {
   const metalGeos = useMemo(() => [geos.metal, metalGeometry(1), metalGeometry(2)], [geos]);
   const metalMat = useMemo(() => new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 65, specular: "#d2e5e9", side: THREE.DoubleSide }), []);
   const glints = useRef<THREE.Points>(null);
-  // Trees and bamboo stand as their own groups so a cut one can show its stump.
-  const treeNodes = useMemo(() => NODES.filter((n) => n.kind === "tree" || n.kind === "bamboo"), []);
+  const treeNodes = useMemo(() => NODES.filter((n) => n.kind === "tree"), []);
+  // Bamboo (Chapter 2): one instanced mesh of stalks and one of stumps, culled as a group.
+  const bambooNodes = useMemo(() => NODES.filter((n) => n.kind === "bamboo"), []);
+  const bambooStalks = useRef<THREE.InstancedMesh>(null);
+  const bambooStumps = useRef<THREE.InstancedMesh>(null);
   const shadow = useMemo(() => shadowMaterial(0.22), []);
   const glintGeo = useMemo(() => {
     const geo = new THREE.BufferGeometry();
@@ -71,6 +79,15 @@ export function ResourceNodes() {
     []
   );
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  /** Instanced meshes whose instances share one small area are culled with a sphere round them all. */
+  const cullAround = (mesh: THREE.InstancedMesh | null, nodes: readonly { x: number; z: number }[], height: number) => {
+    if (!mesh || !nodes.length || mesh.boundingSphere) return;
+    const cx = nodes.reduce((a, n) => a + n.x, 0) / nodes.length;
+    const cz = nodes.reduce((a, n) => a + n.z, 0) / nodes.length;
+    const r = Math.max(...nodes.map((n) => Math.hypot(n.x - cx, n.z - cz))) + height + 1.5;
+    // Set before the first frame, so three never computes one from not-yet-placed instances.
+    mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, groundY(cx, cz) + height / 2, cz), r);
+  };
 
   useFrame(() => {
     const g = getGame();
@@ -89,7 +106,7 @@ export function ResourceNodes() {
       const mesh = instances.current.get(kind);
       const nodes = byKind.get(kind);
       if (!mesh || !nodes) continue;
-      mesh.visible = !g.inCave;
+      mesh.visible = !g.inCave && (kind !== "canvas" && kind !== "rope" || coveDetail(camera));
       nodes.forEach((n, i) => {
         const focused = focus?.kind === "node" && focus.id === n.id;
         const s = rt.taken.has(n.id) ? 0.001 : scaleFor(n.id, focused);
@@ -101,6 +118,26 @@ export function ResourceNodes() {
         mesh.setMatrixAt(i, dummy.matrix);
       });
       mesh.instanceMatrix.needsUpdate = true;
+    }
+    const stalks = bambooStalks.current;
+    const stumps = bambooStumps.current;
+    if (stalks && stumps) {
+      stalks.visible = !g.inCave;
+      // Stumps cost a draw call even when all are hidden: only draw them once a stalk has been cut.
+      stumps.visible = !g.inCave && bambooNodes.some((n) => rt.taken.has(n.id));
+      bambooNodes.forEach((n, i) => {
+        const taken = rt.taken.has(n.id);
+        dummy.position.set(n.x, groundY(n.x, n.z), n.z);
+        dummy.rotation.set(0, n.rot, 0);
+        dummy.scale.setScalar(taken ? 0.001 : scaleFor(n.id, focus?.kind === "node" && focus.id === n.id));
+        dummy.updateMatrix();
+        stalks.setMatrixAt(i, dummy.matrix);
+        dummy.scale.setScalar(taken ? 1 : 0.001);
+        dummy.updateMatrix();
+        stumps.setMatrixAt(i, dummy.matrix);
+      });
+      stalks.instanceMatrix.needsUpdate = true;
+      stumps.instanceMatrix.needsUpdate = true;
     }
     treeNodes.forEach((n, i) => {
       const root = treeRoots.current[i];
@@ -117,7 +154,8 @@ export function ResourceNodes() {
       const mesh = metalRoots.current[i];
       if (!mesh) return;
       const focused = focus?.kind === "node" && focus.id === n.id;
-      mesh.visible = isCaveInterior(n.x, n.z) === g.inCave && !rt.taken.has(n.id);
+      const inside = isCaveInterior(n.x, n.z);
+      mesh.visible = inside === g.inCave && !rt.taken.has(n.id) && (inside || coveDetail(camera));
       mesh.scale.setScalar(scaleFor(n.id, focused));
       mesh.position.y = groundY(n.x, n.z) + (focused ? 0.05 + Math.sin(rt.time * 5) * 0.04 : 0);
     });
@@ -151,15 +189,24 @@ export function ResourceNodes() {
       {kinds.map((kind) => (
         <instancedMesh
           key={kind}
-          ref={(el) => { if (el) instances.current.set(kind, el); else instances.current.delete(kind); }}
+          ref={(el) => {
+            if (!el) return void instances.current.delete(kind);
+            instances.current.set(kind, el);
+            // The cove's salvage sits in one place: cull it there. The island-wide kinds are always drawn.
+            if (kind === "canvas" || kind === "rope") cullAround(el, byKind.get(kind) ?? [], 1.5);
+          }}
           args={[geos[kind], occluderMat, byKind.get(kind)?.length ?? 0]}
-          frustumCulled={false}
+          frustumCulled={kind === "canvas" || kind === "rope"}
         />
       ))}
+      <instancedMesh ref={(el) => { bambooStalks.current = el; cullAround(el, bambooNodes, 7.5); }}
+        args={[geos.bamboo, occluderMat, bambooNodes.length]} />
+      <instancedMesh ref={(el) => { bambooStumps.current = el; cullAround(el, bambooNodes, 0.6); }}
+        args={[bambooStump, occluderMat, bambooNodes.length]} />
       {treeNodes.map((n, i) => (
         <group key={n.id} ref={(el) => void (treeRoots.current[i] = el)} position={[n.x, groundY(n.x, n.z), n.z]} rotation={[0, n.rot, 0]}>
-          <mesh ref={(el) => void (treeCrowns.current[i] = el)} geometry={n.kind === "bamboo" ? geos.bamboo : geos.tree} material={occluderMat} />
-          <mesh geometry={n.kind === "bamboo" ? bambooStump : stump} material={occluderMat} visible={false} />
+          <mesh ref={(el) => void (treeCrowns.current[i] = el)} geometry={geos.tree} material={occluderMat} />
+          <mesh geometry={stump} material={occluderMat} visible={false} />
         </group>
       ))}
       {metalNodes.map((n, i) => (

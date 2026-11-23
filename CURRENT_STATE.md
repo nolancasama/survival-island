@@ -31,7 +31,10 @@ in `DESIGN_DECISIONS.md` "2026-11-23 — Chapter 2 (Milestones 1–3) design", i
   strong); after the last brace Kai's "Great! It's strong now!" left the game stuck in talk mode. Also the bag only
   grows once the storage box is at camp.
 - **Rendered and judged:** `node scripts/shots-ch2.mjs http://127.0.0.1:5287/` (needs `npx vite --port 5287`)
-  writes 18 views to `.tmp/shots/chapter2`; all within budget (worst 107 calls / 165k triangles).
+  writes 20 views to `.tmp/shots/chapter2` (cove, grove, rack, catcher in rain, a full camp from the clifftop and
+  at night). `npm run shots:world` passes (its cave-metal check now ignores the cove's metal). Draw calls were
+  consolidated so the clifftop stays in budget: 117 calls / 185k triangles (111 / 156k before Chapter 2); the
+  full-camp clifftop 112 / 187k. Numbers per view are in DESIGN_DECISIONS "Changes made while building".
 - `scripts/shots.mjs` (story screenshots) now boils water on Day 3 and shows the Chapter 2 Day 6 morning; not yet
   re-run.
 

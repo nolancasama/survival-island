@@ -182,5 +182,26 @@ await settle(0.4);
 await shot("camp-rain-wide");
 await perfAt("camp rain wide");
 
+// Worst cases for the draw-call budget: a full Chapter 2 camp seen from the clifftop, and at night.
+const fullCamp = [
+  { id: "f1", type: "campfire", x: -6, z: 4.5, rot: 0, lit: true },
+  { id: "t1", type: "shelter", x: -2.5, z: 7, rot: 0, built: true },
+  { id: "s1", type: "storage", x: 0.5, z: 9.5, rot: 0.3 },
+  { id: "r1", type: "rack", x: -8, z: 9, rot: 0.2, parts: [...rackParts, "braceN", "braceW", "shelfN", "shelfS"], fish: [30, 0, 0, 12, 5, 0] },
+  { id: "c1", type: "catcher", x: 3.5, z: 11, rot: 0, parts: ["post1", "post2", "post3", "post4", "canvas"], heights: [2, 2, 1, 2] },
+  { id: "w1", type: "barrel", x: 3.5 + 1.32, z: 11 + 1.32, rot: 0, water: 8 }
+];
+await call("setBuildings", fullCamp);
+await call("setGates", { cliffOpen: true });
+await call("setRain", 0);
+await call("setClock", 0.1);
+await frame(world.clifftop?.x ?? 26, (world.clifftop?.z ?? -78) + 1, 0, -10, 0.44, 10);
+await shot("clifftop-full-camp");
+await perfAt("clifftop with the full Chapter 2 camp");
+await call("setClock", 0.97);
+await frame(-2, 15, -3, 6, 0.42, 9.5);
+await shot("full-camp-night");
+await perfAt("full Chapter 2 camp at night");
+
 console.log(logs.length ? logs.join("\n") : "no console errors");
 await browser.close();

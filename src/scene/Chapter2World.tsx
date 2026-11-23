@@ -1,11 +1,12 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { rt } from "../game/runtime";
 import { getGame, useGame } from "../game/store";
 import { NODE_BY_ID, SEA_Y, groundY } from "../game/world/island";
 import {
-  CAMP_SIGN, COVE_BARREL, COVE_CRATE, COVE_HULL, COVE_MAST, COVE_SIGN, GROVE_GATE, GROVE_SIGN, SEA_CHEST, TIDE_WATER
+  CAMP_SIGN, COVE, COVE_BARREL, COVE_CRATE, COVE_HULL, COVE_MAST, COVE_SIGN, DETAIL_DISTANCE, GROVE_GATE, GROVE_SIGN, SEA_CHEST, TIDE_WATER
 } from "../game/world/chapter2";
 import {
   BARREL, CATCHER, CATCHER_CORNERS, CATCHER_SOCKETS, LASH_HEIGHTS, RACK, RACK_SOCKETS, START_HEIGHTS, rackStable, rackSway, toWorld,
@@ -15,7 +16,7 @@ import { flowOf } from "../game/flow/chapter2";
 import { socketsOf } from "../game/flow/chapter2Focus";
 import type { PlacedBuilding } from "../game/world/placement";
 import { PartBuilder } from "./partBuilder";
-import { flatMat, occluderMat, smoothMat } from "./materials";
+import { flatMat, occluderMat } from "./materials";
 import { labelTexture } from "./Environment";
 import { caughtFishGeometry } from "./Characters";
 import { crateBodyGeometry, crateLidGeometry, signPostGeometry } from "./models/props";
@@ -38,21 +39,89 @@ const smooth = (v: number) => {
   return t * t * (3 - 2 * t);
 };
 
+// ------------------------------------------------------------- static scenery
+
+/** A model moved into place, for merging static scenery into one mesh. */
+function placed(geo: THREE.BufferGeometry, x: number, y: number, z: number, yaw = 0): THREE.BufferGeometry {
+  const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, yaw), new THREE.Vector3(1, 1, 1));
+  return geo.applyMatrix4(m);
+}
+
+function merged(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const g = mergeGeometries(parts, false)!;
+  parts.forEach((p) => p.dispose());
+  g.computeBoundingSphere();
+  return g;
+}
+
+const UP = new THREE.Vector3(0, 1, 0);
+
+/** The new signs: posts join their area's static mesh, and the labels share one texture (one draw call). */
+const SIGNS = [
+  { at: COVE_SIGN, label: "COVE", yaw: -1.15 },
+  { at: CAMP_SIGN, label: "CAMP", yaw: 1.25 },
+  { at: GROVE_SIGN, label: "BAMBOO", yaw: -1.2 }
+] as const;
+
+const signPost = (i: number) => {
+  const s = SIGNS[i];
+  return placed(signPostGeometry(), s.at.x, groundY(s.at.x, s.at.z), s.at.z, s.yaw);
+};
+
+function SignLabels() {
+  const { geometry, material } = useMemo(() => {
+    const row = 96;
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = row * SIGNS.length;
+    const ctx = canvas.getContext("2d")!;
+    const parts = SIGNS.map((s, i) => {
+      const label = labelTexture(s.label);
+      ctx.drawImage(label.image as HTMLCanvasElement, 0, i * row);
+      label.dispose();
+      // Each plane shows its own row of the atlas (texture v runs bottom to top).
+      const plane = new THREE.PlaneGeometry(1.32, 0.42);
+      const uv = plane.attributes.uv;
+      for (let k = 0; k < uv.count; k++) uv.setY(k, 1 - (i + 1) / SIGNS.length + uv.getY(k) / SIGNS.length);
+      plane.translate(0, 1.46, 0.101);
+      return placed(plane, s.at.x, groundY(s.at.x, s.at.z), s.at.z, s.yaw);
+    });
+    const map = new THREE.CanvasTexture(canvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    return { geometry: merged(parts), material: new THREE.MeshLambertMaterial({ map }) };
+  }, []);
+  const camera = useThree((st) => st.camera);
+  const mesh = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    // Unreadable from afar: drawn only with the camera within reading distance of one of the signs.
+    if (mesh.current) mesh.current.visible = SIGNS.some((sg) => Math.hypot(camera.position.x - sg.at.x, camera.position.z - sg.at.z) < 45);
+  });
+  return <mesh ref={mesh} geometry={geometry} material={material} />;
+}
+
 // ------------------------------------------------------------------ the cove
 
 function Cove() {
   const coveOpen = useGame((s) => s.coveOpen);
   const coveBoxOpened = useGame((s) => s.coveBoxOpened);
-  const rocks = useMemo(coveRocksGeometry, []);
-  const shore = useMemo(coveShoreGeometry, []);
-  const hull = useMemo(coveHullGeometry, []);
-  const mast = useMemo(coveMastGeometry, []);
-  const debris = useMemo(coveDebrisGeometry, []);
-  const crateBody = useMemo(crateBodyGeometry, []);
+  const crateY = groundY(COVE_CRATE.x, COVE_CRATE.z);
+  // Everything in the cove that never moves, in one mesh (the camera keeps out of it; nothing in it is low enough to matter).
+  const scenery = useMemo(() => merged([
+    coveRocksGeometry(),
+    placed(coveHullGeometry(), COVE_HULL.x, groundY(COVE_HULL.x, COVE_HULL.z) - 0.1, COVE_HULL.z, COVE_HULL.rot),
+    coveShoreGeometry(),
+    coveDebrisGeometry(),
+    placed(coveMastGeometry(), COVE_MAST.x, groundY(COVE_MAST.x, COVE_MAST.z), COVE_MAST.z, COVE_MAST.rot),
+    placed(buriedSandGeometry(), COVE_CRATE.x, crateY, COVE_CRATE.z, COVE_CRATE.rot),
+    placed(crateBodyGeometry().translate(0, -0.3, 0), COVE_CRATE.x, crateY, COVE_CRATE.z, COVE_CRATE.rot),
+    signPost(0),
+    signPost(1)
+  ]), [crateY]);
   const crateLid = useMemo(crateLidGeometry, []);
-  const sand = useMemo(buriedSandGeometry, []);
   const chest = useMemo(seaChestGeometry, []);
   const barrel = useMemo(barrelGeometry, []);
+  const camera = useThree((st) => st.camera);
+  const props = useRef<THREE.Group>(null);
   const lid = useRef<THREE.Group>(null);
   const chestMesh = useRef<THREE.Mesh>(null);
   const barrelMesh = useRef<THREE.Mesh>(null);
@@ -66,10 +135,11 @@ function Cove() {
     }
     return top + 0.12;
   }, []);
-  const crateY = groundY(COVE_CRATE.x, COVE_CRATE.z);
 
   useFrame(() => {
     const g = getGame();
+    // Small props are a few pixels from afar (the clifftop): only drawn near the cove.
+    if (props.current) props.current.visible = Math.hypot(camera.position.x - COVE.x, camera.position.z - COVE.z) < DETAIL_DISTANCE;
     if (lid.current) {
       const t = g.coveBoxOpened ? (rt.coveBoxOpenT0 < 0 ? 1 : smooth((rt.time - rt.coveBoxOpenT0) / 0.7)) : 0;
       lid.current.rotation.x = -1.9 * t;
@@ -88,43 +158,22 @@ function Cove() {
 
   return (
     <group>
-      <mesh geometry={rocks} material={occluderMat} userData={{ cameraCollider: true }} />
-      <mesh geometry={shore} material={flatMat} />
-      <mesh geometry={debris} material={flatMat} />
-      <group position={[COVE_HULL.x, groundY(COVE_HULL.x, COVE_HULL.z) - 0.1, COVE_HULL.z]} rotation={[0, COVE_HULL.rot, 0]}>
-        <mesh geometry={hull} material={occluderMat} />
-      </group>
-      <group position={[COVE_MAST.x, groundY(COVE_MAST.x, COVE_MAST.z), COVE_MAST.z]} rotation={[0, COVE_MAST.rot, 0]}>
-        <mesh geometry={mast} material={flatMat} />
-      </group>
-      <group position={[COVE_CRATE.x, crateY, COVE_CRATE.z]} rotation={[0, COVE_CRATE.rot, 0]}>
-        <mesh geometry={sand} material={flatMat} />
-        <mesh geometry={crateBody} material={flatMat} position={[0, -0.3, 0]} />
-        <group ref={lid} position={[0, 0.48, -0.53]} rotation={[coveBoxOpened ? -1.9 : 0, 0, 0]}>
-          <mesh geometry={crateLid} material={flatMat} />
+      <mesh geometry={scenery} material={occluderMat} userData={{ cameraCollider: true }} />
+      <group ref={props}>
+        <group position={[COVE_CRATE.x, crateY, COVE_CRATE.z]} rotation={[0, COVE_CRATE.rot, 0]}>
+          <group ref={lid} position={[0, 0.48, -0.53]} rotation={[coveBoxOpened ? -1.9 : 0, 0, 0]}>
+            <mesh geometry={crateLid} material={flatMat} />
+          </group>
         </group>
+        <mesh ref={chestMesh} geometry={chest} material={flatMat}
+          position={[SEA_CHEST.x, groundY(SEA_CHEST.x, SEA_CHEST.z), SEA_CHEST.z]} rotation={[0, SEA_CHEST.rot, 0]} />
+        <mesh ref={barrelMesh} geometry={barrel} material={flatMat}
+          position={[COVE_BARREL.x, groundY(COVE_BARREL.x, COVE_BARREL.z), COVE_BARREL.z]} rotation={[0, COVE_BARREL.rot, 0]} />
       </group>
-      <mesh ref={chestMesh} geometry={chest} material={flatMat}
-        position={[SEA_CHEST.x, groundY(SEA_CHEST.x, SEA_CHEST.z), SEA_CHEST.z]} rotation={[0, SEA_CHEST.rot, 0]} />
-      <mesh ref={barrelMesh} geometry={barrel} material={flatMat}
-        position={[COVE_BARREL.x, groundY(COVE_BARREL.x, COVE_BARREL.z), COVE_BARREL.z]} rotation={[0, COVE_BARREL.rot, 0]} />
       <mesh ref={tide} material={tideMat} visible={!coveOpen}
         position={[(TIDE_WATER.x0 + TIDE_WATER.x1) / 2, tideY, TIDE_WATER.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
         <planeGeometry args={[TIDE_WATER.x1 - TIDE_WATER.x0 + 2, TIDE_WATER.half * 2 + 1.5]} />
       </mesh>
-      <Sign at={COVE_SIGN} label="COVE" yaw={-1.15} />
-      <Sign at={CAMP_SIGN} label="CAMP" yaw={1.25} />
-    </group>
-  );
-}
-
-function Sign({ at, label, yaw }: { at: { x: number; z: number }; label: string; yaw: number }) {
-  const post = useMemo(signPostGeometry, []);
-  const mat = useMemo(() => new THREE.MeshLambertMaterial({ map: labelTexture(label) }), [label]);
-  return (
-    <group position={[at.x, groundY(at.x, at.z), at.z]} rotation={[0, yaw, 0]}>
-      <mesh geometry={post} material={flatMat} />
-      <mesh material={mat} position={[0, 1.46, 0.101]}><planeGeometry args={[1.32, 0.42]} /></mesh>
     </group>
   );
 }
@@ -133,7 +182,8 @@ function Sign({ at, label, yaw }: { at: { x: number; z: number }; label: string;
 
 function Grove() {
   const groveOpen = useGame((s) => s.groveOpen);
-  const decor = useMemo(groveDecorGeometry, []);
+  // The bamboo ring and the BAMBOO sign's post: one static mesh.
+  const decor = useMemo(() => merged([groveDecorGeometry(), signPost(2)]), []);
   const thicket = useMemo(thicketGeometry, []);
   const stalk = useMemo(bambooStalkGeometry, []);
   const standing = useRef<THREE.Group>(null);
@@ -178,16 +228,14 @@ function Grove() {
       <group ref={falling} visible={false}>
         <mesh geometry={stalk} material={occluderMat} />
       </group>
-      <Sign at={GROVE_SIGN} label="BAMBOO" yaw={-1.2} />
     </group>
   );
 }
 
 // ------------------------------------------------------------------ structures
 
-/** One merged mesh of a structure's filled sockets. */
-function partsGeometry(sockets: readonly Socket[], parts: readonly string[], skip: (s: Socket) => boolean = () => false) {
-  const b = new PartBuilder(0.2);
+/** A structure's filled sockets as bamboo poles with rope lashings, added to a builder. */
+function addParts(b: PartBuilder, sockets: readonly Socket[], parts: readonly string[], skip: (s: Socket) => boolean = () => false) {
   for (const s of sockets) {
     if (!parts.includes(s.id) || skip(s)) continue;
     const r = s.kind === "leg" || s.kind === "post" ? 0.05 : 0.04;
@@ -197,7 +245,14 @@ function partsGeometry(sockets: readonly Socket[], parts: readonly string[], ski
       for (const e of [s.a, s.b]) b.sphere(0.06, e[0], e[1], e[2], "#c9a464", [1, 0.8, 1], 6);
     }
   }
-  return b.build();
+}
+
+/** Hidden with the camera far away: small camp things are a few pixels from the clifftop (draw-call budget). */
+function useNearCamera(ref: React.RefObject<THREE.Object3D | null>, x: number, z: number) {
+  const camera = useThree((st) => st.camera);
+  useFrame(() => {
+    if (ref.current) ref.current.visible = Math.hypot(camera.position.x - x, camera.position.z - z) < DETAIL_DISTANCE;
+  });
 }
 
 /** Where the dried fish hang on a rack (local), top bars first. */
@@ -207,14 +262,38 @@ const FISH_SLOTS: ReadonlyArray<readonly [number, number, number]> = [
   [0, RACK.shelf, -RACK.halfWidth], [0, RACK.shelf, RACK.halfWidth]
 ];
 
-function Rack({ b, fishGeo, driedMat }: { b: PlacedBuilding; fishGeo: THREE.BufferGeometry; driedMat: THREE.Material }) {
-  const key = (b.parts ?? []).join(",");
-  const geo = useMemo(() => partsGeometry(RACK_SOCKETS, b.parts ?? []), [key]);
+const DRIED = new THREE.Color("#a8692f");
+
+/** The rack's frame and its hanging fish (fresh or dried) as one mesh. */
+function rackGeometry(parts: readonly string[], fish: readonly number[], fishGeo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const b = new PartBuilder(0.2);
+  addParts(b, RACK_SOCKETS, parts);
+  const frame = b.build();
+  const hung = fish.slice(0, FISH_SLOTS.length).map((left, i) => {
+    const s = FISH_SLOTS[i];
+    const g = fishGeo.clone();
+    if (left <= 0) {
+      // Dried: flatter and brown.
+      g.scale(0.9, 0.7, 0.95);
+      const c = g.attributes.color;
+      for (let k = 0; k < c.count; k++) c.setXYZ(k, c.getX(k) * 0.25 + DRIED.r * 0.75, c.getY(k) * 0.25 + DRIED.g * 0.75, c.getZ(k) * 0.25 + DRIED.b * 0.75);
+    }
+    g.rotateX(-Math.PI / 2);
+    g.translate(s[0], s[1] - 0.26, s[2]);
+    return g;
+  });
+  return hung.length ? merged([frame, ...hung]) : frame;
+}
+
+function Rack({ b, fishGeo }: { b: PlacedBuilding; fishGeo: THREE.BufferGeometry }) {
+  const parts = b.parts ?? [];
+  const fish = b.fish ?? [];
+  const key = parts.join(",") + "|" + fish.map((left) => (left > 0 ? "f" : "d")).join("");
+  const geo = useMemo(() => rackGeometry(parts, fish, fishGeo), [key, fishGeo]);
   const frame = useRef<THREE.Group>(null);
   useFrame(() => {
     const f = frame.current;
     if (!f) return;
-    const parts = b.parts ?? [];
     const sway = rackSway(parts);
     // An unbraced frame racks over when touched; a braced one settles.
     const settle = rt.steadyT0.get(b.id);
@@ -224,19 +303,10 @@ function Rack({ b, fishGeo, driedMat }: { b: PlacedBuilding; fishGeo: THREE.Buff
     f.rotation.z = sway.along || loose < 1 ? w : 0;
     f.rotation.x = sway.across || loose < 1 ? w * 0.8 : 0;
   });
-  const fish = b.fish ?? [];
   return (
     <group position={[b.x, groundY(b.x, b.z), b.z]} rotation={[0, b.rot, 0]}>
       <group ref={frame}>
         <mesh geometry={geo} material={flatMat} />
-        {fish.map((left, i) => {
-          const s = FISH_SLOTS[i];
-          if (!s) return null;
-          return (
-            <mesh key={i} geometry={fishGeo} material={left > 0 ? smoothMat : driedMat}
-              position={[s[0], s[1] - 0.26, s[2]]} rotation={[-Math.PI / 2, 0, 0]} scale={left > 0 ? 1 : [0.9, 0.7, 0.95]} />
-          );
-        })}
       </group>
     </group>
   );
@@ -261,22 +331,33 @@ function canvasGeometry(heights: readonly number[]): THREE.BufferGeometry {
   return g;
 }
 
-function Catcher({ b, canvasMat, waterMat }: { b: PlacedBuilding; canvasMat: THREE.Material; waterMat: THREE.Material }) {
+function Catcher({ b, waterMat }: { b: PlacedBuilding; waterMat: THREE.Material }) {
   const parts = b.parts ?? [];
   const heights = b.heights ?? START_HEIGHTS;
   const key = parts.join(",");
   const hKey = heights.join(",");
-  const posts = useMemo(() => partsGeometry(CATCHER_SOCKETS, parts, (s) => s.kind === "canvas"), [key]);
-  const sheet = useMemo(() => canvasGeometry(heights), [hKey]);
-  const knots = useMemo(() => {
-    const k = new PartBuilder(0);
-    heights.forEach((h, i) => {
-      const [x, z] = CATCHER_CORNERS[i];
-      k.sphere(0.08, x, LASH_HEIGHTS[Math.max(0, Math.min(3, Math.round(h)))], z, "#c9a464", [1, 1.3, 1], 6);
-    });
-    return k.build();
-  }, [hKey]);
   const hasCanvas = parts.includes("canvas");
+  // Posts, lashing knots and the canvas (both faces) as one mesh, rebuilt when a part or a corner height changes.
+  const geo = useMemo(() => {
+    const k = new PartBuilder(0.2);
+    addParts(k, CATCHER_SOCKETS, parts, (s) => s.kind === "canvas");
+    if (hasCanvas) {
+      heights.forEach((h, i) => {
+        const [x, z] = CATCHER_CORNERS[i];
+        k.sphere(0.08, x, LASH_HEIGHTS[Math.max(0, Math.min(3, Math.round(h)))], z, "#c9a464", [1, 1.3, 1], 6);
+      });
+      k.add(canvasGeometry(heights), "#ece2c6", [0, 0, 0], [0, 0, 0], [1, 1, 1], { flatAo: true, vary: false });
+      const under = canvasGeometry(heights);
+      const idx = under.index!;
+      for (let i = 0; i < idx.count; i += 3) {
+        const a = idx.getX(i + 1);
+        idx.setX(i + 1, idx.getX(i + 2));
+        idx.setX(i + 2, a);
+      }
+      k.add(under, "#d3c7a3", [0, -0.004, 0], [0, 0, 0], [1, 1, 1], { flatAo: true, vary: false });
+    }
+    return k.build();
+  }, [key, hKey]);
   const streams = useRef<Array<THREE.Mesh | null>>([]);
   const puddles = useRef<Array<THREE.Mesh | null>>([]);
 
@@ -308,9 +389,7 @@ function Catcher({ b, canvasMat, waterMat }: { b: PlacedBuilding; canvasMat: THR
 
   return (
     <group position={[b.x, groundY(b.x, b.z), b.z]} rotation={[0, b.rot, 0]}>
-      <mesh geometry={posts} material={flatMat} />
-      {hasCanvas && <mesh geometry={sheet} material={canvasMat} />}
-      {hasCanvas && <mesh geometry={knots} material={flatMat} />}
+      <mesh geometry={geo} material={flatMat} />
       {[0, 1, 2, 3].map((i) => (
         <mesh key={i} ref={(el) => void (streams.current[i] = el)} material={waterMat} visible={false}>
           <cylinderGeometry args={[0.035, 0.05, 1, 6, 1, true]} />
@@ -326,7 +405,9 @@ function Catcher({ b, canvasMat, waterMat }: { b: PlacedBuilding; canvasMat: THR
 }
 
 function Barrel({ b, geo, waterMat }: { b: PlacedBuilding; geo: THREE.BufferGeometry; waterMat: THREE.Material }) {
+  const root = useRef<THREE.Group>(null);
   const water = useRef<THREE.Mesh>(null);
+  useNearCamera(root, b.x, b.z);
   useFrame(() => {
     const m = water.current;
     if (!m) return;
@@ -336,7 +417,7 @@ function Barrel({ b, geo, waterMat }: { b: PlacedBuilding; geo: THREE.BufferGeom
     m.position.y = 0.1 + (Math.min(BARREL.capacity, cups) / BARREL.capacity) * 0.8;
   });
   return (
-    <group position={[b.x, groundY(b.x, b.z), b.z]} rotation={[0, b.rot, 0]}>
+    <group ref={root} position={[b.x, groundY(b.x, b.z), b.z]} rotation={[0, b.rot, 0]}>
       <mesh geometry={geo} material={flatMat} />
       <mesh ref={water} material={waterMat} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
         <circleGeometry args={[0.34, 12]} />
@@ -345,22 +426,24 @@ function Barrel({ b, geo, waterMat }: { b: PlacedBuilding; geo: THREE.BufferGeom
   );
 }
 
+function StorageBox({ b, geo }: { b: PlacedBuilding; geo: THREE.BufferGeometry }) {
+  const box = useRef<THREE.Mesh>(null);
+  useNearCamera(box, b.x, b.z);
+  return <mesh ref={box} geometry={geo} material={flatMat} position={[b.x, groundY(b.x, b.z), b.z]} rotation={[0, b.rot, 0]} />;
+}
+
 function Structures() {
   const buildings = useGame((s) => s.buildings);
   const chest = useMemo(seaChestGeometry, []);
   const barrel = useMemo(barrelGeometry, []);
   const fishGeo = useMemo(caughtFishGeometry, []);
-  const driedMat = useMemo(() => new THREE.MeshLambertMaterial({ color: "#b8793c" }), []);
-  const canvasMat = useMemo(() => new THREE.MeshLambertMaterial({ color: "#ece2c6", side: THREE.DoubleSide }), []);
   const waterMat = useMemo(() => new THREE.MeshLambertMaterial({ color: "#7fd3ea", transparent: true, opacity: 0.75, depthWrite: false }), []);
   return (
     <group>
       {buildings.map((b) => {
-        if (b.type === "storage") {
-          return <mesh key={b.id} geometry={chest} material={flatMat} position={[b.x, groundY(b.x, b.z), b.z]} rotation={[0, b.rot, 0]} />;
-        }
-        if (b.type === "rack") return <Rack key={b.id} b={b} fishGeo={fishGeo} driedMat={driedMat} />;
-        if (b.type === "catcher") return <Catcher key={b.id} b={b} canvasMat={canvasMat} waterMat={waterMat} />;
+        if (b.type === "storage") return <StorageBox key={b.id} b={b} geo={chest} />;
+        if (b.type === "rack") return <Rack key={b.id} b={b} fishGeo={fishGeo} />;
+        if (b.type === "catcher") return <Catcher key={b.id} b={b} waterMat={waterMat} />;
         if (b.type === "barrel") return <Barrel key={b.id} b={b} geo={barrel} waterMat={waterMat} />;
         return null;
       })}
@@ -525,6 +608,7 @@ export function Chapter2World() {
       <group visible={!inCave}>
         <Cove />
         <Grove />
+        <SignLabels />
         <Structures />
         <Carried />
       </group>

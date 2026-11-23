@@ -13,6 +13,8 @@ import type { NodeDef } from "./island";
 
 /** The cove's sandy basin: an ellipse, clipped by the waterline and its cliffs. */
 export const COVE = { x: 64, z: 7.5, rx: 11.5, rz: 13, north: -4.2 } as const;
+/** The cove's small props and salvage are drawn only with the camera this close to the cove (draw-call budget). */
+export const DETAIL_DISTANCE = 60;
 
 /**
  * The tidal passage from the beach's east end through the headland. Flooded

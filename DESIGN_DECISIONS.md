@@ -214,11 +214,22 @@ gains the cove, the grove, the rack and the catcher, including rain.
   a corner the single lowest.
 - **Chapter 2 scenery is its own merged meshes** (`scene/Chapter2World.tsx`),
   not part of the 40 m vegetation tiles: the cove and the grove are each one
-  small area, so frustum culling of a few meshes does the same job. Measured
-  (SwiftShader 1024×768, `scripts/shots-ch2.mjs`): passage 58 calls / 84k
-  triangles, cove 49 / 39k, grove 46 / 98k, camp with rack, catcher and rain
-  107 / 165k. Bamboo node rings on background culms are open-ended and sparser
-  (the grove ring was 53k triangles before, 16k after).
+  small area. To keep the clifftop (the worst view) inside 120 draw calls:
+  everything static in the cove is one mesh; the grove ring and its sign post
+  are one mesh; the three new signs share one label texture (hidden beyond
+  45 m); bamboo is two instanced meshes (stalks, and stumps only once one is
+  cut); the cove's small props and salvage (crate lid, chest, barrel, canvas,
+  rope, metal) and the camp's storage box and barrel are not drawn with the
+  camera more than 60 m away (`DETAIL_DISTANCE`); a rack is one mesh with its
+  fish, and a rain catcher one mesh with its knots and both faces of its canvas.
+  Bamboo node rings on background culms are open-ended and sparser (the grove
+  ring was 53k triangles, then 16k).
+  Measured (SwiftShader 1024×768) calls / triangles: clifftop 111 / 156k before
+  Chapter 2 → 117 / 185k; clifftop with a full Day 8 camp 112 / 187k; camp at
+  night 99 / 151k → 102 / 173k (a full Chapter 2 camp at night 99 / 171k);
+  beach spawn 70 / 138k → 73 / 160k; cove 42 / 39k; grove 40 / 99k; camp in rain
+  93 / 161k. Rejected: joining the 40 m tiles, which would rebuild tiles when
+  the tide, thicket or crate change.
 - **Bamboo leaves are sprays of narrow drooping blades**, not cones (cones read
   as inverted green pyramids).
 - **Torn sails stand up on a broken spar**, so the canvas nodes read from across
