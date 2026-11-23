@@ -20,6 +20,7 @@ interface Rec {
   interimResults: boolean;
   maxAlternatives: number;
   continuous: boolean;
+  onstart: (() => void) | null;
   onresult: ((e: RecEvent) => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
