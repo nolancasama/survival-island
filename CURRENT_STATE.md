@@ -1,11 +1,12 @@
 # Current State
 
-## IN PROGRESS — Chapter 2 "A Better Camp" (Expansion Milestones 0–3), 2026-11-23
+## RELEASED — Chapter 2 "A Better Camp" (Expansion Milestones 0–3), 2026-11-23
 
-**Branch `feature/chapter2-better-camp`. NOT merged, NOT deployed. The live site and `main` (`813196e`) are unchanged.**
-The user asked for the expansion plan to be analysed, implemented and pushed live. Claude is building it directly
-(the user said "no codex"). The plan, review, conflicts and roadmap are in `EXPANSION_PLAN.md`. The frozen design is
-in `DESIGN_DECISIONS.md` "2026-11-23 — Chapter 2 (Milestones 1–3) design", including "Changes made while building".
+**Live.** Merged to `main` in PR #2 (merge commit `24831d5`); `deploy-pages` run 45094290079 succeeded, and the
+published bundle at https://nolancasama.github.io/survival-island/ was checked to contain the Chapter 2 build.
+CI on the final head: 187 unit tests, build, 43/43 e2e. Built by Claude directly (the user said "no codex").
+The plan, review and roadmap are in `EXPANSION_PLAN.md`; the frozen design and the changes made while building
+are in `DESIGN_DECISIONS.md` "2026-11-23 — Chapter 2 (Milestones 1–3) design".
 
 ### Done
 - **Logic, world, flows, saves (v4)** as designed: see the design section. Pure modules `logic/structures.ts`,
@@ -41,9 +42,13 @@ in `DESIGN_DECISIONS.md` "2026-11-23 — Chapter 2 (Milestones 1–3) design", i
   Start in one session closed it instead (fixed; e2e `microphone.spec.ts` covers a second showing).
 
 ### Next (in order)
-1. PR #2 (https://github.com/nolancasama/survival-island/pull/2): wait for its CI on the latest head, merge to `main`
-   (the user asked for it to go live), then confirm the `deploy-pages` run and the published site.
-2. Classroom trial of Days 6–8 on real Chromebooks (speech, audio, timing), as for Chapter 1.
+1. **Classroom trial of Days 6–8** on real Chromebooks: speech recognition of the new sentences, sound, frame
+   rate in the cove and in the rain, and whether students find the passage, the thicket and the catcher test.
+   Measurements so far are SwiftShader only.
+2. Fix what the trial shows. Known risks: Kai following the player's path can look odd on sharp turns; the
+   post-rescue framing of Chapter 2 is temporary (EXPANSION_PLAN.md A5).
+3. **Milestone 4 (Upper Stream and Water Distribution)** is outline-only in EXPANSION_PLAN.md Part III. It needs
+   a design pass frozen in DESIGN_DECISIONS.md before any building, as Chapter 2 had.
 
 ## Microphone startup and solid-object collision release — 2026-10-28
 
