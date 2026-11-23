@@ -22,6 +22,7 @@ import {
   shoreZ
 } from "../game/world/island";
 import { makeRng } from "../game/logic/rng";
+import { COVE_PASSAGE, GROVE, GROVE_TRAIL } from "../game/world/chapter2";
 import { BRIDGE_BASE_Y, BRIDGE_SURFACE } from "../game/world/surface";
 import { bridgeApproachGeometry } from "./models/bridge";
 import { flatMat, occluderMat, signTexture, smoothMat } from "./materials";
@@ -160,7 +161,14 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
       fog.near = 60 + clear * 65;
       fog.far = 230 + clear * 150;
     }
-    const key = cave ? -2 : l;
+    const rain = rt.rain.k;
+    if (!cave && scene.fog && rain > 0) {
+      // Chapter 2 rain closes the haze in.
+      const fog = scene.fog as THREE.Fog;
+      fog.near *= 1 - rain * 0.55;
+      fog.far *= 1 - rain * 0.45;
+    }
+    const key = cave ? -2 : l + rain * 3;
     if (Math.abs(key - last.current) < 0.0015) return;
     last.current = key;
     if (cave) {
@@ -189,6 +197,16 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
       ambient.current.intensity = 0.18;
     }
     const s = sample(l);
+    if (rain > 0) {
+      // Grey cloud cover: the sky flattens, the sun dims, the sea darkens.
+      s.top.lerp(c2.set("#7d8995"), rain * 0.7);
+      s.horizon.lerp(c2.set("#a3aeb8"), rain * 0.7);
+      s.sky.lerp(c2.set("#b3bcc6"), rain * 0.6);
+      s.sea.lerp(c2.set("#8f9ca8"), rain * 0.6);
+      s.sun.lerp(c2.set("#d9dee4"), rain * 0.6);
+      s.sunI *= 1 - rain * 0.6;
+      s.hemiI *= 1 - rain * 0.18;
+    }
     // Dome gradient: horizon colour near y = 0, top colour overhead.
     const pos = dome.attributes.position;
     const col = dome.attributes.color as THREE.BufferAttribute;
@@ -218,7 +236,7 @@ export function SkyAndLights({ seaMat }: { seaMat: THREE.MeshLambertMaterial }) 
       sunDisc.current.position.copy(dir).multiplyScalar(380);
       sunDisc.current.lookAt(0, 0, 0);
       discMat.color.copy(s.sun).lerp(c1.set("#ffffff"), 0.4);
-      sunDisc.current.visible = l > 0.08;
+      sunDisc.current.visible = l > 0.08 && rain < 0.4;
     }
     seaMat.color.copy(s.sea);
   });
@@ -248,6 +266,10 @@ const GRASS = new THREE.Color("#8cbf62");
 const FOREST = new THREE.Color("#4f8f45");
 const DEEP_FOREST = new THREE.Color("#3f7a3a");
 const FOREST_PATH = new THREE.Color("#78985b");
+/** Chapter 2: the bamboo clearing's yellowed leaf litter, the cove's grey sand and rock. */
+const GROVE_LITTER = new THREE.Color("#a8a55c");
+const COVE_SAND = new THREE.Color("#d9c9a1");
+const COVE_ROCK = new THREE.Color("#7d848b");
 
 const sstep = (a: number, b: number, v: number) => {
   const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
@@ -286,6 +308,23 @@ function terrainGeometry(): THREE.BufferGeometry {
         segDist(5, -34, 7.2, -42.2, x, z).d
       );
       c.lerp(FOREST_PATH, 1 - sstep(1.25, 2.8, pathD));
+      // Chapter 2: the grove trail and the bamboo clearing's leaf litter.
+      let trailD = Infinity;
+      for (let j = 1; j < GROVE_TRAIL.length; j++) trailD = Math.min(trailD, segDist(GROVE_TRAIL[j - 1].x, GROVE_TRAIL[j - 1].z, GROVE_TRAIL[j].x, GROVE_TRAIL[j].z, x, z).d);
+      c.lerp(FOREST_PATH, 1 - sstep(1.1, 2.6, trailD));
+      const gd = Math.hypot((x - GROVE.x) / GROVE.rx, (z - GROVE.z) / GROVE.rz);
+      c.lerp(GROVE_LITTER, 1 - sstep(0.85, 1.25, gd));
+    }
+    if (x > 34) {
+      // Chapter 2: the passage's wet sand and the cove's darker, rockier shore.
+      let passD = Infinity;
+      for (let j = 1; j < COVE_PASSAGE.length; j++) passD = Math.min(passD, segDist(COVE_PASSAGE[j - 1].x, COVE_PASSAGE[j - 1].z, COVE_PASSAGE[j].x, COVE_PASSAGE[j].z, x, z).d);
+      c.lerp(WET, 0.75 * (1 - sstep(1.2, 2.8, passD)));
+      if (x > 51) {
+        const cove = sstep(51, 55, x);
+        c.lerp(COVE_SAND, cove * (1 - sstep(-1, -5, z)) * 0.7);
+        c.lerp(COVE_ROCK, cove * Math.max(sstep(-3.4, -6, z), sstep(75, 78, x)));
+      }
     }
     const k = 0.95 + rand() * 0.07;
     colors[i * 3] = c.r * k;
@@ -630,7 +669,7 @@ function BridgeModel() {
   );
 }
 
-function labelTexture(label: string) {
+export function labelTexture(label: string) {
   const c = document.createElement("canvas");
   c.width = 256;
   c.height = 96;

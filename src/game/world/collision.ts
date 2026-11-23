@@ -3,6 +3,10 @@ import { CAVE_BOX, CAVE_CHAMBER, CAVE_CORRIDOR, CLIFF_PATH, CLIFF_PATH_R, CLIFFT
 import { BRIDGE_SURFACE } from "./surface";
 import { treeSpots, vegetationHash, vegetationStretch } from "../../scene/models/vegetationLayout";
 import { JUNGLE_ARCHETYPES } from "../../scene/models/vegetationBroadleaf";
+import {
+  CAMP_SIGN, COVE, COVE_CRATE, COVE_HULL, COVE_MAST, COVE_PASSAGE, COVE_PASSAGE_R, COVE_ROCKS, COVE_SIGN, GROVE, GROVE_SIGN, GROVE_TRAIL, GROVE_TRAIL_R,
+  clearForGrove, inCove, inCovePassage, inGrove, inGroveTrail
+} from "./chapter2";
 
 export interface Circle {
   x: number;
@@ -29,9 +33,13 @@ export interface WorldGates {
   bridgeBuilt: boolean;
   /** Omitted by legacy callers/fixtures: the cliff stays closed. Live sources pass the store fact. */
   cliffOpen?: boolean;
+  /** Chapter 2: low tide opens the passage to Shipwreck Cove (omitted = closed). */
+  coveOpen?: boolean;
+  /** Chapter 2: the bamboo thicket on the grove trail has been cut (omitted = closed). */
+  groveOpen?: boolean;
 }
 
-export const CLOSED_GATES: Readonly<WorldGates> = { pathCleared: false, bridgeBuilt: false, cliffOpen: false };
+export const CLOSED_GATES: Readonly<WorldGates> = { pathCleared: false, bridgeBuilt: false, cliffOpen: false, coveOpen: false, groveOpen: false };
 export const PLAYER_R = 0.35;
 
 const FOREST = { x0: -28, x1: 27, z0: -42, z1: -3.1 };
@@ -44,12 +52,29 @@ const CAVE_ROOM = {
   z0: CAVE_CHAMBER.z - CAVE_CHAMBER.depth / 2, z1: CAVE_CHAMBER.z + CAVE_CHAMBER.depth / 2
 };
 
-/** Render and collision derive from the same deterministic forest positions. */
-const jungleTrunks: Circle[] = treeSpots().trees.map((spot, index) => {
+/**
+ * Render and collision derive from the same deterministic forest positions.
+ * Trees on the Chapter 2 grove trail are skipped by their original index, so
+ * no other tree changes.
+ */
+const jungleTrunks: Circle[] = treeSpots().trees.flatMap((spot, index) => {
+  if (clearForGrove(spot.x, spot.z)) return [];
   const archetype = JUNGLE_ARCHETYPES[vegetationHash(index) % JUNGLE_ARCHETYPES.length];
   const stretchX = vegetationStretch(index)[0];
-  return { x: spot.x, z: spot.z, r: Math.max(0.16, archetype.trunkRadius * 1.22 * spot.s * stretchX) };
+  return [{ x: spot.x, z: spot.z, r: Math.max(0.16, archetype.trunkRadius * 1.22 * spot.s * stretchX) }];
 });
+
+/** Chapter 2 fixed obstacles: the cove's rocks, wreck, mast and crate, and the signs. */
+const mastPieces: Circle[] = [-0.42, -0.14, 0.14, 0.42].map((t) => ({
+  x: COVE_MAST.x + Math.cos(COVE_MAST.rot) * t * COVE_MAST.length,
+  z: COVE_MAST.z - Math.sin(COVE_MAST.rot) * t * COVE_MAST.length,
+  r: 0.32
+}));
+const chapterTwoCircles: Circle[] = [
+  ...COVE_ROCKS.map((r) => ({ x: r.x, z: r.z, r: r.r * 0.9 })),
+  ...mastPieces,
+  ...[COVE_SIGN, CAMP_SIGN, GROVE_SIGN].map((s) => ({ x: s.x, z: s.z, r: 0.18 }))
+];
 
 /** Fixed obstacles. Buildings and Kai are added at runtime. */
 export const STATIC_OBSTACLES: Obstacles = {
@@ -59,11 +84,14 @@ export const STATIC_OBSTACLES: Obstacles = {
     ...NODES.filter((n) => n.kind === "tree").map((n) => ({ x: n.x, z: n.z, r: 0.45 })),
     ...jungleTrunks,
     { x: LEAN_TO.x, z: LEAN_TO.z, r: LEAN_TO.r },
-    { x: KAI_HOME.x - 1.2, z: KAI_HOME.z + 1.3, r: 0.55 }
+    { x: KAI_HOME.x - 1.2, z: KAI_HOME.z + 1.3, r: 0.55 },
+    ...chapterTwoCircles
   ],
   rects: [
     WRECK, { x: CRATE.x, z: CRATE.z, hw: CRATE.half, hd: CRATE.half, rot: CRATE.rot },
-    { x: CAVE_BOX.x, z: CAVE_BOX.z, hw: 0.85, hd: 0.6, rot: CAVE_BOX.rot }
+    { x: CAVE_BOX.x, z: CAVE_BOX.z, hw: 0.85, hd: 0.6, rot: CAVE_BOX.rot },
+    COVE_HULL,
+    { x: COVE_CRATE.x, z: COVE_CRATE.z, hw: COVE_CRATE.half, hd: COVE_CRATE.half, rot: COVE_CRATE.rot }
   ]
 };
 
@@ -110,7 +138,11 @@ export function isWalkable(x: number, z: number, gates: WorldGates = CLOSED_GATE
   if (inRect(x, z, CAVE_ROOM, margin) || inRect(x, z, CAVE_CORRIDOR, margin)) return true;
   const beach = x >= BOUNDS.x0 + margin && x <= BOUNDS.x1 - margin && z >= BOUNDS.z0 + margin && z <= maxZ(x) - margin;
   if (beach) return true;
+  // Chapter 2: the tidal passage and Shipwreck Cove, open at low tide.
+  if (gates.coveOpen && (inCovePassage(x, z, margin) || inCove(x, z, margin, maxZ))) return true;
   if (!gates.pathCleared) return false;
+  // Chapter 2: the trail past the bamboo thicket and the grove clearing.
+  if (gates.groveOpen && (inGroveTrail(x, z, margin) || inGrove(x, z, margin))) return true;
   if (inRect(x, z, GAP, margin) || inRect(x, z, FOREST, margin) || inRect(x, z, CAVE_NOTCH, margin)) return true;
   if (gates.cliffOpen && (inCliffPath(x, z, margin) || Math.hypot(x - CLIFFTOP.x, z - CLIFFTOP.z) <= CLIFFTOP.r - margin)) return true;
   if (!gates.bridgeBuilt) return false;
@@ -177,6 +209,26 @@ function clampPondClearing(x: number, z: number, r: number): { x: number; z: num
   return { x: px, z: pz };
 }
 
+/** Nearest point of an ellipse shrunk by r. */
+function clampEllipse(x: number, z: number, r: number, cx: number, cz: number, rx0: number, rz0: number): { x: number; z: number } {
+  const rx = Math.max(0.01, rx0 - r);
+  const rz = Math.max(0.01, rz0 - r);
+  let dx = x - cx;
+  let dz = z - cz;
+  const e = Math.hypot(dx / rx, dz / rz);
+  if (e > 1) {
+    dx /= e;
+    dz /= e;
+  }
+  return { x: cx + dx, z: cz + dz };
+}
+
+/** Nearest point of the cove's sand: its ellipse, its cliff line and the waterline. */
+function clampCove(x: number, z: number, r: number): { x: number; z: number } {
+  const p = clampEllipse(x, z, r, COVE.x, COVE.z, COVE.rx, COVE.rz);
+  return { x: p.x, z: Math.max(COVE.north + r, Math.min(maxZ(p.x) - r, p.z)) };
+}
+
 /** Nearest point in the union of currently open island regions. */
 export function clampToWalkable(x: number, z: number, r = 0, gates: WorldGates = CLOSED_GATES): { x: number; z: number } {
   if (isWalkable(x, z, gates, r)) return { x, z };
@@ -184,6 +236,22 @@ export function clampToWalkable(x: number, z: number, r = 0, gates: WorldGates =
   const bx = Math.max(BOUNDS.x0 + r, Math.min(BOUNDS.x1 - r, x));
   const candidates = [{ x: bx, z: Math.max(BOUNDS.z0 + r, Math.min(maxZ(bx) - r, z)) }];
   candidates.push(clampRect(x, z, r, CAVE_ROOM), clampRect(x, z, r, CAVE_CORRIDOR));
+  const capsule = (a: { x: number; z: number }, b: { x: number; z: number }, radius: number) => {
+    const p = nearestOnSegment(x, z, a, b);
+    const d = Math.hypot(x - p.x, z - p.z);
+    const keep = Math.max(0, radius - r);
+    const scale = d > keep ? keep / d : 1;
+    candidates.push({ x: p.x + (x - p.x) * scale, z: p.z + (z - p.z) * scale });
+  };
+  if (gates.coveOpen) {
+    for (let i = 1; i < COVE_PASSAGE.length; i++) capsule(COVE_PASSAGE[i - 1], COVE_PASSAGE[i], COVE_PASSAGE_R);
+    candidates.push(clampCove(x, z, r));
+  }
+  if (gates.pathCleared && gates.groveOpen) {
+    const last = GROVE_TRAIL.length - 1;
+    capsule(GROVE_TRAIL[last - 1], GROVE_TRAIL[last], GROVE_TRAIL_R);
+    candidates.push(clampEllipse(x, z, r, GROVE.x, GROVE.z, GROVE.rx, GROVE.rz));
+  }
   if (gates.pathCleared) {
     candidates.push(clampRect(x, z, r, GAP), clampRect(x, z, r, FOREST), clampRect(x, z, r, CAVE_NOTCH));
     if (gates.cliffOpen) {

@@ -17,7 +17,11 @@ export const FOOTPRINT: Record<BuildingId, number> = {
   shelter: 1.8,
   storage: 0.7,
   cooking: 0.9,
-  fence: 0.6
+  fence: 0.6,
+  // Chapter 2: the drying rack (2 × 1 m), the rain catcher (2.4 m square) and the barrel.
+  rack: 1.25,
+  catcher: 1.75,
+  barrel: 0.45
 };
 
 export interface PlacedBuilding {
@@ -29,6 +33,35 @@ export interface PlacedBuilding {
   lit?: boolean;
   /** Shelter only: false while it is a placed frame, true after "Build a shelter." */
   built?: boolean;
+  /** Rack and rain catcher: the sockets filled so far (see logic/structures.ts). */
+  parts?: string[];
+  /** Rain catcher: the lashing notch of each corner post. */
+  heights?: number[];
+  /** Barrel: cups of collected rain water. */
+  water?: number;
+  /** Rack: seconds left on each hanging fish (0 = dried). */
+  fish?: number[];
+}
+
+/** Structures are open frames: their solid parts are rects (the rack) and posts (the catcher). */
+export function buildingObstacles(buildings: readonly PlacedBuilding[]): Obstacles {
+  const circles: Obstacles["circles"] = [];
+  const rects: Obstacles["rects"] = [];
+  for (const b of buildings) {
+    if (b.type === "rack") {
+      rects.push({ x: b.x, z: b.z, hw: 1.0, hd: 0.5, rot: b.rot });
+    } else if (b.type === "catcher") {
+      // Only the four posts stop you; the barrel stands at a corner, under the canvas edge.
+      const c = Math.cos(b.rot);
+      const s = Math.sin(b.rot);
+      for (const [lx, lz] of [[-1.2, -1.2], [1.2, -1.2], [1.2, 1.2], [-1.2, 1.2]]) {
+        circles.push({ x: b.x + lx * c + lz * s, z: b.z - lx * s + lz * c, r: 0.14 });
+      }
+    } else {
+      circles.push({ x: b.x, z: b.z, r: FOOTPRINT[b.type] * 0.85 });
+    }
+  }
+  return { circles, rects };
 }
 
 export type PlaceProblem = "water" | "edge" | "blocked";
@@ -52,9 +85,6 @@ export function cameraForwardYaw(cameraYaw: number): number {
   return cameraYaw + Math.PI;
 }
 
-export function buildingObstacles(buildings: readonly PlacedBuilding[]): Obstacles {
-  return { circles: buildings.map((b) => ({ x: b.x, z: b.z, r: FOOTPRINT[b.type] * 0.85 })), rects: [] };
-}
 
 /**
  * Why a building cannot go here, or null if it can.

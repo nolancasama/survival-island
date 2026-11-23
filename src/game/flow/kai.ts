@@ -10,6 +10,7 @@ import { ask, say } from "./ask";
 import { refreshQuest, save, showBeacons, showPlaces, showStepTarget } from "./session";
 import { sendKaiAhead } from "./escape";
 import { sleepPlace } from "./days";
+import { coveMorning, groveMorning, helpChapterTwo, rainMorning } from "./chapter2";
 import { audio } from "../../audio/audio";
 
 /**
@@ -67,6 +68,7 @@ export async function talkToKai() {
     else if (g.quest.day === 3) await helpDayThree();
     else if (g.quest.day === 4) await helpDayFour();
     else if (g.quest.day === 5) await helpDayFive();
+    else if (g.quest.day >= 6 && g.quest.day <= 8) await helpChapterTwo(g.quest.day);
     else await whatDoYouNeed();
   } finally {
     endConversation();
@@ -84,6 +86,10 @@ export async function morningTalk(day: number) {
     else if (day === 3) await dayThreeMorning();
     else if (day === 4) await dayFourMorning();
     else if (day === 5) await dayFiveMorning();
+    else if (day === 6) await coveMorning();
+    else if (day === 7) await groveMorning();
+    else if (day === 8) await rainMorning();
+    else if (day > 8) await say("kai", "Good morning! When it rains, our barrel gets water.", "おはよう！ あめが ふると、 たるに みずが たまるよ。");
     else await say("kai", "Good morning! Let's explore the island!", "おはよう！ しまを たんけんしよう！");
   } finally {
     endConversation();
@@ -113,6 +119,19 @@ export async function dayThreeThanks() {
   const g = getGame();
   if (g.quest.day === 4) {
     await say("kai", "Tomorrow we go home!", "あしたは いえに かえろう！");
+    return;
+  }
+  // Chapter 2 evenings look back at the day's improvement.
+  if (g.quest.day === 6) {
+    await say("kai", "Our camp has a big box now!", "キャンプに おおきな はこが できたね！");
+    return;
+  }
+  if (g.quest.day === 7) {
+    await say("kai", "Dried fish! Now we have food for later.", "ほしざかな！ これで あとの たべものも あるね。");
+    return;
+  }
+  if (g.quest.day === 8) {
+    await say("kai", "Rain water at our camp! We did it!", "キャンプで あまみずが ためられた！ やったね！");
     return;
   }
   if (g.quest.day !== 3) return;
@@ -177,6 +196,8 @@ async function dayThreeMorning() {
     }
     await teachContainer();
   }
+  // Safe water (2026-11-23): collected water is boiled before drinking.
+  await say("kai", "Boil the water at the fire before you drink it.", "のむ まえに 火で みずを わかそうね。");
   const targets = !waterFirst && !getGame().crateOpened ? [BRIDGE.id, CRATE.id] : [BRIDGE.id];
   showPlaces(targets);
   await bridgeNeedsLine();
@@ -380,10 +401,15 @@ async function helpDayThree() {
     case "water":
       showPond(WATER_SPOTS.map((spot) => spot.id));
       await say("kai", "Get some water at the pond!", "いけで みずを くもう！");
+      await say("kai", "Then boil it at the fire. Then it's safe to drink.", "それから 火で わかそう。 そうすれば あんぜんに のめるよ。");
+      return;
+    case "boil":
+      showPlaces(g.buildings.filter((b) => b.type === "campfire").map((b) => b.id));
+      await say("kai", "Boil the water at the fire. Pond water can make you sick!", "火で みずを わかそう。 いけの みずは そのままだと おなかを こわすよ！");
       return;
     case "drink":
-      if (count(g.bag, "water") === 0) showPond(WATER_SPOTS.map((spot) => spot.id));
-      await say("kai", "Drink the water from your bag!", "かばんの みずを のもう！");
+      if (count(g.bag, "boiledWater") === 0 && count(g.bag, "water") === 0) showPond(WATER_SPOTS.map((spot) => spot.id));
+      await say("kai", "Drink the boiled water from your bag!", "かばんの わかした みずを のもう！");
       return;
     case "rod":
       if (count(g.bag, "rope") === 0 && !g.crateOpened) {

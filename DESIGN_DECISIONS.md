@@ -1,5 +1,256 @@
 # Design Decisions
 
+## 2026-11-23 — Chapter 2 (Milestones 1–3) design
+
+The user supplied a long-term expansion plan (`EXPANSION_PLAN.md`, Part B) and
+asked for it to be analysed, adjusted at Claude's discretion, implemented and
+deployed. Claude built it directly ("no codex"). The review and its reasons
+are in `EXPANSION_PLAN.md` Part A. This section is the frozen design that
+Chapter 2 was built against. Final coordinates are recorded in the world
+section after it.
+
+### Where it lives
+
+- **Chapter 2 "A Better Camp" is Days 6–8, after the rescue.**
+  `LAST_STORY_DAY` becomes 8; Day 9 onward is free play. The Rescue card's
+  button becomes **"Chapter 2 →"** (test id still `keep-exploring`). Rejected:
+  missions inside Days 1–5, because they break the frozen one-lesson classroom
+  target; optional side quests during the story, because they add a second
+  objective track. The chapter's steps check world facts, so it can later move
+  before the cave days when the rescue moves to the end of the story.
+- **A Chapter 2 start on the title screen** (a teacher button, under Start)
+  begins Day 6 with Chapter 1 complete. That means a camp (a lit campfire and a
+  built tent beside Kai's lean-to), every Chapter 1 recipe and sentence known,
+  and the tools in the bag. It replaces the saved game, as Start does.
+- **Old saves:** v3 saves migrate to `si.save.v4`. A v3 save in free play
+  (Day ≥ 6, made before Chapter 2) resumes at the Day 6 morning with
+  everything it had, following the earlier v2→v3 precedent.
+
+### Day 6: Shipwreck Cove (Milestone 1)
+
+Morning (Kai): "Good morning! Let's make our camp better!" / "Our bags are
+full. We need a big box." / "Look! The water is low. We can walk to the next
+cove!" (`coveOpen`; a short camera look at the passage) / "Let's go! I'll meet
+you there." Kai walks his authored route to the cove. Steps:
+
+1. **Go to the cove.** Done on first entering the cove.
+2. **Ask Kai.** With Kai in the cove, the first use of each kind of salvage
+   (the big box, the barrel, canvas, rope, metal) is a question: **"What is
+   this?"** Kai names it and says what it is for ("It's canvas. It keeps the
+   rain out."). After that, the same thing is simply gathered.
+3. **Open the box.** A half-buried cove crate: **"Open the box."** It is a new
+   box, so it asks even though Day 1 taught the sentence (the cave-box
+   precedent). It gives +2 rope and +1 canvas.
+4. **Get canvas** (counted: 2 at normal pace, 1 in classroom mode). Torn sails
+   on the wreck: **"Get the canvas."** Rope coils: **"Get the rope."** Old
+   metal parts give a second metal source.
+5. **Bring the big box to camp.** At the sea chest: **"Carry the box."** The
+   player strains: **"It's too heavy."** Then **"Can you help me?"** (Day 5's
+   sentence turned into a real request). Kai takes the other end: **"Let's go
+   back."** The pair walks back slowly. Kai follows the path the player has
+   walked, about 1.8 m behind. The box can be put down only at camp (within
+   15 m of the tent or a campfire). **"Put it here."** turns it into the
+   camp's **storage box**: the bag then holds 20 of each thing instead of 10
+   (`BASE_STACK` was always meant to grow with a storage box). Kai then asks
+   **"What did you find?"**: "I found a rope." / "I found canvas." / "I found
+   a box." No answer is wrong, and each gets its own reply.
+6. **Sleep.**
+
+- "Pick it up." from the plan became "Carry the box." "Pick up" is not target
+  vocabulary, but speech still accepts it.
+- **"I need a box."** joins the "I need…" menu on Day 6 and lights the sea
+  chest, or the cove passage from the beach.
+- **Carrying:** a carried object is drawn in the hands (alone) or between the
+  pair. Movement slows to 0.6× walking speed, with no running and no other
+  actions. A save while carrying restores the carry. The barrel (Day 8) is
+  carried alone: **"Carry the barrel."**
+
+### Day 7: Bamboo Grove (Milestone 2)
+
+Morning: "Good morning! Fish go bad fast. Let's dry fish on a rack!" / "We
+need bamboo poles. Get nine poles." (icons) / "Bamboo grows in the forest. But
+it's very thick." The thicket is lit. Steps:
+
+1. **Cut the bamboo.** A bamboo thicket closes a new branch off the forest's
+   east side. With the axe: **"Cut the bamboo."** It falls aside and the grove
+   opens (`groveOpen`). Before Day 7 the thicket is only scenery.
+2. **Get bamboo poles** (counted: 9). Harvestable stalks need the axe. Each one
+   falls (a visible tip-over), gives poles (3 at normal pace, 5 in classroom
+   mode) and grows back like trees.
+3. **Put the rack down.** Talking to Kai with enough poles: "What do you want
+   to make?" → **"Let's build a rack."** Kai gives the rack frame (the stakes),
+   placed with the usual preview (walk to move it, R to turn it, E to put it
+   down).
+4. **Build the rack.** Socket construction. The open socket nearest the player
+   glows as a translucent pole; walking round the frame chooses the side. E
+   puts the pole in: **"Put it here."** the first time, then quick. Legs come
+   first (4 long poles), then the top bars (2 long, 2 short). A short socket
+   with only long poles shows the pole sticking out: **"It's too long."** Then
+   the pole is cut, and one long pole makes two short ones. A long socket with
+   only short poles: **"It's too short."** Frame complete = 4 legs + 4 bars.
+5. **Make it strong.** An unbraced frame wobbles ("It's shaking!"). Braces are
+   diagonal long poles, one per face, on any of the 4 faces. It becomes stable
+   once at least one long face and one short face are braced, because racking
+   needs stopping in both directions. Bracing two faces in the same direction
+   leaves it wobbling. An optional lower shelf (2 long bars) adds 2 drying
+   places (4 → 6).
+6. **Dry a fish.** At the stable rack, with a raw fish (Kai gives one if the
+   bag has none): **"Put the fish on the rack."** It hangs and dries in 45 s
+   of live play (25 s in classroom mode) into **dried fish**, which can be
+   eaten without a fire (food 35).
+7. **Sleep.**
+
+The plan's "Get three poles." is Kai's listening line ("Get nine poles."), and
+its "Move it left." moved to Day 8 (the barrel), where moving something left
+is a real need.
+
+### Day 8: Rain (Milestone 3)
+
+Dawn is raining. It is scripted, never random. The open campfire has gone out.
+Morning: "Good morning! … Oh!" Kai asks **"How's the weather?"** → **"It's
+raining."** / "Our fire is out. And the pond is far." / Kai asks **"What do we
+need?"** → **"We need water."** / "Rain is water! Let's catch the rain!" Kai
+gives the rain catcher frame and says what it needs: four poles, two canvas,
+one rope, and the barrel from the cove. Steps:
+
+1. **Get bamboo poles** (counted: 4). The rack used Day 7's poles, so the
+   student goes back to the grove.
+2. **Bring the barrel to camp.** In the cove: **"Carry the barrel."** It is
+   carried alone, and **"Put it here."** sets it down anywhere.
+3. **Put the rain catcher down.** The preview places a 2.4 × 2.4 m frame.
+4. **Build the rain catcher.** Four corner posts go into sockets (long poles).
+   Then, at the middle, **"Put it here."** stretches the canvas (2 canvas and
+   1 rope at normal pace, 1 canvas and 1 rope in classroom mode).
+5. **Catch the rain.** Each corner has three lashing heights: low 0.75 m,
+   middle 1.25 m, high 1.75 m. It starts flat, with every corner at the middle.
+   E at a corner offers **"Make it higher."** / **"Make it lower."** (a choice,
+   said or tapped, every time, because each one is a decision). E at the
+   barrel beside the catcher offers **"Move it left."** / **"Move it right."**
+   (0.4 m along the camera's right) / "Carry the barrel." E at the middle
+   tests it: Kai asks **"How is it?"** → "The water is flowing." / "It doesn't
+   work." / "It's too low." The game knows which is true. A right answer gets
+   agreement; a wrong one gets "Look again!". After "It doesn't work." or
+   "It's too low." comes **"Let's try again."** and then Kai's hint for the
+   actual problem. Done once every stream falls into the barrel and at least
+   one cup has been caught.
+6. **Boil water.** The rain stops 20 s after it works (10 s in classroom
+   mode); until then the rain waits. Relight the fire ("Make a fire."). A lit
+   campfire refuses to light in the rain. Then **"Boil the water."**
+7. **Sleep.**
+
+**The flow model** (pure, unit-tested, `logic/structures.ts`): water runs to
+the lowest corner(s). If every corner is level, it stays on the canvas: a
+sagging puddle, drips everywhere, nothing caught. Otherwise each lowest corner
+gets an equal share and pours just outside that corner. A stream is caught if
+it lands within the barrel's mouth (radius 0.32 m + 0.1 m) and its corner is
+above the rim (0.95 m). A low corner (0.75 m) is "too low": it pours against
+the barrel's side and is lost. Efficiency is the caught share: 1, ½, ⅓ or 0.
+Rain fills the barrel at 1 cup per 6 s × efficiency, up to 12 cups. A full
+barrel overflows with a visible splash. The barrel's water is saved. Taking it
+needs the cup: **"Get some water."** gives water, which must be boiled. Many
+valid set-ups work: any corner can be the low one, and the barrel can stand
+under any outlet.
+
+**Rain** has a scene weight, `rainK`, that eases from 0 to 1. It draws one
+camera-following batch of streaks, grey sky and fog, dimmer light and a soft
+noise loop. An exposed lit campfire goes out after 4 s of rain. From Day 9 on,
+free play has a fixed shower every day (clock t 0.25–0.33, about 55 s). Showers
+fill the barrel, put out open fires and never block anything. There is no rain
+on Days 1–7.
+
+### Safe water (all days)
+
+All collected water, from the pond or the barrel, is **water** until it is
+boiled. At a lit campfire with water in the bag: **"Boil the water."** turns
+all of it into **boiled water** (わかした みず), which is the only water that
+can be drunk. Tapping unboiled water says "Boil it first!". Day 3 gains a step
+between Get water and Drink water: **Boil water**. In v3 saves, water becomes
+boiled water, and a save that already drank counts its boil step as done.
+Rejected: requiring boiling only for rainwater, which would teach that pond
+water is safer than rain.
+
+### English added in Chapter 2
+
+Student sentences: "What is this?", "Open the box." (again), "Get the
+canvas.", "Get the rope.", "Carry the box.", "It's too heavy.", "Can you help
+me?" (again), "Let's go back.", "Put it here.", "I found a rope." / "I found
+canvas." / "I found a box.", "I need a box.", "Cut the bamboo.", "Let's build
+a rack.", "It's too long.", "It's too short.", "Put the fish on the rack.",
+"I need poles.", "It's raining.", "We need water.", "Carry the barrel.", "Make
+it higher.", "Make it lower.", "Move it left.", "Move it right.", "The water
+is flowing.", "It doesn't work.", "It's too low.", "Let's try again.", "Boil
+the water.". Kai's new questions are target English with no gloss: "What did
+you find?", "How's the weather?", "What do we need?", "How is it?". The rules
+from Phases 1–3 hold. The first success makes an action quick. Kai's
+questions have no wrong answer, except the catcher test, whose answer is what
+the student can see. Mic-free mode shows a picture and three sentences.
+"Found" (past tense) is the one Grade 6 extension.
+
+### Saves (v4)
+
+New facts: `coveOpen`, `groveOpen`, `reachedCove`, `coveBoxOpened`, `asked`
+(the salvage kinds asked about), `chestTaken`, `barrelTaken`, `carry`
+(`chest` / `barrel` / null), `boiled`, `rainCaught`. Kai remembers `found`.
+New buildings: `storage`, `rack` (`parts`, drying `fish` timers), `catcher`
+(`parts`, `heights`), `barrel` (`water`). Items: `water` now means collected, unboiled water. The new
+`boiledWater` is the drinkable one, and v3 `water` becomes boiled water. Also
+new: `canvas`, `pole`, `shortPole`, `driedFish`, and the `rack` / `catcher`
+frame kits.
+
+### Budgets and tests
+
+The same Chromebook budget applies: 120 draw calls and 200k triangles in the
+worst view. Both areas join the 40 m tiles. Pure logic gets unit tests:
+structures, flow, weather, the save migration, walkability and stack limits.
+A tapping playthrough e2e spec covers Days 6–8. The world screenshot script
+gains the cove, the grove, the rack and the catcher, including rain.
+
+### Changes made while building (2026-11-23)
+
+- **Four lashing notches, not three:** 0.7, 1.1, 1.5 and 1.9 m, starting at
+  1.1 m. Lowering a fresh corner once puts it below the rim (0.95 m), so "It's
+  too low." is still one tap away, and the other corners have two notches of
+  room to go higher. Rejected: three heights, which leave only one way to make
+  a corner the single lowest.
+- **Chapter 2 scenery is its own merged meshes** (`scene/Chapter2World.tsx`),
+  not part of the 40 m vegetation tiles: the cove and the grove are each one
+  small area. To keep the clifftop (the worst view) inside 120 draw calls:
+  everything static in the cove is one mesh; the grove ring and its sign post
+  are one mesh; the three new signs share one label texture (hidden beyond
+  45 m); bamboo is two instanced meshes (stalks, and stumps only once one is
+  cut); the cove's small props and salvage (crate lid, chest, barrel, canvas,
+  rope, metal) and the camp's storage box and barrel are not drawn with the
+  camera more than 60 m away (`DETAIL_DISTANCE`); a rack is one mesh with its
+  fish, and a rain catcher one mesh with its knots and both faces of its canvas.
+  Bamboo node rings on background culms are open-ended and sparser (the grove
+  ring was 53k triangles, then 16k).
+  Measured (SwiftShader 1024×768) calls / triangles: clifftop 111 / 156k before
+  Chapter 2 → 117 / 185k; clifftop with a full Day 8 camp 112 / 187k; camp at
+  night 99 / 151k → 102 / 173k (a full Chapter 2 camp at night 99 / 171k);
+  beach spawn 70 / 138k → 73 / 160k; cove 42 / 39k; grove 40 / 99k; camp in rain
+  93 / 161k. Rejected: joining the 40 m tiles, which would rebuild tiles when
+  the tide, thicket or crate change.
+- **Bamboo leaves are sprays of narrow drooping blades**, not cones (cones read
+  as inverted green pyramids).
+- **Torn sails stand up on a broken spar**, so the canvas nodes read from across
+  the cove; flat on the sand they disappeared.
+- **Co-carrying:** the player leads with the chest behind them, hands reaching
+  back; Kai faces the player across it, 1.8 m back along the player's path.
+- **Buildings.tsx draws only campfires and tents**; the Chapter 2 buildings
+  are drawn by Chapter2World (it had been drawing a campfire under each).
+- **The title's Chapter 2 start is a secondary button** under Start, labelled
+  "Chapter 2" (test id `chapter-two`).
+- **The chest can rest anywhere**, not only at camp: "Put it here." away from
+  camp sets it down ("Take it to the camp!"), and it is lifted again with Kai.
+  The bag only grows to 20 once the box stands at camp. Rejected: refusing to
+  put it down outside camp, which strands a pair that walked the wrong way.
+  The chest comes down between the pair with no clearance ring round the
+  player's feet (the old 0.3 m ring made it impossible to put down at all).
+- **A strong rack's own action wins the focus** when it has a fish to hang or
+  dried fish to take (a 2 m focus bias). Its open shelf sockets are always
+  nearer than its middle, so without this the rack could never be used.
+  Spare brace sockets stop being offered once the rack is strong.
+
 ## 2026-10-27 — Targeted polish pass
 
 - Standing/lying changes use the single screen overlay through `flow/transition.ts`.

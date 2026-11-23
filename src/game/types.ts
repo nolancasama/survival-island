@@ -8,7 +8,12 @@ export type ItemId =
   | "fish"
   | "grilledFish"
   | "water"
+  | "boiledWater"
+  | "driedFish"
   | "metal"
+  | "canvas"
+  | "pole"
+  | "shortPole"
   | "axe"
   | "rod"
   | "container"
@@ -16,19 +21,21 @@ export type ItemId =
   | "radio"
   | "campfire"
   | "shelter"
-  | "signalFire";
+  | "signalFire"
+  | "rack"
+  | "catcher";
 
 /** Craftable outputs (each recipe makes one of these). */
 export type CraftId = "axe" | "campfire" | "rod" | "container" | "shelter" | "torch" | "signalFire";
 
 /** Things placed in the world with the building preview. */
-export type BuildingId = "campfire" | "shelter" | "storage" | "cooking" | "fence";
+export type BuildingId = "campfire" | "shelter" | "storage" | "cooking" | "fence" | "rack" | "catcher" | "barrel";
 
 /**
  * Collectible node kinds in the world. "wood" is driftwood or a fallen log
  * (no tool); "tree" is a standing tree that needs the stone axe.
  */
-export type NodeKind = "wood" | "stone" | "coconut" | "leaves" | "tree" | "metal";
+export type NodeKind = "wood" | "stone" | "coconut" | "leaves" | "tree" | "metal" | "canvas" | "rope" | "bamboo";
 
 /** What one gather of a node gives. */
 export const NODE_YIELD: Record<NodeKind, { item: ItemId; n: number }> = {
@@ -37,8 +44,13 @@ export const NODE_YIELD: Record<NodeKind, { item: ItemId; n: number }> = {
   coconut: { item: "coconut", n: 1 },
   leaves: { item: "leaves", n: 2 },
   tree: { item: "wood", n: 2 },
-  /** Old ship parts in the cave (Phase 3). */
-  metal: { item: "metal", n: 1 }
+  /** Old ship parts in the cave (Phase 3) and in Shipwreck Cove (Chapter 2). */
+  metal: { item: "metal", n: 1 },
+  /** Chapter 2 salvage: torn sails and rope coils in Shipwreck Cove. */
+  canvas: { item: "canvas", n: 1 },
+  rope: { item: "rope", n: 1 },
+  /** A bamboo stalk in the grove (needs the axe). Classroom pace gives more (see pace.ts). */
+  bamboo: { item: "pole", n: 3 }
 };
 
 export type Bag = Partial<Record<ItemId, number>>;
@@ -66,8 +78,16 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   /** Raw: cook it at a lit campfire first. */
   fish: { id: "fish", en: "fish", ja: "さかな", kind: "resource" },
   grilledFish: { id: "grilledFish", en: "grilled fish", ja: "やきざかな", kind: "food", food: 40 },
-  water: { id: "water", en: "water", ja: "みず", kind: "food", food: 5, stamina: 30 },
+  /** Collected water (pond or rain): boil it at a lit campfire before drinking. */
+  water: { id: "water", en: "water", ja: "みず", kind: "resource" },
+  /** The only water that can be drunk. */
+  boiledWater: { id: "boiledWater", en: "boiled water", ja: "わかした みず", kind: "food", food: 5, stamina: 30 },
+  /** Dried on the rack (Chapter 2): eaten without a fire. */
+  driedFish: { id: "driedFish", en: "dried fish", ja: "ほしざかな", kind: "food", food: 35 },
   metal: { id: "metal", en: "metal", ja: "てつ", kind: "resource" },
+  canvas: { id: "canvas", en: "canvas", ja: "ぬの", kind: "resource" },
+  pole: { id: "pole", en: "bamboo pole", ja: "たけの ぼう", kind: "resource" },
+  shortPole: { id: "shortPole", en: "short pole", ja: "みじかい ぼう", kind: "resource" },
   axe: { id: "axe", en: "stone axe", ja: "いしの おの", kind: "tool" },
   rod: { id: "rod", en: "fishing rod", ja: "つりざお", kind: "tool" },
   container: { id: "container", en: "cup", ja: "カップ", kind: "tool" },
@@ -76,23 +96,33 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   radio: { id: "radio", en: "radio", ja: "ラジオ", kind: "tool" },
   campfire: { id: "campfire", en: "campfire", ja: "たきび", kind: "building", places: "campfire" },
   shelter: { id: "shelter", en: "tent", ja: "テント", kind: "building", places: "shelter" },
-  signalFire: { id: "signalFire", en: "signal fire", ja: "のろし", kind: "building" }
+  signalFire: { id: "signalFire", en: "signal fire", ja: "のろし", kind: "building" },
+  /** Chapter 2 frame kits (stakes and string): placed, then built part by part. */
+  rack: { id: "rack", en: "drying rack", ja: "ほしだな", kind: "building", places: "rack" },
+  catcher: { id: "catcher", en: "rain catcher", ja: "あまみず あつめ", kind: "building", places: "catcher" }
 };
 
 /** Order of items in the hotbar. */
 export const ITEM_ORDER: ItemId[] = [
   "coconut",
   "grilledFish",
+  "driedFish",
   "fish",
+  "boiledWater",
   "water",
   "wood",
   "stone",
   "leaves",
   "rope",
   "metal",
+  "canvas",
+  "pole",
+  "shortPole",
   "campfire",
   "shelter",
   "signalFire",
+  "rack",
+  "catcher",
   "axe",
   "rod",
   "container",

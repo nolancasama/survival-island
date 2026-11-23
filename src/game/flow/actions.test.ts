@@ -25,7 +25,8 @@ vi.mock("../../audio/audio", () => ({
     setVolumes: vi.fn(),
     startAmbience: vi.fn(),
     startMusic: vi.fn(),
-    setDaylight: vi.fn()
+    setDaylight: vi.fn(),
+    setRain: vi.fn()
   }
 }));
 vi.mock("../../audio/tts", () => ({ tts: { setRate: vi.fn() } }));
@@ -120,12 +121,18 @@ describe("Day 3 actions", () => {
     expect(getGame().bag.water).toBe(2);
     expect(prompts.ask).toHaveBeenCalledTimes(1);
 
+    // Collected water is not drunk until it is boiled.
     await eatItem("water");
+    expect(getGame().drank).toBe(0);
+    expect(getGame().bag.water).toBe(2);
+    setGame({ bag: { container: 1, boiledWater: 2 } });
+
+    await eatItem("boiledWater");
     expect(getGame().drank).toBe(1);
     expect(rt.stats.stamina).toBe(45);
     await eatFirst();
     expect(getGame().drank).toBe(2);
-    expect(getGame().bag.water).toBeUndefined();
+    expect(getGame().bag.boiledWater).toBeUndefined();
     expect(rt.stats.stamina).toBe(75);
     expect(getGame().quest.done).toEqual(expect.arrayContaining(["water", "drink"]));
     expect(prompts.ask.mock.calls.map(([request]) => request.options[0])).toEqual(["getWater", "drinkWater"]);

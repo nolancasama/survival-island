@@ -180,7 +180,8 @@ await call("setInCave", true);
 await requireState("cave entry teleport did not complete", (s, p) => s.inCave && Math.hypot(s.player.x - p.x, s.player.z - p.z) < 0.5, world.caveEntry);
 await frame(world.caveEntry.x, world.caveEntry.z, world.caveChamber.x, world.caveChamber.z, 0.38, 7);
 await shot("cave-entry");
-const metal = world.nodes.filter((n) => n.kind === "metal");
+// Cave metal only (Chapter 2 adds two old metal parts in the cove).
+const metal = world.nodes.filter((n) => n.kind === "metal" && n.x > 980 && n.x < 1020 && n.z > 960 && n.z < 1020);
 if (metal.length !== 3) throw new Error("HARNESS_PRECONDITION_FAILED: expected three cave metal nodes");
 for (const node of metal) await call("setTaken", node.id, false);
 await requireState("cave metal nodes were not restored", (s, ids) => ids.every((id) => !s.taken.includes(id)), metal.map((n) => n.id));

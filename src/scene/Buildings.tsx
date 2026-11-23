@@ -8,6 +8,8 @@ import { CRATE, NODES, groundY } from "../game/world/island";
 import { SIGNAL_PAD } from "../game/world/phase3";
 import { STATIC_OBSTACLES } from "../game/world/collision";
 import { FOOTPRINT, buildingObstacles, cameraForwardYaw, placeProblem, previewSpot, type PlacedBuilding } from "../game/world/placement";
+import { currentGates, worldPropObstacles } from "../game/flow/places";
+import { CATCHER, RACK } from "../game/logic/structures";
 import { audio } from "../audio/audio";
 import { PartBuilder } from "./partBuilder";
 import { additiveSprite, occluderMat } from "./materials";
@@ -172,6 +174,8 @@ export function Buildings() {
   return (
     <group>
       {buildings.map((b) => {
+        // Chapter 2 structures (storage, rack, catcher, barrel) are drawn by Chapter2World.
+        if (b.type !== "campfire" && b.type !== "shelter") return null;
         const shelter = b.type === "shelter";
         return (
           <group key={b.id} position={[b.x, groundY(b.x, b.z), b.z]} rotation={[0, b.rot, 0]}>
@@ -230,6 +234,19 @@ function FireLight() {
   return <pointLight ref={light} color="#ff9a4a" intensity={0} distance={12} decay={1.4} />;
 }
 
+/** Four corner stakes joined by a string outline (a frame kit before its parts go in). */
+function stakesGeometry(hx: number, hz: number): THREE.BufferGeometry {
+  const b = new PartBuilder(0);
+  const corners: Array<[number, number]> = [[-hx, -hz], [hx, -hz], [hx, hz], [-hx, hz]];
+  for (const [x, z] of corners) b.cyl(0.05, 0.06, 0.55, x, 0, z, "#ffffff", 6);
+  for (let i = 0; i < 4; i++) {
+    const [ax, az] = corners[i];
+    const [cx, cz] = corners[(i + 1) % 4];
+    b.boxAt(Math.hypot(cx - ax, cz - az), 0.03, 0.03, [(ax + cx) / 2, 0.3, (az + cz) / 2], [0, Math.atan2(-(cz - az), cx - ax), 0], "#ffffff");
+  }
+  return b.build();
+}
+
 /** Transparent preview while placing: green where it fits, red where it does not. */
 function Preview({
   fireGeo,
@@ -247,6 +264,11 @@ function Preview({
   const footprintRing = useRef<THREE.Mesh>(null);
   const ghost = useMemo(() => new THREE.MeshBasicMaterial({ color: "#6dff8a", transparent: true, opacity: 0.55, depthWrite: false }), []);
   const ring = useMemo(() => new THREE.MeshBasicMaterial({ color: "#6dff8a", transparent: true, opacity: 0.5, depthWrite: false }), []);
+  // Chapter 2 frame kits: stakes at the corners where the legs or posts will stand.
+  const rackKit = useRef<THREE.Mesh>(null);
+  const catcherKit = useRef<THREE.Mesh>(null);
+  const rackStakes = useMemo(() => stakesGeometry(RACK.halfLength, RACK.halfWidth), []);
+  const catcherStakes = useMemo(() => stakesGeometry(CATCHER.half, CATCHER.half), []);
   const green = useMemo(() => new THREE.Color("#6dff8a"), []);
   const red = useMemo(() => new THREE.Color("#ff5a4a"), []);
   useFrame(() => {
@@ -257,7 +279,9 @@ function Preview({
     r.visible = Boolean(placing);
     if (!placing || !g.placing) return;
     const type = ITEMS[g.placing.item].places!;
-    if (fire.current) fire.current.visible = type !== "shelter";
+    if (fire.current) fire.current.visible = type === "campfire";
+    if (rackKit.current) rackKit.current.visible = type === "rack";
+    if (catcherKit.current) catcherKit.current.visible = type === "catcher";
     if (frame.current) frame.current.visible = type === "shelter";
     if (roof.current) roof.current.visible = type === "shelter";
     const p = rt.player;
@@ -272,9 +296,9 @@ function Preview({
       type,
       spot.x,
       spot.z,
-      [STATIC_OBSTACLES, buildingObstacles(g.buildings)],
+      [STATIC_OBSTACLES, buildingObstacles(g.buildings), worldPropObstacles()],
       keepClear,
-      { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt, cliffOpen: g.cliffOpen }
+      currentGates()
     );
     rt.place.x = spot.x;
     rt.place.z = spot.z;
@@ -293,6 +317,8 @@ function Preview({
       <mesh ref={fire} geometry={fireGeo} material={ghost} />
       <mesh ref={frame} geometry={shelterFrame} material={ghost} visible={false} />
       <mesh ref={roof} geometry={shelterRoof} material={ghost} visible={false} />
+      <mesh ref={rackKit} geometry={rackStakes} material={ghost} visible={false} />
+      <mesh ref={catcherKit} geometry={catcherStakes} material={ghost} visible={false} />
       <mesh ref={footprintRing} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]} material={ring}>
         <ringGeometry args={[0.92, 1, 32]} />
       </mesh>

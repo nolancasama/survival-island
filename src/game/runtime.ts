@@ -121,7 +121,28 @@ export const rt = {
   /** Live (unrounded) survival stats; the store holds a rounded copy for the HUD. */
   stats: { ...START_STATS } as Stats,
   /** Metres walked since the start (hides the movement hint). */
-  walked: 0
+  walked: 0,
+  /** Chapter 2: rain weight 0..1 (eased), and seconds of rain each lit fire has taken. */
+  rain: { k: 0, onFire: new Map<string, number>() },
+  /**
+   * Chapter 2 carrying: the player's recent path (Kai follows it when the pair
+   * carries the chest), and when the lift started (the strain and lift poses).
+   */
+  carry: { trail: [] as Array<{ x: number; z: number }>, liftT0: -100, strainT0: -100 },
+  /** Chapter 2 animation starts: the tide going out, the thicket falling, the cove crate opening. */
+  coveOpenT0: -1,
+  groveOpenT0: -1,
+  coveBoxOpenT0: -1,
+  /** Bamboo node id -> time it was cut (the stalk tips over). */
+  bambooFall: new Map<string, number>(),
+  /** `buildingId:socketId` -> time the part snapped in. */
+  partT0: new Map<string, number>(),
+  /** Building id -> when its stability changed (the wobble settles / the done sparkle). */
+  steadyT0: new Map<string, number>(),
+  /** The catcher test: when Kai's test started, and which catcher. */
+  test: { id: "", t0: -100 },
+  /** Live time when Day 8's catcher first caught every stream (the rain stops after a while). */
+  catcherWorkedAt: -1
 };
 
 let floaterId = 1;
@@ -183,4 +204,14 @@ export function resetRuntime() {
   rt.automaticHintCount = 0;
   rt.stats = { ...START_STATS };
   rt.walked = 0;
+  rt.rain.k = 0;
+  rt.rain.onFire.clear();
+  rt.carry.trail = [];
+  rt.carry.liftT0 = rt.carry.strainT0 = -100;
+  rt.coveOpenT0 = rt.groveOpenT0 = rt.coveBoxOpenT0 = -1;
+  rt.bambooFall.clear();
+  rt.partT0.clear();
+  rt.steadyT0.clear();
+  rt.test = { id: "", t0: -100 };
+  rt.catcherWorkedAt = -1;
 }

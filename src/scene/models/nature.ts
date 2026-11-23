@@ -110,7 +110,9 @@ export function farIslandGeometry(): THREE.BufferGeometry {
   // Headlands at both ends of the beach.
   b.add(rockGeometry(9, 6, 50, 1), "#8f8a7f", [-46, -1, 10]);
   b.add(rockGeometry(7, 9, 51, 1), "#4f8f4a", [-48, 1.5, -2]);
-  b.add(rockGeometry(9, 6, 52, 1), "#8f8a7f", [46, -1, 12]);
+  // The east headland rock stands further out to sea since Chapter 2, so the
+  // tidal passage to Shipwreck Cove runs between it and the green hill.
+  b.add(rockGeometry(7, 6, 52, 1), "#8f8a7f", [48.8, -1, 19.6]);
   b.add(rockGeometry(8, 9, 53, 1), "#4f8f4a", [48, 1.5, 0]);
   return b.build();
 }

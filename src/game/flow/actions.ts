@@ -19,22 +19,42 @@ import { CAVE_BOX } from "../world/phase3";
 import { focusPosition } from "./focus";
 import { audio } from "../../audio/audio";
 import { UI } from "../../ui/i18n";
+import type { IconId } from "../../ui/icons";
+import {
+  askAbout, boilWater, carry, cutGroveGate, openCoveCrate, putDown, rainingOnFire, testCatcher, useBarrel, useCorner, useRack, useSocket
+} from "./chapter2";
+import { askKindOf, type AskKind } from "./chapter2Focus";
+import { COVE_BARREL, GROVE_GATE, SEA_CHEST } from "../world/chapter2";
 
 /** What the student says to collect from a node, until it is known (then it is quick). */
-const GATHER: Record<NodeKind, PhraseId> = { wood: "getWood", stone: "getStone", coconut: "getCoconut", leaves: "getLeaves", tree: "cutTree", metal: "getMetal" };
-const EAT: Partial<Record<ItemId, PhraseId>> = { coconut: "eatCoconut", grilledFish: "eatFish" };
-const GATHER_SOUND: Record<NodeKind, "wood" | "stone" | "coconut" | "leaves" | "chop" | "metal"> = {
+const GATHER: Record<NodeKind, PhraseId> = {
+  wood: "getWood", stone: "getStone", coconut: "getCoconut", leaves: "getLeaves", tree: "cutTree", metal: "getMetal",
+  canvas: "getCanvas", rope: "getRope", bamboo: "cutBamboo"
+};
+const EAT: Partial<Record<ItemId, PhraseId>> = { coconut: "eatCoconut", grilledFish: "eatFish", driedFish: "eatFish" };
+const GATHER_SOUND: Record<NodeKind, "wood" | "stone" | "coconut" | "leaves" | "chop" | "metal" | "rope"> = {
   wood: "wood",
   stone: "stone",
   coconut: "coconut",
   leaves: "leaves",
   tree: "chop",
-  metal: "metal"
+  metal: "metal",
+  canvas: "leaves",
+  rope: "rope",
+  bamboo: "chop"
 };
 
 const canAct = () => {
   const g = getGame();
   return g.screen === "game" && g.mode === "explore" && !g.settingsOpen;
+};
+
+/** Hands full: nothing is crafted or placed while carrying something big. */
+const handsFree = () => {
+  if (!getGame().carry) return true;
+  audio.play("error");
+  toast({ en: "Put it down first!", ja: "さきに おろそう！", tone: "info" });
+  return false;
 };
 
 function faceTarget(x: number, z: number) {
@@ -78,6 +98,31 @@ export async function interact() {
       return catchFish(f.id);
     case "sign":
       return readSign(f.id);
+    // Chapter 2.
+    case "ask": {
+      const node = NODE_BY_ID.get(f.id);
+      const kind: AskKind | null = f.id === SEA_CHEST.id ? "chest" : f.id === COVE_BARREL.id ? "barrel" : node ? askKindOf(node.kind) : null;
+      if (kind && pos) return askAbout(f.id, kind, pos);
+      return;
+    }
+    case "coveCrate":
+      return openCoveCrate();
+    case "carry":
+      return carry(f.id);
+    case "putDown":
+      return putDown();
+    case "groveGate":
+      return cutGroveGate();
+    case "socket":
+      return useSocket(f.id);
+    case "corner":
+      return useCorner(f.id);
+    case "test":
+      return testCatcher(f.id);
+    case "rack":
+      return useRack(f.id);
+    case "barrel":
+      return useBarrel(f.id);
   }
 }
 
@@ -138,15 +183,16 @@ async function getWater(id: string) {
   refreshQuest();
 }
 
+/** Only boiled water is drunk (safe water, 2026-11-23). */
 async function drinkWater() {
-  if (count(getGame().bag, "water") === 0) return;
+  if (count(getGame().bag, "boiledWater") === 0) return;
   if (!getGame().known.includes("drinkWater")) {
-    const said = await ask({ kind: "command", options: ["drinkWater"], picture: "water", cancellable: true, readSentence: true });
+    const said = await ask({ kind: "command", options: ["drinkWater"], picture: "boiledWater", cancellable: true, readSentence: true });
     if (!said) return;
   }
-  const bag = removeAll(getGame().bag, { water: 1 });
+  const bag = removeAll(getGame().bag, { boiledWater: 1 });
   if (!bag) return;
-  rt.stats = consume(rt.stats, ITEMS.water);
+  rt.stats = consume(rt.stats, ITEMS.boiledWater);
   syncStats();
   rt.player.action = { kind: "drink", t0: rt.time };
   rt.player.frozenUntil = rt.time + 0.75;
@@ -269,7 +315,7 @@ async function gather(nodeId: string) {
     toast({ ...UI.full, icon: item, tone: "warn" });
     return;
   }
-  if (n.kind === "tree" && needAxe()) return;
+  if ((n.kind === "tree" || n.kind === "bamboo") && needAxe()) return;
   const phrase = GATHER[n.kind];
   if (!getGame().known.includes(phrase)) {
     const said = await ask({ kind: "command", options: [phrase], picture: n.kind === "tree" ? "tree" : item, cancellable: true, readSentence: true });
@@ -278,11 +324,13 @@ async function gather(nodeId: string) {
   if (rt.taken.has(nodeId)) return;
   rt.taken.set(nodeId, RESPAWN_S[n.kind]);
   rt.beacons.ids = rt.beacons.ids.filter((id) => id !== nodeId);
-  const chop = n.kind === "tree";
+  const chop = n.kind === "tree" || n.kind === "bamboo";
+  // A cut bamboo stalk tips over (Chapter 2); classroom pace gives more poles per stalk.
+  if (n.kind === "bamboo") rt.bambooFall.set(nodeId, rt.time);
   rt.player.action = { kind: chop ? "chop" : "gather", t0: rt.time };
   rt.player.frozenUntil = rt.time + (chop ? 0.75 : 0.45);
   rt.stats = spend(rt.stats, chop ? 4 : 3);
-  const added = addItem(getGame().bag, item, amount);
+  const added = addItem(getGame().bag, item, n.kind === "bamboo" ? pace(getGame().settings.classroom).bambooYield : amount);
   setGame({ bag: added.bag });
   audio.play(GATHER_SOUND[n.kind]);
   floatText(`+${added.added} ${ITEMS[item].en}`, n.x, groundY(n.x, n.z) + (chop ? 1.8 : 1.1), n.z);
@@ -358,22 +406,33 @@ function useCampfire(id: string) {
   if (!b) return;
   if (!b.lit) return lightFire(id);
   if (count(getGame().bag, "fish") > 0) return cookAtFire(id);
+  if (count(getGame().bag, "water") > 0) return boilWater(id);
   return trySleep(b);
 }
 
-/** F: eat the first food in the bag (in hotbar order). Water is drunk, not eaten. */
+/** F: eat the first food in the bag (in hotbar order). Boiled water is drunk, not eaten. */
 export function eatFirst() {
   const bag = getGame().bag;
   const food = ITEM_ORDER.find((id) => ITEMS[id].food && count(bag, id) > 0);
   return eatItem(food ?? "coconut");
 }
 
+/** Collected water must be boiled first (the bag says so instead of drinking it). */
+function boilFirst() {
+  audio.play("full");
+  toast({ en: "Boil it first! Use a fire.", ja: "さきに 火で わかそう！", icon: "boiledWater", tone: "info" });
+}
+
 /** F / tapping food in the bag. */
 export async function eatItem(item: ItemId = "coconut") {
   if (!canAct()) return;
-  if (item === "water") {
+  if (item === "boiledWater") {
     setGame({ selected: null });
     return drinkWater();
+  }
+  if (item === "water") {
+    setGame({ selected: null });
+    return boilFirst();
   }
   const def = ITEMS[item];
   if (!def.food || count(getGame().bag, item) === 0) return;
@@ -454,7 +513,7 @@ async function readSign(id: string) {
 // ---------------------------------------------------------------- crafting
 
 export function openCraft() {
-  if (!canAct()) return;
+  if (!canAct() || !handsFree()) return;
   audio.play("tick");
   setGame({ craftOpen: true, mode: "craft", craftPulse: false, selected: null });
 }
@@ -501,6 +560,7 @@ export function startPlacing(item: ItemId) {
   const g = getGame();
   if (!ITEMS[item].places || count(g.bag, item) === 0) return;
   if (g.mode !== "explore" && g.mode !== "craft") return;
+  if (!handsFree()) return;
   rt.place.rot = 0;
   rt.place.visible = true;
   // Not placeable until the preview has been checked on its first frame (never a stale "ok").
@@ -555,6 +615,8 @@ export function confirmPlacing() {
 async function lightFire(id: string) {
   const b = getGame().buildings.find((x) => x.id === id);
   if (!b || b.lit) return;
+  // Chapter 2: an open fire will not light in the rain.
+  if (rainingOnFire()) return;
   const said = await ask({ kind: "command", options: ["makeFire"], picture: "fire", cancellable: true, readSentence: true });
   if (!said) return;
   setGame({ buildings: getGame().buildings.map((x) => (x.id === id ? { ...x, lit: true } : x)) });
@@ -587,7 +649,10 @@ function stepNeeds(): PhraseId[] {
       for (const item of Object.keys(short) as ItemId[]) add(SHORT_NEED[item]);
     }
     if (step.id === "bridge") add("needWood");
-    if (step.id === "water" || step.id === "drink") add("needWater");
+    if (step.id === "water" || step.id === "drink" || step.id === "boil" || step.id === "boilRain") add("needWater");
+    // Chapter 2.
+    if (step.id === "carryBox") add("needBox");
+    if (step.id === "poles") add("needPoles");
   }
   return out;
 }
@@ -617,7 +682,7 @@ export async function needs() {
     cancellable: true
   });
   if (!said) return;
-  const look = (icon: ItemId | "moon") => toast({ en: "Look!", ja: "ひかっている ところを みて！", icon, tone: "info" });
+  const look = (icon: IconId) => toast({ en: "Look!", ja: "ひかっている ところを みて！", icon, tone: "info" });
   if (said === "sleep") {
     const bed = sleepPlace();
     if (bed) {
@@ -627,10 +692,29 @@ export async function needs() {
     return;
   }
   if (said === "needWater") {
-    // The pond's water spots; while a gate is closed, the gate on the way there.
+    // A barrel with rain water first; else the pond's water spots, or the gate on the way there.
     const g = getGame();
-    showPlaces(g.inCave ? ["caveExit"] : !g.pathCleared ? [FALLEN_TREE.id] : !g.bridgeBuilt ? [BRIDGE.id] : WATER_SPOTS.map((s) => s.id));
+    const barrels = g.buildings.filter((b) => b.type === "barrel" && (b.water ?? 0) >= 1).map((b) => b.id);
+    showPlaces(g.inCave ? ["caveExit"] : barrels.length ? barrels : !g.pathCleared ? [FALLEN_TREE.id] : !g.bridgeBuilt ? [BRIDGE.id] : WATER_SPOTS.map((s) => s.id));
     look("water");
+    return;
+  }
+  if (said === "needBox") {
+    const g = getGame();
+    const storage = g.buildings.filter((b) => b.type === "storage").map((b) => b.id);
+    const inCove = rt.player.x > 50;
+    showPlaces(storage.length ? storage : !g.chestTaken && (inCove || !g.coveOpen) ? [inCove ? SEA_CHEST.id : "covePassage"] : ["covePassage"]);
+    look("box");
+    return;
+  }
+  if (said === "needPoles") {
+    const g = getGame();
+    if (!g.groveOpen) {
+      showPlaces([GROVE_GATE.id]);
+      look("pole");
+      return;
+    }
+    if (showBeacons("bamboo")) look("pole");
     return;
   }
   const kind = NEED_KIND[said];
@@ -645,6 +729,10 @@ export function useItem(item: ItemId) {
     if (!canAct()) return;
     toast({ en: "Cook it first!", ja: "さきに やこう！", icon: "grilledFish", tone: "info" });
     return;
+  }
+  if (item === "water" && count(getGame().bag, item) > 0) {
+    if (!canAct()) return;
+    return boilFirst();
   }
   const def = ITEMS[item];
   if (def.food) return eatItem(item);

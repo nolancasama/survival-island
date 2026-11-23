@@ -2,13 +2,25 @@ import type { Bag, ItemId } from "../types";
 
 /** Most of one thing the bag holds before a storage box is built. */
 export const BASE_STACK = 10;
+/** With the storage box at camp (Chapter 2) the bag holds twice as much. */
+export const STORAGE_STACK = 20;
+
+let liveLimit = BASE_STACK;
+/** The game sets the live stack limit from its buildings (a storage box doubles it). */
+export function setStackLimit(limit: number): void {
+  liveLimit = limit;
+}
+/** Most of one thing the bag holds right now. */
+export function stackLimit(): number {
+  return liveLimit;
+}
 
 export function count(bag: Bag, item: ItemId): number {
   return bag[item] ?? 0;
 }
 
 /** Add up to `n` of an item. Never exceeds `limit`; reports how many fitted. */
-export function addItem(bag: Bag, item: ItemId, n = 1, limit = BASE_STACK): { bag: Bag; added: number } {
+export function addItem(bag: Bag, item: ItemId, n = 1, limit = liveLimit): { bag: Bag; added: number } {
   const have = count(bag, item);
   const added = Math.max(0, Math.min(n, limit - have));
   if (added === 0) return { bag, added: 0 };
@@ -41,6 +53,6 @@ export function removeAll(bag: Bag, needs: Bag): Bag | null {
   return out;
 }
 
-export function isFull(bag: Bag, item: ItemId, limit = BASE_STACK): boolean {
+export function isFull(bag: Bag, item: ItemId, limit = liveLimit): boolean {
   return count(bag, item) >= limit;
 }

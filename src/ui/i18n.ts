@@ -1,4 +1,5 @@
 import { pace, recipeNeeds } from "../game/logic/pace";
+import { CANVAS_GOAL } from "../game/logic/quest";
 
 /**
  * Instruction text. Japanese is optional help (Settings → にほんごの ヒント)
@@ -18,6 +19,8 @@ export function hints(classroom: boolean): Record<string, { keys: Bi; touch: Bi 
   const rod = recipeNeeds("rod", classroom);
   const signalFire = recipeNeeds("signalFire", classroom);
   const bridgeWood = pace(classroom).bridgeNeeds.wood ?? 0;
+  const canvasGoal = classroom ? CANVAS_GOAL.classroom : CANVAS_GOAL.normal;
+  const catcherCanvas = pace(classroom).catcherCanvas;
   return {
     move: {
       keys: { en: "Walk: WASD / arrows · Run: Shift · Look: drag", ja: "WASD・やじるしで あるく ／ Shiftで はしる ／ ドラッグで みまわす" },
@@ -158,6 +161,79 @@ export function hints(classroom: boolean): Record<string, { keys: Bi; touch: Bi 
     micBlocked: {
       keys: { en: "The microphone is off. Choose the sentences.", ja: "マイクが つかえないので、ぶんを えらんで こたえよう" },
       touch: { en: "The microphone is off. Tap the sentences.", ja: "マイクが つかえないので、ぶんを タップして こたえよう" }
+    },
+    boil: {
+      keys: { en: "Take the water to a lit fire. Press E to boil it.", ja: "みずを もって もえている 火へ。E で わかそう" },
+      touch: { en: "Take the water to a lit fire. Tap the hand to boil it.", ja: "みずを もって もえている 火へ。てを タップして わかそう" }
+    },
+    // ---- Chapter 2 (Days 6–8)
+    cove: {
+      keys: { en: "The water is low! Walk east along the beach to the cove.", ja: "しおが ひいたよ！ すなはまを ひがしへ あるいて いりえへ" },
+      touch: { en: "The water is low! Walk east along the beach to the cove.", ja: "しおが ひいたよ！ すなはまを ひがしへ あるいて いりえへ" }
+    },
+    askKai: {
+      keys: { en: "Find something new near Kai. Press E and ask: “What is this?”", ja: "カイの ちかくで あたらしい ものを みつけて、E で「What is this?」" },
+      touch: { en: "Find something new near Kai. Tap the hand and ask: “What is this?”", ja: "カイの ちかくで あたらしい ものを みつけて、てを タップして「What is this?」" }
+    },
+    coveBox: {
+      keys: { en: "A box is in the sand! Walk to it and press E.", ja: "すなに はこが うまってる！ ちかくで E を おそう" },
+      touch: { en: "A box is in the sand! Walk to it and tap the hand.", ja: "すなに はこが うまってる！ ちかくで てを タップ" }
+    },
+    canvas: {
+      keys: { en: `Get ${canvasGoal} canvas from the torn sails. Press E.`, ja: `やぶれた ほから ぬのを ${canvasGoal}まい あつめよう。E を おそう` },
+      touch: { en: `Get ${canvasGoal} canvas from the torn sails. Tap the hand.`, ja: `やぶれた ほから ぬのを ${canvasGoal}まい あつめよう。てを タップ` }
+    },
+    carryBox: {
+      keys: { en: "Walk to the big box and press E. Ask Kai for help!", ja: "おおきな はこへ いって E。カイに てつだってもらおう！" },
+      touch: { en: "Walk to the big box and tap the hand. Ask Kai for help!", ja: "おおきな はこへ いって てを タップ。カイに てつだってもらおう！" }
+    },
+    carrying: {
+      keys: { en: "Walk slowly to camp. Press E to put it down.", ja: "ゆっくり キャンプへ。E で おろそう" },
+      touch: { en: "Walk slowly to camp. Tap the hand to put it down.", ja: "ゆっくり キャンプへ。てを タップして おろそう" }
+    },
+    grove: {
+      keys: { en: "Take your axe to the thick bamboo in the forest. Press E.", ja: "おのを もって もりの たけやぶへ。E を おそう" },
+      touch: { en: "Take your axe to the thick bamboo in the forest. Tap the hand.", ja: "おのを もって もりの たけやぶへ。てを タップ" }
+    },
+    poles: {
+      keys: { en: "Cut tall bamboo for poles. Press E near a bamboo plant.", ja: "せの たかい たけを きって ぼうを あつめよう。ちかくで E" },
+      touch: { en: "Cut tall bamboo for poles. Tap the hand near a bamboo plant.", ja: "せの たかい たけを きって ぼうを あつめよう。ちかくで てを タップ" }
+    },
+    rackSite: {
+      keys: { en: "Talk to Kai at camp. Then walk to move it, R to turn, E to put it down.", ja: "キャンプで カイと はなそう。あるいて うごかし、R で まわし、E で おく" },
+      touch: { en: "Talk to Kai at camp. Then walk to move it, turn it, and tap to put it down.", ja: "キャンプで カイと はなそう。あるいて うごかし、まわして、タップで おく" }
+    },
+    rackFrame: {
+      keys: { en: "Walk round the rack. Press E to put a pole in the green place.", ja: "ほしだなの まわりを あるこう。みどりの ところで E を おして ぼうを いれよう" },
+      touch: { en: "Walk round the rack. Tap the hand to put a pole in the green place.", ja: "ほしだなの まわりを あるこう。みどりの ところで てを タップ" }
+    },
+    rackStrong: {
+      keys: { en: "It's shaking! Put a pole across a long side and a short side.", ja: "ゆれてる！ ながい がわと みじかい がわに ななめの ぼうを いれよう" },
+      touch: { en: "It's shaking! Put a pole across a long side and a short side.", ja: "ゆれてる！ ながい がわと みじかい がわに ななめの ぼうを いれよう" }
+    },
+    dryFish: {
+      keys: { en: "Take a fish to the rack. Press E to hang it up.", ja: "さかなを もって ほしだなへ。E で つるそう" },
+      touch: { en: "Take a fish to the rack. Tap the hand to hang it up.", ja: "さかなを もって ほしだなへ。てを タップして つるそう" }
+    },
+    barrel: {
+      keys: { en: "Go to the cove and bring the barrel to camp. Press E.", ja: "いりえへ いって たるを キャンプへ はこぼう。E を おそう" },
+      touch: { en: "Go to the cove and bring the barrel to camp. Tap the hand.", ja: "いりえへ いって たるを キャンプへ はこぼう。てを タップ" }
+    },
+    catcherSite: {
+      keys: { en: "Talk to Kai at camp. Then put the rain catcher down near the barrel.", ja: "キャンプで カイと はなそう。そして たるの ちかくに おこう" },
+      touch: { en: "Talk to Kai at camp. Then put the rain catcher down near the barrel.", ja: "キャンプで カイと はなそう。そして たるの ちかくに おこう" }
+    },
+    catcherBuilt: {
+      keys: { en: `Put in four posts. Then the canvas (${catcherCanvas.canvas} canvas + ${catcherCanvas.rope} rope) in the middle.`, ja: `はしらを 4ほん。そのあと まんなかに ぬの（ぬの ${catcherCanvas.canvas}まい と ロープ ${catcherCanvas.rope}ほん）` },
+      touch: { en: `Put in four posts. Then the canvas (${catcherCanvas.canvas} canvas + ${catcherCanvas.rope} rope) in the middle.`, ja: `はしらを 4ほん。そのあと まんなかに ぬの（ぬの ${catcherCanvas.canvas}まい と ロープ ${catcherCanvas.rope}ほん）` }
+    },
+    catchRain: {
+      keys: { en: "Make one corner low, over the barrel. E at a corner or the barrel. E in the middle to test.", ja: "ひとつの かどを ひくくして、たるの うえに。かど か たるで E。まんなかで E で ためす" },
+      touch: { en: "Make one corner low, over the barrel. Tap a corner or the barrel. Tap the middle to test.", ja: "ひとつの かどを ひくくして、たるの うえに。かど か たるを タップ。まんなかで ためす" }
+    },
+    boilRain: {
+      keys: { en: "Get water from the barrel, make a fire, and boil the water.", ja: "たるから みずを とって、火を つけて、みずを わかそう" },
+      touch: { en: "Get water from the barrel, make a fire, and boil the water.", ja: "たるから みずを とって、火を つけて、みずを わかそう" }
     }
   };
 }

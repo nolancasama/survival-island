@@ -10,6 +10,7 @@ import { Celebration } from "./Effects";
 import { CameraRig } from "./CameraRig";
 import { useGame } from "../game/store";
 import { Phase3World } from "./Phase3World";
+import { Chapter2World } from "./Chapter2World";
 
 /** Renderer stats for the test hook (draw calls / triangles per frame). */
 export const perf = { calls: 0, triangles: 0, fps: 0 };
@@ -50,6 +51,7 @@ function World() {
         <Crate />
       </group>
       <Phase3World />
+      <Chapter2World />
       <ResourceNodes />
       <Beacons />
       <Buildings />

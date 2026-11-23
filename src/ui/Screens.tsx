@@ -1,6 +1,6 @@
 import { useGame, setGame } from "../game/store";
-import { continueGame, newGame, retryStartupMicrophone, teacherUseTapping } from "../game/flow/session";
-import { useState } from "react";
+import { continueGame, newGame, retryStartupMicrophone, startChapterTwo, teacherUseTapping } from "../game/flow/session";
+import { useEffect, useState } from "react";
 import { nextDay } from "../game/flow/days";
 import { PHRASES } from "../game/logic/english";
 import { dayDef } from "../game/logic/quest";
@@ -22,6 +22,10 @@ export function MicrophoneStartupOverlay() {
   const visible = useGame((s) => s.micStartupProblem);
   const [checking, setChecking] = useState(false);
   const [teacherOpen, setTeacherOpen] = useState(false);
+  // The overlay stays mounted: each new showing starts with the teacher options closed.
+  useEffect(() => {
+    if (!visible) setTeacherOpen(false);
+  }, [visible]);
   if (!visible) return null;
   return (
     <div className="mic-startup-overlay ui" data-testid="mic-startup-overlay">
@@ -96,6 +100,9 @@ export function TitleScreen() {
           <button className={hasSave ? "secondary big" : "primary big"} onClick={() => void newGame()} data-testid="start">
             {hasSave ? "New game" : "Start"} <Ja>{hasSave ? "はじめから" : "はじめる"}</Ja>
           </button>
+          <button className="secondary" onClick={() => void startChapterTwo()} data-testid="chapter-two">
+            Chapter 2 <Ja>だい2しょう から</Ja>
+          </button>
         </div>
         <ClassroomMode />
         <button className="link" onClick={() => setGame({ settingsOpen: true })} data-testid="title-settings">
@@ -111,7 +118,10 @@ const DAY_DONE: Record<number, { en: string; ja: string; icon: IconId }> = {
   1: { en: "You found food, met Kai and made a fire.", ja: "たべものを みつけて、カイに あって、火を つけたね！", icon: "fire" },
   2: { en: "You made an axe, opened the forest and built a tent.", ja: "おのを つくって、もりを ひらいて、テントを たてたね！", icon: "shelter" },
   3: { en: "You built a bridge, found water and cooked a fish.", ja: "はしを つくって、みずを みつけて、さかなを やいたね！", icon: "grilledFish" },
-  4: { en: "You explored the cave and found an old radio.", ja: "どうくつを たんけんして、ふるい ラジオを みつけたね！", icon: "radio" }
+  4: { en: "You explored the cave and found an old radio.", ja: "どうくつを たんけんして、ふるい ラジオを みつけたね！", icon: "radio" },
+  6: { en: "You found the cove and brought a big box to camp.", ja: "いりえを みつけて、おおきな はこを キャンプに はこんだね！", icon: "box" },
+  7: { en: "You cut bamboo, built a strong rack and dried a fish.", ja: "たけを きって、じょうぶな ほしだなを つくって、さかなを ほしたね！", icon: "driedFish" },
+  8: { en: "You caught the rain and boiled safe water.", ja: "あまみずを ためて、あんぜんな みずを わかしたね！", icon: "rain" }
 };
 
 /** "Day 2: Make Camp" -> ["Day 2", "Make Camp"]. */
@@ -168,8 +178,8 @@ export function DayEndScreen() {
         )}
         <div className="title-buttons">
           <button className="primary big" onClick={() => void nextDay()} data-testid={rescue ? "keep-exploring" : "next-day"}>
-            {rescue ? "Keep exploring" : `Day ${day + 1} →`}
-            <Ja>{rescue ? "もっと たんけんする" : `${day + 1}にちめへ`}</Ja>
+            {rescue ? "Chapter 2 →" : `Day ${day + 1} →`}
+            <Ja>{rescue ? "だい2しょうへ" : `${day + 1}にちめへ`}</Ja>
           </button>
         </div>
       </div>

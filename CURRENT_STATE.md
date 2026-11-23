@@ -1,5 +1,50 @@
 # Current State
 
+## IN PROGRESS — Chapter 2 "A Better Camp" (Expansion Milestones 0–3), 2026-11-23
+
+**Branch `feature/chapter2-better-camp`. NOT merged, NOT deployed. The live site and `main` (`813196e`) are unchanged.**
+The user asked for the expansion plan to be analysed, implemented and pushed live. Claude is building it directly
+(the user said "no codex"). The plan, review, conflicts and roadmap are in `EXPANSION_PLAN.md`. The frozen design is
+in `DESIGN_DECISIONS.md` "2026-11-23 — Chapter 2 (Milestones 1–3) design", including "Changes made while building".
+
+### Done
+- **Logic, world, flows, saves (v4)** as designed: see the design section. Pure modules `logic/structures.ts`,
+  `logic/weather.ts`; `world/chapter2.ts`; `flow/chapter2.ts`, `flow/chapter2Focus.ts`.
+- **Scene:** `scene/Chapter2World.tsx` (cove, tide, crate, chest, barrel, signs, grove, thicket, falling bamboo,
+  storage/rack/catcher/barrel, socket ghost, carried object, rain streaks); new node meshes in `Nodes.tsx`;
+  carry speed/poses and Kai's co-carry follow in `Characters.tsx`; frame-kit previews in `Buildings.tsx`.
+- **UI:** hint texts for every new HintKey (`ui/i18n.ts`), Day 6–8 cards, title "Chapter 2" button, Rescue card
+  "Chapter 2 →" (test id `keep-exploring`).
+- **Tests:** typecheck clean; **187 unit tests pass** (new `logic/chapter2.test.ts`, `flow/chapter2.test.ts`, Chapter 2
+  world tests, v4 save tests). E2E hook extended (`chapterTwo` state, `setChapterTwo`, `setRain`, `startChapterTwo`,
+  `openSockets`, `standBarrelUnder`, `startDay(6..9)`). **`tests/e2e/chapter2.spec.ts` passes 4/4**: the title
+  Chapter 2 start and Day 6 (cove, "What is this?", crate, canvas, carrying the chest with Kai, carry speed cap,
+  storage box, "What did you find?"), Day 7 (thicket, poles, rack plan, frame with "It's too long.", long-face
+  braces still shaking, strong, Kai's fish, drying), Day 8 (rain morning, barrel, catcher, flat test → "Let's try
+  again.", corners, working test, rain caught and stopping, barrel water, relit fire, boiling), and a v3 free-play
+  save resuming at the Day 6 morning. Day 3 (boil step), Day 4 (v4 save key), Day 5 (Chapter 2 after the rescue)
+  and animation (Day 9) specs updated. The Day 8 spec moves the barrel under the stream with a hook
+  (`standBarrelUnder`); moving it left/right is covered by code review only.
+- **Bugs found by the new tests and fixed (each with a test that fails on the old code):** the chest could never be
+  put down (0.9 m from the player vs a 1.0 m clearance ring); a strong rack could never be focused to hang fish (its
+  open sockets are always nearer than its middle: now a focus bias when it has work, and no spare braces once
+  strong); after the last brace Kai's "Great! It's strong now!" left the game stuck in talk mode. Also the bag only
+  grows once the storage box is at camp.
+- **Rendered and judged:** `node scripts/shots-ch2.mjs http://127.0.0.1:5287/` (needs `npx vite --port 5287`)
+  writes 20 views to `.tmp/shots/chapter2` (cove, grove, rack, catcher in rain, a full camp from the clifftop and
+  at night). `npm run shots:world` passes (its cave-metal check now ignores the cove's metal). Draw calls were
+  consolidated so the clifftop stays in budget: 117 calls / 185k triangles (111 / 156k before Chapter 2); the
+  full-camp clifftop 112 / 187k. Numbers per view are in DESIGN_DECISIONS "Changes made while building".
+- `npm run shots -- http://127.0.0.1:5287/ 1024x768 --tap` passes: 123 frames, Days 1–5, Rescue, the Chapter 2 Day 6
+  morning (low tide shot reframed to look along the passage) and the classroom pass. It exposed a bug from the
+  microphone release: the always-mounted startup overlay kept "Teacher options" open between showings, so a second
+  Start in one session closed it instead (fixed; e2e `microphone.spec.ts` covers a second showing).
+
+### Next (in order)
+1. PR #2 (https://github.com/nolancasama/survival-island/pull/2): wait for its CI on the latest head, merge to `main`
+   (the user asked for it to go live), then confirm the `deploy-pages` run and the published site.
+2. Classroom trial of Days 6–8 on real Chromebooks (speech, audio, timing), as for Chapter 1.
+
 ## Microphone startup and solid-object collision release — 2026-10-28
 
 Implemented in [PR #1](https://github.com/nolancasama/survival-island/pull/1),

@@ -72,7 +72,11 @@ export interface Line {
 
 export interface Focus {
   id: string;
-  kind: "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign" | "bridge" | "water" | "fish" | "caveMouth" | "caveBox" | "rockfall" | "signalPad";
+  kind:
+    | "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign" | "bridge" | "water" | "fish" | "caveMouth" | "caveBox" | "rockfall" | "signalPad"
+    // Chapter 2: asking Kai about salvage, the cove crate, the big things you carry, the
+    // bamboo thicket, a frame's open socket, a rain-catcher corner, the catcher test, a rack, a barrel.
+    | "ask" | "coveCrate" | "carry" | "putDown" | "groveGate" | "socket" | "corner" | "test" | "rack" | "barrel";
   verb: string;
   noun: string;
   icon: IconId;
@@ -123,6 +127,25 @@ export type HintKey =
   | "signal"
   | "help"
   | "micBlocked"
+  | "boil"
+  // Chapter 2 (Days 6–8).
+  | "cove"
+  | "askKai"
+  | "coveBox"
+  | "canvas"
+  | "carryBox"
+  | "carrying"
+  | "grove"
+  | "poles"
+  | "rackSite"
+  | "rackFrame"
+  | "rackStrong"
+  | "dryFish"
+  | "barrel"
+  | "catcherSite"
+  | "catcherBuilt"
+  | "catchRain"
+  | "boilRain"
   | null;
 
 /** The student's answers to Kai's questions (each answer changes what he says and gives). */
@@ -141,10 +164,20 @@ export interface KaiMemory {
   have?: "radio" | "metal";
   /** Day 5's morning talk completed before Kai began walking. */
   escapeMorning?: boolean;
+  /** Chapter 2: Day 6's morning talk finished (Kai set off for the cove). */
+  coveMorning?: boolean;
+  /** Chapter 2: "What did you find?" on Day 6. */
+  found?: "rope" | "canvas" | "box";
+  /** Chapter 2: Day 7's morning talk finished. */
+  groveMorning?: boolean;
+  /** Chapter 2: "Let's build a rack." was said and Kai gave the rack frame. */
+  rackPlan?: boolean;
+  /** Chapter 2: Day 8's morning talk finished (the rain-catcher frame given). */
+  rainMorning?: boolean;
 }
 
-/** Where Kai is in the Day 5 story (he walks between these). */
-export type KaiStage = "camp" | "rockfall" | "clifftop";
+/** Where Kai is in the story (he walks between these): Day 5's rockfall and clifftop, Day 6's cove. */
+export type KaiStage = "camp" | "rockfall" | "clifftop" | "cove";
 
 export interface GameState {
   screen: Screen;
@@ -201,6 +234,26 @@ export interface GameState {
   /** "I need help." was said on the radio: the rescue has happened. */
   rescued: boolean;
   kaiStage: KaiStage;
+  /** Safe water: times collected water was boiled, and the last day it happened. */
+  boiled: number;
+  boiledDay: number;
+  /** Chapter 2 world facts (saved). Low tide: the cove passage is open. */
+  coveOpen: boolean;
+  /** The bamboo thicket on the grove trail is cut. */
+  groveOpen: boolean;
+  reachedCove: boolean;
+  coveBoxOpened: boolean;
+  /** Salvage kinds asked about with "What is this?". */
+  asked: string[];
+  /** The sea chest / the barrel have left their places in the cove. */
+  chestTaken: boolean;
+  barrelTaken: boolean;
+  /** What the player is carrying (the chest with Kai, or the barrel alone). */
+  carry: "chest" | "barrel" | null;
+  fishDried: number;
+  rainCaught: number;
+  /** Day 8's rain has stopped. */
+  rainDone: boolean;
   /** The player is in the cave interior (transient: a save resumes at the cave mouth). */
   inCave: boolean;
   /** Time through the day, from sunrise (0) to held night (1). */
@@ -285,6 +338,19 @@ export function freshGameData() {
     signalLit: false,
     rescued: false,
     kaiStage: "camp" as KaiStage,
+    boiled: 0,
+    boiledDay: 0,
+    coveOpen: false,
+    groveOpen: false,
+    reachedCove: false,
+    coveBoxOpened: false,
+    asked: [] as string[],
+    chestTaken: false,
+    barrelTaken: false,
+    carry: null as "chest" | "barrel" | null,
+    fishDried: 0,
+    rainCaught: 0,
+    rainDone: false,
     inCave: false,
     t: 0.05,
     dayTitle: null as number | null,

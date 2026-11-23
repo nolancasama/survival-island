@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { PALMS, groundY } from "../../game/world/island";
+import { clearForGrove } from "../../game/world/chapter2";
 import { bucketByTile } from "../tiles";
 import {
   bushGeometry, choppableTreeGeometry, createPalmCrowns, jungleTreeGeometry,
@@ -156,7 +157,9 @@ describe("static vegetation tiles", () => {
     expect(tiles.length).toBeLessThan(bucketByTile(trees).length + PALMS.length + 1);
     const crowns = createPalmCrowns();
     let expected = 0;
-    trees.forEach((_, i) => {
+    let skipped = 0;
+    trees.forEach((spot, i) => {
+      if (clearForGrove(spot.x, spot.z)) return void skipped++;
       const h = vegetationHash(i);
       const g = jungleTreeGeometry(h % 5, (h >>> 8) % 3);
       expected += triangles(g);
@@ -173,6 +176,9 @@ describe("static vegetation tiles", () => {
       g.dispose();
     });
     expect(tiles.reduce((sum, g) => sum + triangles(g), 0)).toBe(expected);
+    // Only a handful of jungle trees give way to the grove trail.
+    expect(skipped).toBeGreaterThan(0);
+    expect(skipped).toBeLessThan(12);
     for (const g of tiles) {
       expect(g.groups).toHaveLength(0);
       expect(g.boundingSphere!.radius).toBeGreaterThan(0);

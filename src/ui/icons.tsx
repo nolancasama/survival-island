@@ -30,12 +30,96 @@ export type IconId =
   | "run"
   | "tree"
   | "bridge"
-  | "moon";
+  | "moon"
+  // Chapter 2.
+  | "question"
+  | "barrel"
+  | "rain"
+  | "kai";
 
 const O = "#3b2a1c"; // outline
 const SW = 2.6;
 
 const P: Record<IconId, ReactElement> = {
+  // ---- Chapter 2 (Days 6–8)
+  boiledWater: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <path d="M14 6 q-3 4 0 8 q3 4 0 8 M24 4 q-3 4 0 8 q3 4 0 8 M34 6 q-3 4 0 8 q3 4 0 8" fill="none" stroke="#a9b8c4" strokeWidth={2} strokeLinecap="round" />
+      <path d="M8 24 Q8 42 24 42 Q40 42 40 24 Z" fill="#8a5a33" />
+      <ellipse cx="24" cy="24" rx="16" ry="5" fill="#7fd0ff" />
+    </g>
+  ),
+  driedFish: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <path d="M24 3 V10" fill="none" strokeLinecap="round" />
+      <path d="M24 10 Q36 20 24 40 Q12 20 24 10 Z" fill="#c9a05a" />
+      <path d="M24 40 L17 46 L31 46 Z" fill="#a67f40" />
+      <path d="M19 20 L29 22 M18 27 L30 29" fill="none" stroke="#7a5a2a" strokeWidth={2} strokeLinecap="round" />
+    </g>
+  ),
+  canvas: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <path d="M6 10 L40 7 L42 36 Q30 32 22 38 Q14 42 7 38 Z" fill="#efe4c8" />
+      <path d="M12 14 L36 12 M12 22 L37 20 M12 30 L30 28" fill="none" stroke="#c9b88f" strokeWidth={1.6} />
+    </g>
+  ),
+  pole: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <rect x="20" y="3" width="8" height="42" rx="3" fill="#b8c95a" transform="rotate(28 24 24)" />
+      <path d="M17 17 L26 13 M15 27 L24 23 M13 37 L22 33" fill="none" stroke="#7e9136" strokeWidth={2} transform="translate(2 0)" />
+    </g>
+  ),
+  shortPole: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <rect x="20" y="13" width="8" height="22" rx="3" fill="#b8c95a" transform="rotate(28 24 24)" />
+      <path d="M18 23 L27 19" fill="none" stroke="#7e9136" strokeWidth={2} />
+    </g>
+  ),
+  rack: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round" strokeLinecap="round" fill="none">
+      <path d="M8 42 V14 M40 42 V14 M5 14 H43 M8 40 L40 16" stroke="#8e9e3c" strokeWidth={3.4} />
+      <path d="M16 14 v6 M24 14 v6 M32 14 v6" stroke={O} strokeWidth={1.6} />
+      <path d="M13 20 q3 8 6 0 Z M21 20 q3 8 6 0 Z M29 20 q3 8 6 0 Z" fill="#c9a05a" strokeWidth={1.8} />
+    </g>
+  ),
+  catcher: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round" strokeLinecap="round">
+      <path d="M8 42 V12 M40 42 V22" fill="none" stroke="#8e9e3c" strokeWidth={3.4} />
+      <path d="M6 12 L42 22 L38 26 L8 16 Z" fill="#efe4c8" />
+      <path d="M40 26 V31" fill="none" stroke="#3d9be0" strokeWidth={2.4} />
+      <path d="M32 33 H46 V45 H32 Z" fill="#a8693a" />
+      <path d="M32 37 H46" fill="none" stroke="#6b737d" strokeWidth={1.6} />
+    </g>
+  ),
+  barrel: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <path d="M12 6 H36 Q42 24 36 42 H12 Q6 24 12 6 Z" fill="#a8693a" />
+      <path d="M9 14 H39 M8.5 34 H39.5" fill="none" stroke="#6b737d" strokeWidth={3} />
+      <path d="M20 6 Q17 24 20 42 M28 6 Q31 24 28 42" fill="none" stroke="#7a4a24" strokeWidth={1.4} />
+    </g>
+  ),
+  question: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round" strokeLinecap="round">
+      <circle cx="24" cy="24" r="19" fill="#ffd23a" />
+      <path d="M17 18 Q17 10 24 10 Q31 10 31 17 Q31 22 24 24 V29" fill="none" strokeWidth={3.6} />
+      <circle cx="24" cy="36" r="2.4" fill={O} stroke="none" />
+    </g>
+  ),
+  rain: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round" strokeLinecap="round">
+      <path d="M10 26 A8 8 0 0 1 14 11 A11 11 0 0 1 35 12 A8 8 0 0 1 38 26 Z" fill="#c8d2dc" />
+      <path d="M14 32 L11 40 M22 32 L19 42 M30 32 L27 40 M38 31 L35 39" fill="none" stroke="#3d9be0" strokeWidth={2.6} />
+    </g>
+  ),
+  kai: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <circle cx="24" cy="18" r="11" fill="#c98b5c" />
+      <path d="M13 16 Q14 6 24 6 Q34 6 35 16 Q30 11 24 12 Q18 11 13 16 Z" fill="#3b2a1c" />
+      <path d="M8 44 Q10 30 24 30 Q38 30 40 44 Z" fill="#e8973c" />
+      <circle cx="20" cy="19" r="1.6" fill={O} stroke="none" />
+      <circle cx="28" cy="19" r="1.6" fill={O} stroke="none" />
+    </g>
+  ),
   bridge: (
     <g stroke={O} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 34 Q14 28 24 34 T44 34" fill="none" stroke="#559fb6" />

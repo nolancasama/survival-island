@@ -1,5 +1,6 @@
 import type { NodeKind } from "../types";
 import { cliffGroundY, isCaveInterior, METAL_NODES } from "./phase3";
+import { CHAPTER_TWO_NODES, coveGroundY } from "./chapter2";
 
 /**
  * The handcrafted island (Phase 1: the beach). +x is east, +z is south toward
@@ -41,6 +42,12 @@ export const CAVE_MOUTH = { x: 22, z: -43.1 };
  */
 export function groundY(x: number, z: number): number {
   if (isCaveInterior(x, z)) return 0;
+  // Chapter 2: east of the old beach the cove's back and east end rise (x >= 50 only).
+  if (x >= 50) return coveGroundY(x, z, islandGroundY(x, z));
+  return islandGroundY(x, z);
+}
+
+function islandGroundY(x: number, z: number): number {
   if (z >= -2.4) return beachGroundY(x, z);
 
   const north = -2.4 - z;
@@ -77,7 +84,7 @@ export interface NodeDef {
   rot: number;
 }
 
-export const RESPAWN_S: Record<NodeKind, number> = { wood: 60, stone: 75, coconut: 50, leaves: 60, tree: 90, metal: 75 };
+export const RESPAWN_S: Record<NodeKind, number> = { wood: 60, stone: 75, coconut: 50, leaves: 60, tree: 90, metal: 75, canvas: 90, rope: 80, bamboo: 90 };
 
 /** Driftwood lies a few metres above the waterline. */
 const driftwood = (id: string, x: number, rot: number, inset = 3.6): NodeDef => ({ id, kind: "wood", x, z: shoreZ(x) - inset, rot });
@@ -133,7 +140,9 @@ export const NODES: NodeDef[] = [
   { id: "stone-7", kind: "stone", x: -50, z: -20.5, rot: 0.5 },
   { id: "stone-8", kind: "stone", x: -51.5, z: -24.5, rot: 1.6 },
   { id: "stone-9", kind: "stone", x: -48, z: -30, rot: 2.4 },
-  ...METAL_NODES
+  ...METAL_NODES,
+  // Chapter 2: salvage in Shipwreck Cove and bamboo in the grove.
+  ...CHAPTER_TWO_NODES
 ];
 
 export interface Palm {
@@ -176,7 +185,8 @@ export const BOULDERS: Boulder[] = [
   { x: -34.5, z: -1, r: 2, h: 2.4, rot: 1.9 },
   // East, beyond the wreck
   { x: 36.5, z: 3, r: 2.5, h: 2.8, rot: 0.4 },
-  { x: 37, z: 8.5, r: 2.2, h: 2.2, rot: 1.4 },
+  // Moved north from (37, 8.5) in Chapter 2: it now frames the mouth of the cove passage.
+  { x: 37.7, z: 5.6, r: 2.0, h: 2.2, rot: 1.4 },
   { x: 36, z: 13.5, r: 2.6, h: 2.4, rot: 2.8 },
   { x: 35.5, z: -1.5, r: 2.1, h: 2.6, rot: 0.9 },
   // Scattered on the beach

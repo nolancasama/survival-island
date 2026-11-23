@@ -2,8 +2,13 @@ import { getGame, setGame, freshGameData, toast, type HintKey } from "../store";
 import { rt, resetRuntime } from "../runtime";
 import { evaluate, newlyDone, currentStep, dayDef, readyToSleep, isStoryDay, type Facts } from "../logic/quest";
 import { tickStats, afterFaint, RUN_AGAIN_AT, type Stats } from "../logic/stats";
-import { advanceClock, storyFloor, lightAt, isNight, faintPenalty, CAP } from "../logic/clock";
-import { SAVE_KEY, V2_SAVE_KEY, V1_SAVE_KEY, SAVE_VERSION, loadSaveText, serialize, type SaveData } from "../logic/save";
+import { advanceClock, storyFloor, lightAt, isNight, faintPenalty, CAP, dayStartT } from "../logic/clock";
+import { SAVE_KEY, V3_SAVE_KEY, V2_SAVE_KEY, V1_SAVE_KEY, SAVE_VERSION, loadSaveText, serialize, type SaveData } from "../logic/save";
+import { BASE_STACK, STORAGE_STACK, setStackLimit } from "../logic/inventory";
+import {
+  CHAPTER_ONE_PHRASES, CHAPTER_TWO_CAMP, dropCarried, nearCamp, restoreChapterTwo, showChapterTwoTarget, storageAtCamp, tickChapterTwo, weatherFrame
+} from "./chapter2";
+import { catcherBuilt, rackFrameComplete, rackStable } from "../logic/structures";
 import { checkCraft } from "../logic/crafting";
 import { pace, recipeNeeds } from "../logic/pace";
 import { NODE_BY_ID, NODES, FALLEN_TREE, FISH_SPOTS, WATER_SPOTS, BRIDGE, CRATE } from "../world/island";
@@ -13,7 +18,7 @@ import { buildingObstacles } from "../world/placement";
 import { count } from "../logic/inventory";
 import { ask, fastMode, say } from "./ask";
 import { currentGates, targetReachable } from "./places";
-import { celebrate, eveningCue, nextDay, placeKaiAtCamp, resumeDayFourMorning, resumeDayFiveMorning, sleepPlace } from "./days";
+import { celebrate, eveningCue, nextDay, placeKaiAtCamp, resumeDayFourMorning, resumeDayFiveMorning, resumeMorning, sleepPlace } from "./days";
 import { checkCaveExit } from "./cave";
 import { checkEscapeArrivals, radioCall, restoreEscapeKai } from "./escape";
 import { audio } from "../../audio/audio";
@@ -26,9 +31,13 @@ export const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r
 
 // ------------------------------------------------------------------ save
 
+function loadStored(): SaveData | null {
+  return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V3_SAVE_KEY), localStorage.getItem(V2_SAVE_KEY), localStorage.getItem(V1_SAVE_KEY));
+}
+
 export function hasSaved(): boolean {
   try {
-    return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V2_SAVE_KEY), localStorage.getItem(V1_SAVE_KEY)) !== null;
+    return loadStored() !== null;
   } catch {
     return false;
   }
@@ -73,7 +82,20 @@ export function save() {
     reachedClifftop: g.reachedClifftop,
     signalLit: g.signalLit,
     rescued: g.rescued,
-    kaiStage: g.kaiStage
+    kaiStage: g.kaiStage,
+    boiled: g.boiled,
+    boiledDay: g.boiledDay,
+    coveOpen: g.coveOpen,
+    groveOpen: g.groveOpen,
+    reachedCove: g.reachedCove,
+    coveBoxOpened: g.coveBoxOpened,
+    asked: g.asked,
+    chestTaken: g.chestTaken,
+    barrelTaken: g.barrelTaken,
+    carry: g.carry,
+    fishDried: g.fishDried,
+    rainCaught: g.rainCaught,
+    rainDone: g.rainDone
   };
   try {
     localStorage.setItem(SAVE_KEY, serialize(data));
@@ -164,7 +186,7 @@ export async function newGame() {
 export async function continueGame() {
   const data = (() => {
     try {
-      return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V2_SAVE_KEY), localStorage.getItem(V1_SAVE_KEY));
+      return loadStored();
     } catch {
       return null;
     }
@@ -204,6 +226,19 @@ export async function continueGame() {
     signalLit: data.signalLit,
     rescued: data.rescued,
     kaiStage: data.kaiStage,
+    boiled: data.boiled,
+    boiledDay: data.boiledDay,
+    coveOpen: data.coveOpen,
+    groveOpen: data.groveOpen,
+    reachedCove: data.reachedCove,
+    coveBoxOpened: data.coveBoxOpened,
+    asked: data.asked,
+    chestTaken: data.chestTaken,
+    barrelTaken: data.barrelTaken,
+    carry: data.carry,
+    fishDried: data.fishDried,
+    rainCaught: data.rainCaught,
+    rainDone: data.rainDone,
     t: data.t,
     stats: roundStats(data.stats),
     fade: 0,
@@ -226,8 +261,9 @@ export async function continueGame() {
   if (readyToSleep(data.quest)) rt.eveningDay = data.quest.day;
   if (data.quest.day > 1 || readyToSleep(data.quest)) placeKaiAtCamp();
   if (data.quest.day === 5 && (data.kai.escapeMorning || data.kaiStage !== "camp" || data.cliffOpen)) restoreEscapeKai();
+  restoreChapterTwo();
   enterGame();
-  updateHint();
+  refreshQuest();
   setGame({ mode: "busy" });
   await prepareMic();
   // A day that ended with sleep (the card was showing) goes straight on to the next morning.
@@ -237,17 +273,79 @@ export async function continueGame() {
     return;
   }
   // Keep controls paused while an unfinished morning waits for microphone preparation.
-  const needsMorning = (data.quest.day === 4 && (getGame().kai.canTorch === undefined || !getGame().unlocked.includes("torch")))
-    || (data.quest.day === 5 && !data.kai.escapeMorning && data.kaiStage === "camp" && !data.cliffOpen);
+  const k = getGame().kai;
+  const chapterTwoMorning = (data.quest.day === 6 && !k.coveMorning) || (data.quest.day === 7 && !k.groveMorning) || (data.quest.day === 8 && !k.rainMorning);
+  const needsMorning = (data.quest.day === 4 && (k.canTorch === undefined || !getGame().unlocked.includes("torch")))
+    || (data.quest.day === 5 && !data.kai.escapeMorning && data.kaiStage === "camp" && !data.cliffOpen)
+    || chapterTwoMorning;
   if (needsMorning || (data.quest.day === 5 && data.signalLit && !data.rescued)) setGame({ mode: "busy" });
   if (needsMorning) {
-    if (data.quest.day === 5) await resumeDayFiveMorning();
+    if (chapterTwoMorning) await resumeMorning(data.quest.day);
+    else if (data.quest.day === 5) await resumeDayFiveMorning();
     else await resumeDayFourMorning();
   } else if (data.quest.day === 5 && data.signalLit && !data.rescued) {
     await radioCall();
   } else {
     setGame({ mode: "explore" });
   }
+}
+
+/**
+ * Title: "Chapter 2" (a teacher start). Day 6 begins with Chapter 1 complete:
+ * the camp stands, every Chapter 1 recipe and sentence is known, and the
+ * tools are in the bag. Like Start, it replaces the saved game.
+ */
+export async function startChapterTwo() {
+  clearSave();
+  resetRuntime();
+  startAudio();
+  const crafts: CraftId[] = ["campfire", "axe", "shelter", "container", "rod", "torch", "signalFire"];
+  setGame({
+    ...freshGameData(),
+    quest: { day: 5, done: ["cliff", "wood", "leaves", "signalFire", "clifftop", "signal", "help"], complete: true },
+    bag: { axe: 1, rod: 1, container: 1, torch: 1, radio: 1, coconut: 2, grilledFish: 1, boiledWater: 1, wood: 2, stone: 1, leaves: 2, rope: 1 },
+    known: [...CHAPTER_ONE_PHRASES],
+    said: [...CHAPTER_ONE_PHRASES],
+    unlocked: crafts,
+    crafted: crafts,
+    buildings: CHAPTER_TWO_CAMP.map((b) => ({ ...b })),
+    crateOpened: true,
+    metKai: true,
+    ate: 3,
+    kai: { need: "water", canFire: true, canAxe: true, want: "water", canTorch: true, have: "radio", escapeMorning: true },
+    pathCleared: true,
+    bridgeBuilt: true,
+    gotWater: 1,
+    drank: 1,
+    caught: 1,
+    cooked: 1,
+    boiled: 1,
+    boiledDay: 3,
+    sleptDay: 4,
+    enteredCave: true,
+    caveBoxOpened: true,
+    cliffOpen: true,
+    reachedClifftop: true,
+    signalLit: true,
+    rescued: true,
+    kaiStage: "camp",
+    t: dayStartT(6),
+    hint: null,
+    needsPulse: false,
+    craftPulse: false,
+    fade: 1,
+    mode: "busy"
+  });
+  for (const b of CHAPTER_TWO_CAMP) if (b.lit) rt.fireT0.set(b.id, -10);
+  rt.walked = 99;
+  rt.player.x = CHAPTER_TWO_CAMP[1].x + 1.2;
+  rt.player.z = CHAPTER_TWO_CAMP[1].z + 2.2;
+  enterGame();
+  placeKaiAtCamp();
+  refreshQuest();
+  await prepareMic();
+  // The rescue day is complete: the next morning is Day 6.
+  await nextDay();
 }
 
 export function toTitle() {
@@ -332,6 +430,14 @@ export function showStepTarget(): boolean {
   const g = getGame();
   const step = currentStep(g.quest);
   if (!step) return false;
+  // Chapter 2 steps have their own targets (Days 6–8).
+  if (g.quest.day >= 6 && step.id !== "sleep") return showChapterTwoTarget();
+  if (step.id === "boil") {
+    const fires = g.buildings.filter((b) => b.type === "campfire");
+    if (count(g.bag, "water") === 0) return showStepTargetForWater();
+    showPlaces(fires.map((b) => b.id));
+    return fires.length > 0;
+  }
   const point = (ids: string[]) => {
     if (!ids.length) return false;
     if (g.inCave && ids.some((id) => !targetReachable(id))) showPlaces(["caveExit"]);
@@ -389,10 +495,12 @@ export function showStepTarget(): boolean {
       return point(g.buildings.filter((b) => b.type === "campfire").map((b) => b.id));
     case "water":
     case "drink":
-      if (step.id === "drink" && count(g.bag, "water") > 0) {
-        setGame({ selected: "water" });
+      if (step.id === "drink" && count(g.bag, "boiledWater") > 0) {
+        setGame({ selected: "boiledWater" });
         return true;
       }
+      // Collected water is boiled at a campfire before it can be drunk.
+      if (step.id === "drink" && count(g.bag, "water") > 0) return point(g.buildings.filter((b) => b.type === "campfire").map((b) => b.id));
       return point(WATER_SPOTS.map((s) => s.id));
     case "fish":
       return point(FISH_SPOTS.map((s) => s.id));
@@ -416,6 +524,16 @@ export function showStepTarget(): boolean {
     default:
       return false;
   }
+}
+
+/** The pond's water spots, or the closed gate on the way there. */
+function showStepTargetForWater(): boolean {
+  const g = getGame();
+  if (g.inCave) showPlaces(["caveExit"]);
+  else if (!g.pathCleared) showPlaces([FALLEN_TREE.id]);
+  else if (!g.bridgeBuilt) showPlaces([BRIDGE.id]);
+  else showPlaces(WATER_SPOTS.map((s) => s.id));
+  return true;
 }
 
 // ------------------------------------------------------------------ quest
@@ -444,12 +562,29 @@ export function facts(): Facts {
     reachedClifftop: g.reachedClifftop,
     signalLit: g.signalLit,
     rescued: g.rescued,
-    classroom: g.settings.classroom
+    classroom: g.settings.classroom,
+    boiled: g.boiled,
+    boiledDay: g.boiledDay,
+    reachedCove: g.reachedCove,
+    askedKai: g.asked.length > 0,
+    coveBoxOpened: g.coveBoxOpened,
+    storageAtCamp: storageAtCamp(g.buildings),
+    groveOpen: g.groveOpen,
+    rackPlaced: g.buildings.some((b) => b.type === "rack"),
+    rackFrame: g.buildings.some((b) => b.type === "rack" && rackFrameComplete(b.parts ?? [])),
+    rackStable: g.buildings.some((b) => b.type === "rack" && rackStable(b.parts ?? [])),
+    fishDried: g.fishDried,
+    barrelAtCamp: g.buildings.some((b) => b.type === "barrel" && nearCamp(b.x, b.z, g.buildings)),
+    catcherPlaced: g.buildings.some((b) => b.type === "catcher"),
+    catcherBuilt: g.buildings.some((b) => b.type === "catcher" && catcherBuilt(b.parts ?? [])),
+    rainCaught: g.rainCaught
   };
 }
 
 /** Re-check the story after anything changed. */
 export function refreshQuest() {
+  // The storage box at camp doubles what the bag holds (Chapter 2).
+  setStackLimit(storageAtCamp(getGame().buildings) ? STORAGE_STACK : BASE_STACK);
   const g = getGame();
   const q = evaluate(g.quest, facts());
   if (q !== g.quest) {
@@ -486,6 +621,7 @@ export function updateHint() {
   const step = currentStep(g.quest);
   if (rt.walked < 4 && g.mode === "explore") hint = "move";
   else if (g.mode === "place") hint = null; // the place bar explains itself
+  else if (g.carry) hint = "carrying";
   else if (step) {
     switch (step.id) {
       case "eat":
@@ -544,6 +680,23 @@ export function updateHint() {
       case "clifftop":
       case "signal":
       case "help":
+      case "boil":
+      case "cove":
+      case "askKai":
+      case "coveBox":
+      case "canvas":
+      case "carryBox":
+      case "grove":
+      case "poles":
+      case "rackSite":
+      case "rackFrame":
+      case "rackStrong":
+      case "dryFish":
+      case "barrel":
+      case "catcherSite":
+      case "catcherBuilt":
+      case "catchRain":
+      case "boilRain":
         hint = step.id;
         break;
       case "cliff":
@@ -594,6 +747,7 @@ export function tick(dt: number) {
   rt.lightTarget = lightAt(rt.clock);
   rt.light += (rt.lightTarget - rt.light) * Math.min(1, dt * 0.4);
   audio.setDaylight(rt.light);
+  weatherFrame(dt);
   const live = g.screen === "game" && (g.mode === "explore" || g.mode === "place") && !g.settingsOpen;
   if (!live) return;
   rt.simTime += dt;
@@ -603,6 +757,7 @@ export function tick(dt: number) {
   setMood(moodAt(rt.clock));
   checkCaveExit();
   checkEscapeArrivals();
+  tickChapterTwo(dt);
   const hintDelay = gamePace.automaticHintDelay;
   if (hintDelay !== null && rt.stepIdleSeconds >= hintDelay && rt.simTime - rt.lastAutomaticHintAt >= hintDelay
     && g.mode === "explore" && !g.prompt && !g.line && !g.craftOpen && !g.placing && !g.sleeping && getGame().mode === "explore") {
@@ -678,6 +833,8 @@ export function syncStats() {
 
 async function faint() {
   setGame({ mode: "busy", focus: null });
+  // Whatever was being carried comes down where the player fell.
+  if (dropCarried()) save();
   audio.play("faint");
   await changePose(1);
   await wait(650);

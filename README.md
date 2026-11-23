@@ -14,6 +14,10 @@ hints. Automated acceptance passes; school hardware trials and Claude's final
 aesthetic review remain.
 See `CURRENT_STATE.md`.
 Design decisions and the reasons for them are in `DESIGN_DECISIONS.md`.
+The long-term expansion plan (Robinson Crusoe-style settlement: new areas,
+construction, water engineering, more survivors) and its roadmap are in
+`EXPANSION_PLAN.md`. Chapter 2 (Days 6–8: Shipwreck Cove, the Bamboo Grove and
+the rain catcher) is its first part.
 
 ## Play
 
