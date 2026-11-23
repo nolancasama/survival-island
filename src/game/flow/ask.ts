@@ -262,6 +262,7 @@ function beginListening(a: Active, attempt: number) {
     // A synchronous start failure may already have scheduled recovery.
     a.stopListening = stop;
   }
+}
 
 function miss(j: Judgement, hard: boolean) {
   const p = getGame().prompt;
