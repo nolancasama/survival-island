@@ -19,7 +19,7 @@ Chromebooks; Milestone 4 needs a design pass before any building.
   (test id still `keep-exploring`).
 - Bugs found by the new tests and fixed: chest could not be put down; strong rack could not be focused; Kai's rack
   praise left the game stuck in talk mode; microphone overlay kept "Teacher options" open on a second showing.
-- **Debug day picker (branch `feature/debug-day-picker`, not yet merged):** with `?debug=1`, the title shows
+- **Debug day picker (live, PR #3, merge `b7dc040`):** with `?debug=1`, the title shows
   "Debug: start at day" 1–9; the day setup is shared with the e2e `startDay` (`src/game/flow/dayStart.ts`).
 - Released in PR #2 (merge `24831d5`); CI on the final head: 187 unit tests, build, 43/43 e2e; `deploy-pages`
   succeeded and the live bundle was checked to contain the Chapter 2 build.
@@ -63,10 +63,9 @@ None. Everything was built by Claude directly at the user's request.
 
 ## Repository State
 
-- `main` = `origin/main` at `fceefaa` (Chapter 2 live). Work in progress on `feature/debug-day-picker` (the picker,
-  `dayStart.ts`, tests, and this file); merge it to deploy the picker.
+- `main` = `origin/main` at `b7dc040` (Chapter 2 and the debug day picker live; CI 45/45 e2e, deploy succeeded).
 
 ## Checkpoint
 
 - Updated: 2026-11-23
-- Reason: Chapter 2 released and deployed; handoff rewritten as current state.
+- Reason: debug day picker merged and deployed.
