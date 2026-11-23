@@ -25,6 +25,7 @@ export const BROWSER_STUBS = `
     constructor() { this.lang = ''; this.interimResults = false; this.maxAlternatives = 1; this.continuous = false; this._done = false; }
     start() {
       w.__speech.starts++;
+      setTimeout(() => { if (!this._done) this.onstart && this.onstart(); }, 10);
       const plan = { ...w.__speech };
       setTimeout(() => {
         if (this._done) return;
