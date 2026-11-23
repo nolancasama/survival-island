@@ -1,6 +1,6 @@
 import { useGame, setGame } from "../game/store";
 import { continueGame, newGame, retryStartupMicrophone, startChapterTwo, teacherUseTapping } from "../game/flow/session";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { nextDay } from "../game/flow/days";
 import { PHRASES } from "../game/logic/english";
 import { dayDef } from "../game/logic/quest";
@@ -22,6 +22,10 @@ export function MicrophoneStartupOverlay() {
   const visible = useGame((s) => s.micStartupProblem);
   const [checking, setChecking] = useState(false);
   const [teacherOpen, setTeacherOpen] = useState(false);
+  // The overlay stays mounted: each new showing starts with the teacher options closed.
+  useEffect(() => {
+    if (!visible) setTeacherOpen(false);
+  }, [visible]);
   if (!visible) return null;
   return (
     <div className="mic-startup-overlay ui" data-testid="mic-startup-overlay">

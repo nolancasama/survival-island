@@ -71,10 +71,11 @@ export async function coveMorning() {
   await say("kai", "Our bags are full. We need a big box.", "かばんが いっぱいだね。 おおきな はこが いるよ。");
   setGame({ coveOpen: true });
   rt.coveOpenT0 = rt.time;
-  // A short look at the passage: the sea has gone out.
-  const mouth = COVE_PASSAGE[1];
+  // A short look along the passage from the beach end: the sea has gone out and the way to the cove is open.
+  const start = COVE_PASSAGE[0];
+  const end = COVE_PASSAGE[COVE_PASSAGE.length - 1];
   rt.camera.mode = "shot";
-  rt.camera.shot = { pos: { x: mouth.x - 9, y: 6.5, z: mouth.z + 11 }, target: { x: mouth.x + 3, y: 0.6, z: mouth.z - 0.5 } };
+  rt.camera.shot = { pos: { x: start.x - 5.5, y: 8.5, z: start.z + 6.5 }, target: { x: end.x - 2, y: 0.4, z: end.z } };
   await wait(1200);
   await say("kai", "Look! The water is low. We can walk to the next cove!", "みて！ みずが ひいたよ。 となりの いりえまで あるけるね！");
   rt.camera.mode = "follow";

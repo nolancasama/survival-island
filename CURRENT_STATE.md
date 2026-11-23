@@ -35,13 +35,15 @@ in `DESIGN_DECISIONS.md` "2026-11-23 — Chapter 2 (Milestones 1–3) design", i
   at night). `npm run shots:world` passes (its cave-metal check now ignores the cove's metal). Draw calls were
   consolidated so the clifftop stays in budget: 117 calls / 185k triangles (111 / 156k before Chapter 2); the
   full-camp clifftop 112 / 187k. Numbers per view are in DESIGN_DECISIONS "Changes made while building".
-- `scripts/shots.mjs` (story screenshots) now boils water on Day 3 and shows the Chapter 2 Day 6 morning; not yet
-  re-run.
+- `npm run shots -- http://127.0.0.1:5287/ 1024x768 --tap` passes: 123 frames, Days 1–5, Rescue, the Chapter 2 Day 6
+  morning (low tide shot reframed to look along the passage) and the classroom pass. It exposed a bug from the
+  microphone release: the always-mounted startup overlay kept "Teacher options" open between showings, so a second
+  Start in one session closed it instead (fixed; e2e `microphone.spec.ts` covers a second showing).
 
 ### Next (in order)
-1. Full `npx playwright test` on the current build (log `.tmp/ch2-e2e-full.log`); fix anything red.
-2. Run `npm run shots:world` and `npm run shots` (long; background) to check nothing regressed in Chapter 1 views.
-3. Merge to `main` and push (the user asked for it to go live when finished); confirm the Pages deploy.
+1. PR #2 (https://github.com/nolancasama/survival-island/pull/2): wait for its CI on the latest head, merge to `main`
+   (the user asked for it to go live), then confirm the `deploy-pages` run and the published site.
+2. Classroom trial of Days 6–8 on real Chromebooks (speech, audio, timing), as for Chapter 1.
 
 ## Microphone startup and solid-object collision release — 2026-10-28
 
