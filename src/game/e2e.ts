@@ -11,6 +11,7 @@ import { pourPoint, toWorld } from "./logic/structures";
 import { stackLimit } from "./logic/inventory";
 import { COVE, COVE_BARREL, COVE_CRATE, COVE_PASSAGE, GROVE, GROVE_GATE, KAI_COVE, SEA_CHEST } from "./world/chapter2";
 import { findFocus } from "./flow/focus";
+import { dayStartState, placeAtStartCamp } from "./flow/dayStart";
 import {
   BRIDGE,
   CAVE_MOUTH,
@@ -34,29 +35,12 @@ import {
 } from "./world/phase3";
 import { isWalkable, overlaps, resolveCollisions, PLAYER_R, STATIC_OBSTACLES } from "./world/collision";
 import { buildingObstacles, type PlacedBuilding } from "./world/placement";
-import { currentStep, DAYS, LAST_STORY_DAY } from "./logic/quest";
+import { currentStep, LAST_STORY_DAY } from "./logic/quest";
 import { isNight, lightAt } from "./logic/clock";
-import type { PhraseId } from "./logic/english";
-import type { Bag, CraftId } from "./types";
 import { recognition } from "../audio/recognition";
 import { cameraRef } from "../scene/CameraRig";
 import { perf } from "../scene/GameScene";
 import * as THREE from "three";
-
-/** English a student has used by the end of each story day (for startDay). */
-const KNOWN_BY_DAY: Record<number, PhraseId[]> = {
-  1: ["hungry", "getCoconut", "eatCoconut", "needWood", "yesICan", "getWood", "getStone", "craftCampfire", "makeFire", "sleep"],
-  2: ["yesICan", "craftAxe", "cutTree", "getLeaves", "craftShelter", "buildShelter", "sleep"],
-  3: ["wantWater", "openBox", "buildBridge", "craftContainer", "getWater", "boilWater", "drinkWater", "craftRod", "catchFish", "cookFish", "eatFish", "sleep"],
-  4: ["yesICan", "craftTorch", "goCave", "getMetal", "openBox", "haveRadio", "sleep"],
-  5: ["canHelp", "craftSignalFire", "makeFire", "needHelp"],
-  6: ["askWhat", "openBox", "getCanvas", "getRope", "carryBox", "tooHeavy", "canHelp", "goBack", "putHere", "foundBox", "sleep"],
-  7: ["cutBamboo", "buildRack", "putHere", "tooLong", "dryFish", "sleep"]
-};
-const UNLOCKED_BY_DAY: Record<number, CraftId[]> = { 1: ["campfire"], 2: ["axe", "shelter"], 3: ["container", "rod"], 4: ["torch", "signalFire"] };
-/** Where startDay puts the camp: the Day 1 fire on the beach, the Day 2 shelter beside it. */
-const CAMP_FIRE = { x: 2, z: 5 };
-const CAMP_SHELTER = { x: -3, z: 5 };
 
 /**
  * Test hook (only with ?e2e=1): read game state and put the player next to
@@ -221,36 +205,6 @@ export function installE2eHook(seed: number) {
      * (title, Kai's talk) then plays as in a real game.
      */
     startDay(n: number, classroom = getGame().settings.classroom) {
-      const before = Math.max(1, n - 1);
-      const known: PhraseId[] = [];
-      const unlocked: CraftId[] = [];
-      for (let d = 1; d <= before; d++) {
-        for (const p of KNOWN_BY_DAY[d] ?? []) if (!known.includes(p)) known.push(p);
-        for (const c of UNLOCKED_BY_DAY[d] ?? []) if (!unlocked.includes(c)) unlocked.push(c);
-      }
-      const fire: PlacedBuilding = { id: "bE2eFire", type: "campfire", x: CAMP_FIRE.x, z: CAMP_FIRE.z, rot: 0, lit: true };
-      const buildings: PlacedBuilding[] = [fire];
-      if (n >= 3) buildings.push({ id: "bE2eShelter", type: "shelter", x: CAMP_SHELTER.x, z: CAMP_SHELTER.z, rot: 0, built: true });
-      const bag: Bag = n >= 4 ? { coconut: 1, wood: 1, axe: 1, container: 1, rod: 1 } : n >= 3 ? { coconut: 1, wood: 1, axe: 1 } : { coconut: 1 };
-      const crafted: CraftId[] = n >= 4 ? ["campfire", "axe", "shelter", "container", "rod"] : n >= 3 ? ["campfire", "axe", "shelter"] : ["campfire"];
-      if (n >= 5) {
-        Object.assign(bag, { torch: 1, radio: 1, metal: 2 });
-        crafted.push("torch");
-      }
-      // Chapter 2 days: the rescue is done; Day 7 has the storage box, Day 8 the stable rack.
-      if (n >= 6) crafted.push("signalFire");
-      if (n >= 7) {
-        buildings.push({ id: "bE2eStorage", type: "storage", x: CAMP_FIRE.x + 2.6, z: CAMP_FIRE.z - 1.8, rot: 0 });
-        Object.assign(bag, { canvas: 2, rope: 2 });
-      }
-      if (n >= 8) {
-        buildings.push({
-          id: "bE2eRack", type: "rack", x: CAMP_FIRE.x + 5, z: CAMP_FIRE.z + 1.5, rot: 0,
-          parts: ["leg1", "leg2", "leg3", "leg4", "barN", "barS", "barW", "barE", "braceN", "braceW"], fish: []
-        });
-        Object.assign(bag, { driedFish: 1 });
-      }
-      const lastDay = DAYS.find((d) => d.day === before);
       resetRuntime();
       setGame({
         ...freshGameData(),
@@ -258,52 +212,13 @@ export function installE2eHook(seed: number) {
         screen: "dayEnd",
         mode: "busy",
         micState: recognition.supported ? "ready" : "unsupported",
-        quest: { day: before, done: lastDay ? lastDay.steps.map((s) => s.id) : [], complete: Boolean(lastDay) },
-        ate: 1,
-        metKai: true,
-        kai: n >= 7 ? { need: "wood", canFire: true, canAxe: true, want: "water", canTorch: true, have: "radio", escapeMorning: true, found: "box" }
-          : n >= 6 ? { need: "wood", canFire: true, canAxe: true, want: "water", canTorch: true, have: "radio", escapeMorning: true }
-          : n >= 5 ? { need: "wood", canFire: true, canAxe: true, want: "water", canTorch: true, have: "radio" }
-          : n >= 4 ? { need: "wood", canFire: true, canAxe: true, want: "water" }
-          : n >= 3 ? { need: "wood", canFire: true, canAxe: true } : { need: "wood", canFire: true },
-        known,
-        said: [...known],
-        unlocked,
-        crafted,
-        buildings,
-        bag,
-        pathCleared: n >= 3,
-        bridgeBuilt: n >= 4,
-        crateOpened: n >= 4,
-        enteredCave: n >= 5,
-        caveBoxOpened: n >= 5,
-        gotWater: n >= 4 ? 1 : 0,
-        drank: n >= 4 ? 1 : 0,
-        caught: n >= 4 ? 1 : 0,
-        cooked: n >= 4 ? 1 : 0,
-        boiled: n >= 4 ? 1 : 0,
-        boiledDay: n >= 4 ? 3 : 0,
-        cliffOpen: n >= 6,
-        reachedClifftop: n >= 6,
-        signalLit: n >= 6,
-        rescued: n >= 6,
-        coveOpen: n >= 7,
-        reachedCove: n >= 7,
-        coveBoxOpened: n >= 7,
-        chestTaken: n >= 7,
-        asked: n >= 7 ? ["chest", "barrel", "canvas", "rope", "metal"] : [],
-        groveOpen: n >= 8,
-        fishDried: n >= 8 ? 1 : 0,
-        sleptDay: before,
+        ...dayStartState(n),
         hint: null,
         fade: 0,
         prompt: null,
         line: null
       });
-      rt.fireT0.set(fire.id, -10);
-      rt.walked = 99;
-      rt.player.x = fire.x + 1.2;
-      rt.player.z = fire.z + 2.2;
+      placeAtStartCamp();
       void nextDay();
       return true;
     },

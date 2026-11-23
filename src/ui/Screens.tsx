@@ -1,5 +1,5 @@
 import { useGame, setGame } from "../game/store";
-import { continueGame, newGame, retryStartupMicrophone, startChapterTwo, teacherUseTapping } from "../game/flow/session";
+import { continueGame, newGame, retryStartupMicrophone, startAtDay, startChapterTwo, teacherUseTapping } from "../game/flow/session";
 import { useEffect, useState } from "react";
 import { nextDay } from "../game/flow/days";
 import { PHRASES } from "../game/logic/english";
@@ -76,6 +76,27 @@ function ClassroomMode() {
   );
 }
 
+/** The day picker is for teachers and testing: only with ?debug=1 in the address. */
+const DEBUG_DAYS = typeof location !== "undefined" && new URLSearchParams(location.search).get("debug") === "1";
+
+/** Debug: start any day's morning as if the days before it were played (Day 1 is the normal start). */
+function DebugDays() {
+  if (!DEBUG_DAYS) return null;
+  return (
+    <div className="debug-days" data-testid="debug-days">
+      <span className="debug-days-label">Debug: start at day <small>(replaces the saved game)</small></span>
+      <div className="debug-days-buttons">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((day) => (
+          <button key={day} type="button" className="secondary" data-testid={`debug-day-${day}`}
+            onClick={() => void (day === 1 ? newGame() : startAtDay(day))}>
+            {day}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TitleScreen() {
   const screen = useGame((s) => s.screen);
   const hasSave = useGame((s) => s.hasSave);
@@ -105,6 +126,7 @@ export function TitleScreen() {
           </button>
         </div>
         <ClassroomMode />
+        <DebugDays />
         <button className="link" onClick={() => setGame({ settingsOpen: true })} data-testid="title-settings">
           <Icon id="gear" size={18} /> Settings
         </button>

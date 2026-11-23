@@ -1127,6 +1127,35 @@ button.big .ja {
   gap: 10px;
 }
 
+.debug-days {
+  margin-top: 14px;
+  padding: 8px 10px;
+  border: 2px dashed var(--ink);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.debug-days-label {
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.debug-days-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.debug-days-buttons button {
+  min-width: 36px;
+  padding: 4px 10px;
+  font-size: 14px;
+}
+
 .answer-mode {
   margin-top: 18px;
   display: flex;
