@@ -185,6 +185,7 @@ export function micPress() {
   const a = active;
   const p = getGame().prompt;
   if (!a || a.done || !p) return;
+  if (p.status === "starting") return;
   if (p.status === "listening") {
     a.stopListening?.();
     return;
@@ -194,16 +195,29 @@ export function micPress() {
     return;
   }
   tts.cancel();
+  beginListening(a, 0);
+}
+
+/** Recover once from a transient recognizer startup failure, without blocking speech permanently. */
+function beginListening(a: Active, attempt: number) {
+  if (active !== a || a.done) return;
   const speechOptions = a.req.options.map((id) => PHRASES[id]);
   let last: Judgement = { kind: "none", heard: "" };
-  let hard = false;
-  audio.setListening(true);
-  audio.play("micOn");
-  update({ status: "listening", heard: "", reading: false, wrongId: null });
-  a.stopListening = recognition.listen(
+  let error: string | null = null;
+  update({ status: "starting", heard: "", reading: false, wrongId: null });
+  audio.setListening(false);
+  // onError/onEnd may happen synchronously when rec.start() throws.
+  // Retrying is scheduled, never performed recursively inside the failing start.
+  const stop = recognition.listen(
     {
+      onStart() {
+        if (active !== a || a.done) return;
+        audio.setListening(true);
+        audio.play("micOn");
+        update({ status: "listening" });
+      },
       onResult(alts) {
-        if (a.done) return;
+        if (active !== a || a.done) return;
         const j = judgeSpeech(alts, speechOptions);
         if (alts[0]) update({ heard: alts[0] });
         if (j.kind === "match" && accepted(j.id)) {
@@ -213,19 +227,41 @@ export function micPress() {
         last = j;
       },
       onError(err) {
-        if (HARD_ERRORS.has(err)) hard = true;
+        if (active === a && !a.done) error = err;
       },
       onEnd() {
         audio.setListening(false);
-        if (a.done) return;
+        if (active !== a || a.done) return;
         a.stopListening = null;
         audio.play("micOff");
-        miss(last, hard);
+        if (error === "start-failed" || error === "start-timeout") {
+          if (attempt === 0) {
+            update({ status: "starting" });
+            window.setTimeout(() => beginListening(a, 1), 400);
+          } else {
+            // A transient browser failure must never permanently disable the mic.
+            update({ status: "miss", buttons: true });
+          }
+          return;
+        }
+        if (error && HARD_ERRORS.has(error)) {
+          setGame({ micState: "blocked", hint: "micBlocked" });
+          update({ status: "miss", buttons: true });
+          return;
+        }
+        if (error === "network") {
+          update({ status: "miss", buttons: true });
+          return;
+        }
+        miss(last, false);
       }
     },
     7000
   );
-}
+  if (active === a && !a.done && getGame().prompt?.status !== "correct") {
+    // A synchronous start failure may already have scheduled recovery.
+    a.stopListening = stop;
+  }
 
 function miss(j: Judgement, hard: boolean) {
   const p = getGame().prompt;
