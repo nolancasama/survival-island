@@ -1101,3 +1101,38 @@ The cliff path is a union of overlapping capsules, joined to a circular plateau,
   decision; a smooth-shaded material, which would require a second material and
   bypass the fade; hand-modelled/baked GLB palms, about 3k triangles each (see
   revert `bf34c1f`).
+
+## 2026-11-28 — Machine-wide browser testing workflow
+
+- Adopted the accepted testing kit unchanged in `tests/support/`, following
+  Magic Stationery. Browser npm scripts take the machine-wide lock before
+  building; run records are in `.tmp/test-runs.jsonl`. Global setup checks the
+  served HTML against this checkout's build and logs the WebGL renderer and
+  worker count. This prevents concurrent heavy runs and tests of stale servers.
+- Playwright now uses hardware Chromium (`channel: "chromium"`) by default.
+  `CB_SWIFTSHADER=1` / `e2e:compat` selects compatibility rendering. Port 4174
+  remains assigned to this project; git worktrees use 4274 and `PREVIEW_PORT`
+  can override either. `BASE_URL` explicitly targets an external preview and
+  skips local build identity comparison.
+- Preserved 1366 x 768 at device scale factor 1, the 180-second test timeout,
+  60-second server timeout, CI retry, and failure trace/screenshot settings.
+  Existing long story flows and normal-time pose assertions still need their
+  timing allowances. Split projects into functional, visual, perf and soak.
+  All nine existing specs contain functional assertions, so none moved;
+  animation screenshots accompany behavior checks. There are no FPS-only or
+  evidence-only specs to migrate. Draw-call/triangle guards remain functional.
+- One worker remains the default, configurable through `PW_WORKERS`.
+  `PW_WORKERS=2` is not eligible without a recorded qualifying project
+  benchmark. Accepted 2026-11-28: Tier 1 (`npm run e2e`) passed 36/36 in 364 s (6.0 min), 1 worker, avg machine CPU 53.1%, renderer ANGLE NVIDIA GeForce GTX 1080 D3D11. Desktop benchmark, not a Chromebook figure.
+- Added `--allowImportingTsExtensions` to existing no-emit TypeScript commands
+  because the accepted kit imports explicit `.ts` paths. Kit sources and
+  dependencies remain unchanged. Gameplay/production sources are untouched.
+- Kept legacy standalone screenshot scripts and their behavior; their npm
+  entry points now acquire the lock before building. They still use an external
+  preview and explicitly launch SwiftShader, unlike the new Playwright tiers.
+- Rejected alternative: **SwiftShader as a Chromebook proxy**. Software FPS
+  does not represent school hardware. Prior software-rendered screenshots and
+  geometry counts remain historical evidence; the 120-call / 200k-triangle
+  guard remains useful independently of renderer. Desktop FPS must be labeled
+  GTX 1080, and Chromebook performance remains unmeasured. Renderer changes
+  require review of new evidence rather than automatic baseline replacement.

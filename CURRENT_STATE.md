@@ -1,5 +1,24 @@
 # Current State
 
+## Testing workflow migration — 2026-11-28
+
+- Accepted machine-wide kit copied unchanged into `tests/support/`. Playwright
+  defaults to hardware Chromium; SwiftShader requires `CB_SWIFTSHADER=1` (or
+  `npm run e2e:compat`). Global setup verifies build identity and logs renderer
+  and worker count. Port 4174, worktree 4274, `PREVIEW_PORT` override.
+- Browser npm scripts acquire the shared lock before building. Functional,
+  visual, perf and soak projects are separate; all 12 specs (45 tests after the
+  Chapter 2 merge) remain functional because each asserts behavior. No evidence-only or FPS-only specs
+  were found. Legacy standalone screenshot scripts retain their existing
+  SwiftShader behavior, now wrapped by the lock.
+- See `AGENTS.md` for tier scripts, test map and shared/core triggers. One worker
+  is the default; `PW_WORKERS=2` is not eligible without a recorded benchmark.
+- Accepted 2026-11-28: Tier 1 (`npm run e2e`) passed 36/36 in 364 s (6.0 min), 1 worker, avg machine CPU 53.1%, renderer ANGLE NVIDIA GeForce GTX 1080 D3D11. Desktop benchmark, not a Chromebook figure.
+  Run records:
+  `.tmp/test-runs.jsonl`. No new visual evidence or benchmarks are required.
+  That run predates the Chapter 2 merge; `chapter2`, `debug` and `microphone` specs run under the new
+  setup on their next routine run.
+
 ## Current Goal
 
 Chapter 2 "A Better Camp" (Days 6–8, Expansion Plan Milestones 0–3) is **built and live** at
