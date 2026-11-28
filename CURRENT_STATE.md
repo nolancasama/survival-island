@@ -9,8 +9,9 @@
 - Browser npm scripts acquire the shared lock before building. Functional,
   visual, perf and soak projects are separate; all 12 specs (45 tests after the
   Chapter 2 merge) remain functional because each asserts behavior. No evidence-only or FPS-only specs
-  were found. Legacy standalone screenshot scripts retain their existing
-  SwiftShader behavior, now wrapped by the lock.
+  were found. Standalone screenshot scripts use hardware Chromium by default,
+  own a port 4174 preview unless given a URL, and separate SwiftShader captures
+  into `.tmp/shots-swiftshader`; `shots:world:compat` selects that mode.
 - See `AGENTS.md` for tier scripts, test map and shared/core triggers. One worker
   is the default; `PW_WORKERS=2` is not eligible without a recorded benchmark.
 - Accepted 2026-11-28: Tier 1 (`npm run e2e`) passed 36/36 in 364 s (6.0 min), 1 worker, avg machine CPU 53.1%, renderer ANGLE NVIDIA GeForce GTX 1080 D3D11. Desktop benchmark, not a Chromebook figure.

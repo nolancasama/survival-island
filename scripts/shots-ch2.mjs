@@ -14,8 +14,13 @@ fs.mkdirSync(outDir, { recursive: true });
 const stubsSrc = fs.readFileSync(path.join(root, "tests", "e2e", "stubs.ts"), "utf8");
 const stubs = stubsSrc.slice(stubsSrc.indexOf("`") + 1, stubsSrc.lastIndexOf("`"));
 
+// Hardware GPU by default (machine-wide testing workflow); CB_SWIFTSHADER=1 for compatibility.
 const browser = await chromium.launch({
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"]
+  channel: "chromium",
+  args: [
+    ...(process.env.CB_SWIFTSHADER === "1" ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] : []),
+    "--autoplay-policy=no-user-gesture-required"
+  ]
 });
 const context = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
 const page = await context.newPage();

@@ -36,11 +36,12 @@ Select affected specs with, for example, `npm run e2e -- tests/e2e/day1.spec.ts`
 Visual, perf and soak tiers are currently empty. Run visual for rendering,
 layout, art, camera or UI appearance changes; perf for changes to frame cost.
 Full regression is for releases, major cross-system changes or explicit requests.
-The legacy `shots` and `shots:world` commands also build under the lock, but
-their existing standalone scripts still launch SwiftShader and require an
-already running external preview (default port 5287). They are legacy evidence
-tools, not the hardware Chromium tier runner. Do not use their FPS as a device
-benchmark; shut down any preview you start for them.
+The `shots` and `shots:world` evidence commands build under the lock and use
+hardware Chromium by default. They start and stop their own strict-port preview
+on 4174 unless given an external base URL. `shots:world:compat` selects
+SwiftShader; `CB_SWIFTSHADER=1` also selects it for either script. GPU evidence
+goes in `.tmp/shots`, and SwiftShader evidence in `.tmp/shots-swiftshader`.
+Each script logs its renderer. Desktop FPS is not a Chromebook benchmark.
 
 ### Test map
 

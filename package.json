@@ -17,7 +17,8 @@
     "e2e:compat": "node tests/support/test-lock.mjs --swiftshader -- \"npm run build && playwright test --project=functional\"",
     "test:kit": "node --test tests/support/kit.selftest.mjs",
     "shots": "node tests/support/test-lock.mjs -- \"npm run build && node scripts/shots.mjs\"",
-    "shots:world": "node tests/support/test-lock.mjs -- \"npm run build && node scripts/shots-world.mjs\""
+    "shots:world": "node tests/support/test-lock.mjs -- \"npm run build && node scripts/shots-world.mjs\"",
+    "shots:world:compat": "node tests/support/test-lock.mjs --swiftshader -- \"npm run build && node scripts/shots-world.mjs\""
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",

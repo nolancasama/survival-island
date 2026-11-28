@@ -1136,3 +1136,20 @@ The cliff path is a union of overlapping capsules, joined to a circular plateau,
   guard remains useful independently of renderer. Desktop FPS must be labeled
   GTX 1080, and Chromebook performance remains unmeasured. Renderer changes
   require review of new evidence rather than automatic baseline replacement.
+
+## 2026-11-28 — Standalone visual evidence renderer
+
+- The `shots` and `shots:world` scripts use hardware Chromium by default and
+  log the WebGL renderer. `CB_SWIFTSHADER=1` selects the existing compatibility
+  flags and a separate `.tmp/shots-swiftshader` output tree; GPU captures remain
+  in `.tmp/shots`. `shots:world:compat` selects compatibility through the lock.
+- Without an explicit base URL, each script starts a strict-port Vite preview
+  on 4174 and stops it on exit. Existing capture sequences remain unchanged.
+  The controller owns renderer comparison and visual acceptance.
+- Accepted 2026-11-28 by the controller: the 41 world views captured on both renderers from
+  the same code (GPU 53 s at 30% machine CPU, SwiftShader 89 s at 95%). Every pair is within
+  4% in file size, with no blank or broken frames; a side-by-side check shows only shadow-edge
+  differences. The full GPU set (300 images, 294 s) has no anomalies. GPU captures are the
+  evidence from now on; compare new evidence only with captures from the same renderer.
+- `scripts/shots-ch2.mjs` uses the same renderer rule (GPU by default, `CB_SWIFTSHADER=1`).
+  It still needs its own preview (`npx vite --port 5287`).
