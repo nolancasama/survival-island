@@ -1,6 +1,7 @@
 import { getGame, setGame } from "../store";
 import { cancelAsk, chooseIndex, hasLine, micPress, nextLine } from "./ask";
 import { cancelPlacing, closeCraft, confirmPlacing, eatFirst, interact, makeItem, needs, openCraft, rotatePlacing } from "./actions";
+import { addFromJoint, confirmPiece, cycleLength, nudgeNotch, stopPipe, takeOffPiece, turnPiece, undoPiece } from "./chapter3";
 import { checkCraft, RECIPE_ORDER } from "../logic/crafting";
 
 /** Fresh key presses, routed by what is on screen. Movement keys are read per frame. */
@@ -40,6 +41,24 @@ export function onKey(code: string) {
       if (code === "KeyE" || code === "Enter" || code === "Space") confirmPlacing();
       else if (code === "KeyR") rotatePlacing();
       else if (code === "Escape") cancelPlacing();
+      return;
+    }
+    case "pipe": {
+      // Chapter 3: laying a piece (walk to aim it) or changing a post.
+      const lay = g.pipe?.kind === "lay";
+      if (code === "Escape") stopPipe();
+      else if (code === "KeyX") nudgeNotch(1);
+      else if (code === "KeyZ") nudgeNotch(-1);
+      else if (lay && (code === "KeyE" || code === "Enter" || code === "Space")) void confirmPiece();
+      else if (lay && code === "KeyT") cycleLength();
+      else if (lay && code === "Backspace") undoPiece();
+      else if (!lay && code === "KeyR") void turnPiece(1);
+      else if (!lay && code === "KeyQ") void turnPiece(-1);
+      else if (!lay && (code === "Delete" || code === "Backspace")) takeOffPiece();
+      else if (!lay && (code === "KeyE" || code === "Enter")) {
+        if (g.pipe?.kind === "edit" && g.pipe.canAdd) addFromJoint();
+        else stopPipe();
+      }
       return;
     }
     case "explore": {

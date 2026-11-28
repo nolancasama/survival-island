@@ -3,6 +3,7 @@ import { CAVE_BOX, CAVE_EXIT, CLIFFTOP, ROCKFALL, SIGNAL_PAD, isCaveInterior } f
 import { CAVE_MOUTH } from "../world/island";
 import { isReachable } from "../world/reach";
 import { CHAPTER_TWO_PLACES, COVE_BARREL, SEA_CHEST } from "../world/chapter2";
+import { CHAPTER_THREE_PLACES } from "../world/chapter3";
 import { partPosition } from "./chapter2Focus";
 import type { Obstacles, WorldGates } from "../world/collision";
 import { getGame } from "../store";
@@ -31,7 +32,8 @@ const FIXED = new Map<string, { x: number; z: number }>([
   [CLIFFTOP.id, CLIFFTOP],
   ...WATER_SPOTS.map((s) => [s.id, { x: s.x, z: s.z }] as const),
   ...FISH_SPOTS.map((s) => [s.id, { x: s.x, z: s.z }] as const),
-  ...CHAPTER_TWO_PLACES.map(([id, p]) => [id, { x: p.x, z: p.z }] as const)
+  ...CHAPTER_TWO_PLACES.map(([id, p]) => [id, { x: p.x, z: p.z }] as const),
+  ...CHAPTER_THREE_PLACES.map(([id, p]) => [id, { x: p.x, z: p.z }] as const)
 ]);
 
 /** World position of a node, place, building or Kai; null for an unknown id. */
@@ -44,6 +46,9 @@ export function targetPosition(id: string): { x: number; z: number } | null {
   if (id === "putDown") return { x: rt.player.x + Math.sin(rt.player.yaw), z: rt.player.z + Math.cos(rt.player.yaw) };
   const part = partPosition(id);
   if (part) return part;
+  // Chapter 3: a post of the water pipe.
+  const joint = getGame().water.joints.find((j) => j.id === id);
+  if (joint) return { x: joint.x, z: joint.z };
   const b = getGame().buildings.find((x) => x.id === id);
   return b ? { x: b.x, z: b.z } : null;
 }
@@ -51,7 +56,7 @@ export function targetPosition(id: string): { x: number; z: number } | null {
 /** The world gates as they stand now. */
 export function currentGates(): WorldGates {
   const g = getGame();
-  return { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt, cliffOpen: g.cliffOpen, coveOpen: g.coveOpen, groveOpen: g.groveOpen };
+  return { pathCleared: g.pathCleared, bridgeBuilt: g.bridgeBuilt, cliffOpen: g.cliffOpen, coveOpen: g.coveOpen, groveOpen: g.groveOpen, stairsOpen: g.stairsOpen };
 }
 
 /** The sea chest and the barrel while they still stand in the cove (they move once carried). */

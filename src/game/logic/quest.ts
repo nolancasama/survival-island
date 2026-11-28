@@ -19,7 +19,9 @@ export type StepId =
   | "boil"
   | "cove" | "askKai" | "coveBox" | "canvas" | "carryBox"
   | "grove" | "poles" | "rackSite" | "rackFrame" | "rackStrong" | "dryFish"
-  | "barrel" | "catcherSite" | "catcherBuilt" | "catchRain" | "boilRain";
+  | "barrel" | "catcherSite" | "catcherBuilt" | "catchRain" | "boilRain"
+  // Chapter 3 (Days 9–10).
+  | "upper" | "pipePlan" | "tangle" | "bucket" | "pipeCamp" | "fillTank" | "boilTank";
 export interface Facts {
   ate: number;
   metKai: boolean;
@@ -53,6 +55,8 @@ export interface Facts {
   cliffOpen?: boolean;
   reachedClifftop?: boolean;
   signalLit?: boolean;
+  /** Day 5's radio call has ended (nobody could hear; the rescue is the final chapter). */
+  radioTried?: boolean;
   rescued?: boolean;
   /** Classroom pace: counted goals follow its smaller recipes. */
   classroom?: boolean;
@@ -77,6 +81,18 @@ export interface Facts {
   catcherBuilt?: boolean;
   /** Cups caught by a catcher while every stream fell into the barrel. */
   rainCaught?: number;
+  /** Chapter 3 world facts (Days 9–10). The player has been up on the Upper Stream (on Day 9 or later). */
+  reachedUpper?: boolean;
+  /** "Let's build a pipe." was said with Kai on the shelf. */
+  pipePlan?: boolean;
+  /** The fallen bamboo at the top of the rock stairs is cut. */
+  stairsOpen?: boolean;
+  /** Kai's bucket has had water from a pipe. */
+  bucketFilled?: boolean;
+  /** A pipe pours water within camp reach. */
+  pipeAtCamp?: boolean;
+  /** The tank at camp has been filled to the top. */
+  tankFilled?: boolean;
 }
 
 type GoalItem = "wood" | "stone" | "leaves" | "metal" | "canvas" | "pole";
@@ -128,6 +144,8 @@ export const CANVAS_GOAL = { normal: 2, classroom: 1 } as const;
 export const RACK_POLES = 9;
 /** Long poles for the rain catcher's four corner posts. */
 export const CATCHER_POLES = 4;
+/** Poles Kai asks for on Day 10 (about six pieces from the shelf to camp; Day 9's fallen bamboo gave four more). */
+export const PIPE_POLES = 6;
 
 export const DAYS: DayDef[] = [
   { day: 1, en: "Day 1: Survive", ja: "1にちめ: いきのびよう", steps: [
@@ -177,7 +195,8 @@ export const DAYS: DayDef[] = [
     { id: "signalFire", en: "Make a signal fire", ja: "のろしを つくろう", done: made("signalFire") },
     { id: "clifftop", en: "Go to the clifftop", ja: "がけの うえへ いこう", done: f => !!f.reachedClifftop },
     { id: "signal", en: "Light the signal fire", ja: "のろしに 火を つけよう", done: f => !!f.signalLit },
-    { id: "help", en: "Call for help", ja: "たすけを よぼう", done: f => !!f.rescued }
+    // The radio is too weak: nobody hears. The rescue is kept for the final chapter.
+    { id: "help", en: "Call for help", ja: "たすけを よぼう", done: f => !!f.radioTried }
   ] },
   // Chapter 2 "A Better Camp" (Milestones 1–3 of EXPANSION_PLAN.md).
   { day: 6, en: "Day 6: Shipwreck Cove", ja: "6にちめ: なんぱせんの いりえ", steps: [
@@ -208,14 +227,44 @@ export const DAYS: DayDef[] = [
     { id: "catchRain", en: "Catch the rain", ja: "あまみずを ためよう", done: f => (f.rainCaught ?? 0) > 0 },
     { id: "boilRain", en: "Boil the water", ja: "みずを わかそう", done: f => (f.boiledDay ?? 0) >= 8 },
     { id: "sleep", en: "Sleep", ja: "ねむろう", done: sleep(8) }
+  ] },
+  // Chapter 3 "Running Water" (Milestone 4 of EXPANSION_PLAN.md).
+  { day: 9, en: "Day 9: The Waterfall", ja: "9にちめ: たき", steps: [
+    { id: "upper", en: "Go to the waterfall", ja: "たきへ いこう", done: f => !!f.reachedUpper },
+    { id: "pipePlan", en: "Talk to Kai", ja: "カイと はなそう", done: f => !!f.pipePlan },
+    { id: "tangle", en: "Cut the bamboo", ja: "たけを きろう", done: f => !!f.stairsOpen },
+    { id: "bucket", en: "Fill the bucket", ja: "バケツに みずを いれよう", done: f => !!f.bucketFilled },
+    { id: "sleep", en: "Sleep", ja: "ねむろう", done: sleep(9) }
+  ] },
+  { day: 10, en: "Day 10: Water for Camp", ja: "10にちめ: キャンプに みずを", steps: [
+    { id: "poles", en: "Get bamboo poles", ja: "たけの ぼうを あつめよう", goal: fixedGoal("pole", PIPE_POLES, PIPE_POLES),
+      done: countedFixed("pole", PIPE_POLES, PIPE_POLES, f => !!f.pipeAtCamp) },
+    { id: "pipeCamp", en: "Bring the water to camp", ja: "キャンプまで みずを ひこう", done: f => !!f.pipeAtCamp },
+    { id: "fillTank", en: "Fill the tank", ja: "タンクを いっぱいに しよう", done: f => !!f.tankFilled },
+    { id: "boilTank", en: "Boil the water", ja: "みずを わかそう", done: f => (f.boiledDay ?? 0) >= 10 },
+    { id: "sleep", en: "Sleep", ja: "ねむろう", done: sleep(10) }
   ] }
 ];
-/** The final authored story day; later days are free play. Day 5 ends Chapter 1 with the rescue. */
-export const LAST_STORY_DAY = 8;
-/** The rescue day: the end of Chapter 1. */
-export const RESCUE_DAY = 5;
+/** The final authored story day; later days are free play. */
+export const LAST_STORY_DAY = 10;
+/** Day 5 ends Chapter 1 with the radio call and the cove seen from the clifftop (no sleep). */
+export const RADIO_DAY = 5;
 /** Chapter 2 "A Better Camp" days. */
 export const CHAPTER_TWO_FIRST_DAY = 6;
+/** Chapter 3 "Running Water" days. */
+export const CHAPTER_THREE_FIRST_DAY = 9;
+
+/** Each chapter is one lesson. */
+export const CHAPTERS: ReadonlyArray<{ n: number; first: number; last: number; en: string; ja: string }> = [
+  { n: 1, first: 1, last: 5, en: "Survive", ja: "いきのびよう" },
+  { n: 2, first: 6, last: 8, en: "A Better Camp", ja: "もっと いい キャンプ" },
+  { n: 3, first: 9, last: 10, en: "Running Water", ja: "ながれる みず" }
+];
+
+/** The chapter that ends with this day, if any. */
+export function chapterEndingOn(day: number) {
+  return CHAPTERS.find((c) => c.last === day) ?? null;
+}
 export interface QuestState {
   day: number;
   done: StepId[];

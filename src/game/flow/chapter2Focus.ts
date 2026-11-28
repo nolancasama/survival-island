@@ -83,8 +83,8 @@ export function chapterTwoCandidates(): Candidate[] {
   const out: Candidate[] = [];
   const p = rt.player;
   if (g.carry) {
-    const noun = g.carry === "chest" ? "the box" : "the barrel";
-    out.push({ focus: { id: "putDown", kind: "putDown", verb: "Put down", noun, icon: g.carry === "chest" ? "box" : "barrel" }, x: p.x, z: p.z, reach: 99 });
+    const noun = g.carry === "chest" ? "the box" : `the ${g.carry}`;
+    out.push({ focus: { id: "putDown", kind: "putDown", verb: "Put down", noun, icon: g.carry === "chest" ? "box" : g.carry }, x: p.x, z: p.z, reach: 99 });
     return out;
   }
   // The cove's crate, the sea chest and the barrel.

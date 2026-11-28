@@ -3,6 +3,7 @@ import { GameScene } from "./scene/GameScene";
 import { Hud } from "./ui/Hud";
 import { PromptPanel, DialoguePanel } from "./ui/Talk";
 import { CraftPanel, PlaceBar } from "./ui/Craft";
+import { PipeBar } from "./ui/PipeBar";
 import { WorldOverlay } from "./ui/WorldOverlay";
 import { TouchControls } from "./ui/TouchControls";
 import { SettingsModal } from "./ui/Settings";
@@ -76,6 +77,7 @@ function BottomPanels() {
   return (
     <div className="bottom-panels">
       <PlaceBar />
+      <PipeBar />
       <PromptPanel />
       <DialoguePanel />
     </div>

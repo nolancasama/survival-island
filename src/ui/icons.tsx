@@ -35,12 +35,51 @@ export type IconId =
   | "question"
   | "barrel"
   | "rain"
-  | "kai";
+  | "kai"
+  // Chapter 3.
+  | "pipe"
+  | "waterfall"
+  | "bucket"
+  | "tank";
 
 const O = "#3b2a1c"; // outline
 const SW = 2.6;
 
 const P: Record<IconId, ReactElement> = {
+  // ---- Chapter 3 (Days 9–10)
+  pipe: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round" strokeLinecap="round">
+      <path d="M4 14 L30 24 L30 31 L4 21 Z" fill="#b8c95a" />
+      <path d="M6 16 L28 25" fill="none" stroke="#3d9be0" strokeWidth={3} />
+      <path d="M10 22 V44 M26 28 V44" fill="none" stroke="#8e9e3c" strokeWidth={3.2} />
+      <path d="M33 30 Q36 36 34 42" fill="none" stroke="#3d9be0" strokeWidth={2.6} />
+      <path d="M30 44 H44" fill="none" stroke="#7fd0ff" strokeWidth={3} />
+    </g>
+  ),
+  waterfall: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round" strokeLinecap="round">
+      <path d="M4 12 H22 V44 H4 Z M30 6 H44 V44 H30 Z" fill="#8a929b" />
+      <path d="M22 12 H30 V40 H22 Z" fill="#7fd0ff" />
+      <path d="M24 16 V36 M28 14 V38" fill="none" stroke="#ffffff" strokeWidth={1.6} />
+      <path d="M14 42 Q26 36 38 42" fill="none" stroke="#3d9be0" strokeWidth={2.6} />
+    </g>
+  ),
+  bucket: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <path d="M12 14 H36 L33 42 H15 Z" fill="#b8c95a" />
+      <ellipse cx="24" cy="14" rx="12" ry="4" fill="#7fd0ff" />
+      <path d="M13 24 H35 M14 33 H34" fill="none" stroke="#7e9136" strokeWidth={2} />
+      <path d="M12 14 Q24 -2 36 14" fill="none" strokeWidth={2} />
+    </g>
+  ),
+  tank: (
+    <g stroke={O} strokeWidth={SW} strokeLinejoin="round">
+      <path d="M5 18 V38 Q24 46 43 38 V18" fill="#b8c95a" />
+      <ellipse cx="24" cy="18" rx="19" ry="6" fill="#7fd0ff" />
+      <path d="M12 21 V41 M24 24 V44 M36 21 V41" fill="none" stroke="#7e9136" strokeWidth={2} />
+      <path d="M5 29 Q24 36 43 29" fill="none" stroke="#a67f40" strokeWidth={2.4} />
+    </g>
+  ),
   // ---- Chapter 2 (Days 6–8)
   boiledWater: (
     <g stroke={O} strokeWidth={SW} strokeLinejoin="round">

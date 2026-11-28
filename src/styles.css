@@ -966,6 +966,84 @@ button.big .ja {
   background: #ffe1d6;
 }
 
+/* Chapter 3: the pipe bar and post panel (a word under each button). */
+.pipebar {
+  flex-wrap: wrap;
+  row-gap: 14px;
+}
+
+.pipebar .place-text {
+  min-width: 220px;
+}
+
+.pipebar .place-text strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.round.word {
+  width: 58px;
+  height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0;
+}
+
+.round.word .glyph {
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.round.word .btn-word {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.round.word:disabled {
+  opacity: 0.45;
+}
+
+.place-text .warn {
+  color: #c06a00;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.place-text .good {
+  color: #2f7d32;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.notches {
+  display: inline-flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.notches i {
+  display: block;
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+  background: #d8cfbd;
+}
+
+.notches i.below {
+  background: #b8c95a;
+}
+
+.notches i.on {
+  background: #3b8f2e;
+  height: 5px;
+}
+
 /* ---------------------------------------------------------- world overlay */
 
 .world-label {
@@ -1629,3 +1707,19 @@ input[type="range"] {
   font-size: 13px; font-weight: 700; margin-top: 6px;
 }
 .mic-startup-card .secondary { font-size: 14px; }
+
+/* Chapter cards and the title's chapter starts. */
+.dayend-chapter {
+  margin: 0 0 2px;
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a5a33;
+}
+
+.chapter-starts {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}

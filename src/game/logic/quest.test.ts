@@ -71,20 +71,35 @@ describe("quest (Days 4–5)", () => {
     expect(q.complete).toBe(true);
   });
 
-  it("is order-independent, uses classroom counts, and ends Day 5 on help", () => {
+  it("is order-independent, uses classroom counts, and ends Day 5 on the radio call (no sleep)", () => {
     const day4 = evaluate({ day: 4, done: [], complete: false }, facts({ enteredCave: true, caveBoxOpened: true, kaiHave: "metal", bag: { metal: 1 }, crafted: ["torch"], classroom: true }));
     expect(day4.done).toEqual(["torch", "cave", "metal", "radio", "showKai"]);
-    const q = evaluate({ day: 5, done: [], complete: false }, facts({ cliffOpen: true, bag: { wood: 4, leaves: 3 }, crafted: ["signalFire"], reachedClifftop: true, signalLit: true, rescued: true }));
+    const q = evaluate({ day: 5, done: [], complete: false }, facts({ cliffOpen: true, bag: { wood: 4, leaves: 3 }, crafted: ["signalFire"], reachedClifftop: true, signalLit: true, radioTried: true }));
     expect(q.complete).toBe(true);
+    // The rescue is the final chapter now: a rescue alone does not finish Day 5.
+    expect(evaluate({ day: 5, done: [], complete: false }, facts({ cliffOpen: true, bag: { wood: 4, leaves: 3 }, crafted: ["signalFire"], reachedClifftop: true, signalLit: true, rescued: true })).complete).toBe(false);
     expect(readyToSleep(q)).toBe(false);
     expect(stepGoal(dayDef(5).steps.find(s => s.id === "wood")!, true)).toEqual({ item: "wood", n: 2 });
   });
 
-  it("advances into Days 4 and 5, then Chapter 2 and free play after Day 8", () => {
+  it("advances into Days 4 and 5, then Chapters 2 and 3, and free play after Day 10", () => {
     expect(advanceDay({ day: 3, done: [], complete: true }, facts()).day).toBe(4);
     expect(advanceDay({ day: 4, done: [], complete: true }, facts()).day).toBe(5);
     expect(dayDef(6).steps.map((s) => s.id)).toContain("cove");
     expect(dayDef(8).steps.map((s) => s.id)).toContain("catchRain");
-    expect(dayDef(9).steps).toEqual([]);
+    expect(dayDef(9).steps.map((s) => s.id)).toEqual(["upper", "pipePlan", "tangle", "bucket", "sleep"]);
+    expect(dayDef(10).steps.map((s) => s.id)).toEqual(["poles", "pipeCamp", "fillTank", "boilTank", "sleep"]);
+    expect(dayDef(11).steps).toEqual([]);
+  });
+});
+
+describe("quest (Chapter 3)", () => {
+  it("ticks Day 9 from the world facts, and Day 10's poles stay done once water reaches camp", () => {
+    const day9 = evaluate({ day: 9, done: [], complete: false }, facts({ reachedUpper: true, pipePlan: true, stairsOpen: true, bucketFilled: true }));
+    expect(day9.done).toEqual(["upper", "pipePlan", "tangle", "bucket"]);
+    expect(readyToSleep(day9)).toBe(true);
+    const day10 = evaluate({ day: 10, done: [], complete: false }, facts({ pipeAtCamp: true, tankFilled: true, boiledDay: 10, bag: {} }));
+    expect(day10.done).toEqual(["poles", "pipeCamp", "fillTank", "boilTank"]);
+    expect(stepGoal(dayDef(10).steps[0], true)).toEqual({ item: "pole", n: 6 });
   });
 });

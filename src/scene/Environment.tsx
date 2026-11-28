@@ -23,6 +23,7 @@ import {
 } from "../game/world/island";
 import { makeRng } from "../game/logic/rng";
 import { COVE_PASSAGE, GROVE, GROVE_TRAIL } from "../game/world/chapter2";
+import { CLIMB_PATH, CLIMB_R, SHELF, STAIRS, STAIRS_R, isUpperWater } from "../game/world/chapter3";
 import { BRIDGE_BASE_Y, BRIDGE_SURFACE } from "../game/world/surface";
 import { bridgeApproachGeometry } from "./models/bridge";
 import { flatMat, occluderMat, signTexture, smoothMat } from "./materials";
@@ -270,6 +271,11 @@ const FOREST_PATH = new THREE.Color("#78985b");
 const GROVE_LITTER = new THREE.Color("#a8a55c");
 const COVE_SAND = new THREE.Color("#d9c9a1");
 const COVE_ROCK = new THREE.Color("#7d848b");
+/** Chapter 3: the Upper Stream's moss, cliff rock, wet banks and stair stone. */
+const SHELF_MOSS = new THREE.Color("#7f9e56");
+const SHELF_ROCK = new THREE.Color("#8a8d8f");
+const SHELF_WET = new THREE.Color("#5f6f58");
+const SHELF_STONE = new THREE.Color("#a59d8c");
 
 const sstep = (a: number, b: number, v: number) => {
   const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
@@ -314,6 +320,19 @@ function terrainGeometry(): THREE.BufferGeometry {
       c.lerp(FOREST_PATH, 1 - sstep(1.1, 2.6, trailD));
       const gd = Math.hypot((x - GROVE.x) / GROVE.rx, (z - GROVE.z) / GROVE.rz);
       c.lerp(GROVE_LITTER, 1 - sstep(0.85, 1.25, gd));
+    }
+    if (x < -33.5 && z < 3) {
+      // Chapter 3: the Upper Stream's moss and rock, its cliffs, wet banks and the stone stairs.
+      const e = Math.hypot((x - SHELF.x) / SHELF.rx, (z - SHELF.z) / SHELF.rz);
+      const steep = Math.abs(groundY(x + 0.6, z) - groundY(x - 0.6, z)) + Math.abs(groundY(x, z + 0.6) - groundY(x, z - 0.6));
+      c.lerp(SHELF_MOSS, 1 - sstep(0.95, 1.15, e));
+      c.lerp(SHELF_ROCK, sstep(0.5, 1.4, steep) * 0.9);
+      if (isUpperWater(x, z, 0.4)) c.lerp(SHELF_WET, 0.8);
+      const stairsD = segDist(STAIRS[0].x, STAIRS[0].z, STAIRS[1].x, STAIRS[1].z, x, z).d;
+      c.lerp(SHELF_STONE, 1 - sstep(STAIRS_R - 0.3, STAIRS_R + 0.4, stairsD));
+      let climbD = Infinity;
+      for (let j = 1; j < CLIMB_PATH.length; j++) climbD = Math.min(climbD, segDist(CLIMB_PATH[j - 1].x, CLIMB_PATH[j - 1].z, CLIMB_PATH[j].x, CLIMB_PATH[j].z, x, z).d);
+      c.lerp(FOREST_PATH, 1 - sstep(CLIMB_R - 0.4, CLIMB_R + 0.6, climbD));
     }
     if (x > 34) {
       // Chapter 2: the passage's wet sand and the cove's darker, rockier shore.

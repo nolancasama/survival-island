@@ -234,6 +234,39 @@ export function hints(classroom: boolean): Record<string, { keys: Bi; touch: Bi 
     boilRain: {
       keys: { en: "Get water from the barrel, make a fire, and boil the water.", ja: "たるから みずを とって、火を つけて、みずを わかそう" },
       touch: { en: "Get water from the barrel, make a fire, and boil the water.", ja: "たるから みずを とって、火を つけて、みずを わかそう" }
+    },
+    // Chapter 3 (Days 9–10).
+    upper: {
+      keys: { en: "Go over the bridge to the pond. A path climbs to the waterfall.", ja: "はしを わたって いけへ。たきへ のぼる みちが あるよ" },
+      touch: { en: "Go over the bridge to the pond. A path climbs to the waterfall.", ja: "はしを わたって いけへ。たきへ のぼる みちが あるよ" }
+    },
+    pipePlan: {
+      keys: { en: "Talk to Kai by the waterfall. Press E.", ja: "たきの そばで カイと はなそう。E を おそう" },
+      touch: { en: "Talk to Kai by the waterfall. Tap the hand.", ja: "たきの そばで カイと はなそう。てを タップ" }
+    },
+    tangle: {
+      keys: { en: "Take your axe to the old bamboo at the top of the rock stairs. Press E.", ja: "おのを もって いわの かいだんの うえの ふるい たけへ。E を おそう" },
+      touch: { en: "Take your axe to the old bamboo at the top of the rock stairs. Tap the hand.", ja: "おのを もって いわの かいだんの うえの ふるい たけへ。てを タップ" }
+    },
+    bucket: {
+      keys: { en: "E at the rock with the water. Walk to aim the pipe. Make it go down to the bucket.", ja: "みずが おちる いわで E。あるいて むきを きめて、バケツまで くだる パイプに しよう" },
+      touch: { en: "Tap the rock with the water. Walk to aim the pipe. Make it go down to the bucket.", ja: "みずが おちる いわを タップ。あるいて むきを きめて、バケツまで くだる パイプに しよう" }
+    },
+    pipeCamp: {
+      keys: { en: "Build a pipe from the waterfall down the stairs to camp. E at a post to change it.", ja: "たきから かいだんを おりて キャンプまで パイプを つくろう。はしらで E で かえられる" },
+      touch: { en: "Build a pipe from the waterfall down the stairs to camp. Tap a post to change it.", ja: "たきから かいだんを おりて キャンプまで パイプを つくろう。はしらを タップで かえられる" }
+    },
+    fillTank: {
+      keys: { en: "The tank goes under the end of the pipe. Carry it with Kai, or bring the pipe to it.", ja: "タンクは パイプの はしの したに。カイと はこぶか、パイプを のばそう" },
+      touch: { en: "The tank goes under the end of the pipe. Carry it with Kai, or bring the pipe to it.", ja: "タンクは パイプの はしの したに。カイと はこぶか、パイプを のばそう" }
+    },
+    boilTank: {
+      keys: { en: "Get water from the tank with your cup. Boil it at the fire.", ja: "カップで タンクの みずを とって、火で わかそう" },
+      touch: { en: "Get water from the tank with your cup. Boil it at the fire.", ja: "カップで タンクの みずを とって、火で わかそう" }
+    },
+    laying: {
+      keys: { en: "Walk to aim · T long/short · X higher · Z lower · E put · Esc done", ja: "あるいて むきを きめる ・ T ながさ ・ X たかく ・ Z ひくく ・ E おく ・ Esc おわり" },
+      touch: { en: "Walk to aim the pipe. Use the buttons to change it and put it.", ja: "あるいて むきを きめよう。ボタンで かえて、おこう" }
     }
   };
 }

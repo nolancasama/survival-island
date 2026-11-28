@@ -159,7 +159,8 @@ export async function nextDay() {
     setGame({ mode: "busy", focus: null });
     await fadeToBlack();
     const previousDay = getGame().quest.day;
-    if (previousDay === 5 && getGame().rescued) {
+    // After the Chapter 1 card the night has passed (the finale's helicopter, if a test played it, is gone).
+    if (previousDay === 5) {
       rt.rescueT0 = -1;
       audio.stopRotor();
       rt.stats = afterSleep(rt.stats);
@@ -187,6 +188,7 @@ export async function nextDay() {
       line: null,
       craftOpen: false,
       placing: null,
+      pipe: null,
       sleeping: false,
       dayTitle: null,
       fade: 1

@@ -8,6 +8,7 @@ import { CRATE, NODES, groundY } from "../game/world/island";
 import { SIGNAL_PAD } from "../game/world/phase3";
 import { STATIC_OBSTACLES } from "../game/world/collision";
 import { FOOTPRINT, buildingObstacles, cameraForwardYaw, placeProblem, previewSpot, type PlacedBuilding } from "../game/world/placement";
+import { pipeObstacles } from "../game/world/pipeWorld";
 import { currentGates, worldPropObstacles } from "../game/flow/places";
 import { CATCHER, RACK } from "../game/logic/structures";
 import { audio } from "../audio/audio";
@@ -296,7 +297,7 @@ function Preview({
       type,
       spot.x,
       spot.z,
-      [STATIC_OBSTACLES, buildingObstacles(g.buildings), worldPropObstacles()],
+      [STATIC_OBSTACLES, buildingObstacles(g.buildings), pipeObstacles(g.water), worldPropObstacles()],
       keepClear,
       currentGates()
     );

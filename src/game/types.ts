@@ -29,7 +29,7 @@ export type ItemId =
 export type CraftId = "axe" | "campfire" | "rod" | "container" | "shelter" | "torch" | "signalFire";
 
 /** Things placed in the world with the building preview. */
-export type BuildingId = "campfire" | "shelter" | "storage" | "cooking" | "fence" | "rack" | "catcher" | "barrel";
+export type BuildingId = "campfire" | "shelter" | "storage" | "cooking" | "fence" | "rack" | "catcher" | "barrel" | "bucket" | "tank";
 
 /**
  * Collectible node kinds in the world. "wood" is driftwood or a fallen log

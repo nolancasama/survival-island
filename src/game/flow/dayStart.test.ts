@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dayStartState, KNOWN_BY_DAY } from "./dayStart";
+import { solveFlow } from "../logic/waterworks";
+import { pipeEnv } from "../world/pipeWorld";
 import { catcherFlow, toLocal } from "../logic/structures";
 import { DAYS } from "../logic/quest";
 
@@ -26,8 +28,11 @@ describe("debug day start", () => {
     expect(types(7)).toEqual(["campfire", "shelter", "storage"]);
     expect(types(8)).toEqual(["campfire", "rack", "shelter", "storage"]);
     expect(types(9)).toEqual(["barrel", "campfire", "catcher", "rack", "shelter", "storage"]);
+    expect(types(10)).toEqual(["barrel", "bucket", "campfire", "catcher", "rack", "shelter", "storage"]);
+    expect(types(11)).toEqual(["barrel", "bucket", "campfire", "catcher", "rack", "shelter", "storage", "tank"]);
     const seven = dayStartState(7);
-    expect(seven).toMatchObject({ rescued: true, coveOpen: true, chestTaken: true, groveOpen: false });
+    expect(seven).toMatchObject({ radioTried: true, coveOpen: true, chestTaken: true, groveOpen: false });
+    expect(seven.rescued).toBeUndefined();
     expect(dayStartState(8)).toMatchObject({ groveOpen: true, barrelTaken: false });
   });
 
@@ -36,5 +41,16 @@ describe("debug day start", () => {
     const catcher = b.find((x) => x.type === "catcher")!;
     const barrel = b.find((x) => x.type === "barrel")!;
     expect(catcherFlow(catcher.heights!, toLocal(catcher, barrel.x, barrel.z)).problem).toBeNull();
+  });
+});
+
+describe("Chapter 3 day starts", () => {
+  it("starts Day 10 with the working bucket pipe, and Day 11 with a line that fills the tank at camp", () => {
+    for (const [n, target] of [[10, "bE2eBucket"], [11, "bE2eTank"]] as const) {
+      const s = dayStartState(n);
+      const flow = solveFlow(s.water!, pipeEnv(s.buildings!));
+      expect(flow.fills[target], `day ${n}`).toBe(1);
+    }
+    expect(dayStartState(11).water!.pipes.length).toBe(5);
   });
 });

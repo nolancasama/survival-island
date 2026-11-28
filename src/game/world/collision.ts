@@ -7,6 +7,9 @@ import {
   CAMP_SIGN, COVE, COVE_CRATE, COVE_HULL, COVE_MAST, COVE_PASSAGE, COVE_PASSAGE_R, COVE_ROCKS, COVE_SIGN, GROVE, GROVE_SIGN, GROVE_TRAIL, GROVE_TRAIL_R,
   clearForGrove, inCove, inCovePassage, inGrove, inGroveTrail
 } from "./chapter2";
+import {
+  CLIMB_PATH, CLIMB_R, SHELF, SHELF_BAMBOO, SHELF_ROCKS, STAIRS, STAIRS_R, UPPER_WATER, clearForUpper, inClimbPath, inShelf, inStairs
+} from "./chapter3";
 
 export interface Circle {
   x: number;
@@ -37,9 +40,11 @@ export interface WorldGates {
   coveOpen?: boolean;
   /** Chapter 2: the bamboo thicket on the grove trail has been cut (omitted = closed). */
   groveOpen?: boolean;
+  /** Chapter 3: the fallen bamboo at the top of the rock stairs has been cut (omitted = closed). */
+  stairsOpen?: boolean;
 }
 
-export const CLOSED_GATES: Readonly<WorldGates> = { pathCleared: false, bridgeBuilt: false, cliffOpen: false, coveOpen: false, groveOpen: false };
+export const CLOSED_GATES: Readonly<WorldGates> = { pathCleared: false, bridgeBuilt: false, cliffOpen: false, coveOpen: false, groveOpen: false, stairsOpen: false };
 export const PLAYER_R = 0.35;
 
 const FOREST = { x0: -28, x1: 27, z0: -42, z1: -3.1 };
@@ -58,7 +63,7 @@ const CAVE_ROOM = {
  * no other tree changes.
  */
 const jungleTrunks: Circle[] = treeSpots().trees.flatMap((spot, index) => {
-  if (clearForGrove(spot.x, spot.z)) return [];
+  if (clearForGrove(spot.x, spot.z) || clearForUpper(spot.x, spot.z)) return [];
   const archetype = JUNGLE_ARCHETYPES[vegetationHash(index) % JUNGLE_ARCHETYPES.length];
   const stretchX = vegetationStretch(index)[0];
   return [{ x: spot.x, z: spot.z, r: Math.max(0.16, archetype.trunkRadius * 1.22 * spot.s * stretchX) }];
@@ -76,6 +81,13 @@ const chapterTwoCircles: Circle[] = [
   ...[COVE_SIGN, CAMP_SIGN, GROVE_SIGN].map((s) => ({ x: s.x, z: s.z, r: 0.18 }))
 ];
 
+/** Chapter 3 fixed obstacles: the shelf's water (a pipe may span it), its standing rocks and the bamboo clump. */
+const chapterThreeCircles: Circle[] = [
+  ...UPPER_WATER.map((w) => ({ ...w })),
+  ...SHELF_ROCKS.map((r) => ({ x: r.x, z: r.z, r: r.r * 0.92 })),
+  { x: SHELF_BAMBOO.x, z: SHELF_BAMBOO.z, r: SHELF_BAMBOO.r }
+];
+
 /** Fixed obstacles. Buildings and Kai are added at runtime. */
 export const STATIC_OBSTACLES: Obstacles = {
   circles: [
@@ -85,7 +97,8 @@ export const STATIC_OBSTACLES: Obstacles = {
     ...jungleTrunks,
     { x: LEAN_TO.x, z: LEAN_TO.z, r: LEAN_TO.r },
     { x: KAI_HOME.x - 1.2, z: KAI_HOME.z + 1.3, r: 0.55 },
-    ...chapterTwoCircles
+    ...chapterTwoCircles,
+    ...chapterThreeCircles
   ],
   rects: [
     WRECK, { x: CRATE.x, z: CRATE.z, hw: CRATE.half, hd: CRATE.half, rot: CRATE.rot },
@@ -140,13 +153,16 @@ export function isWalkable(x: number, z: number, gates: WorldGates = CLOSED_GATE
   if (beach) return true;
   // Chapter 2: the tidal passage and Shipwreck Cove, open at low tide.
   if (gates.coveOpen && (inCovePassage(x, z, margin) || inCove(x, z, margin, maxZ))) return true;
+  // Chapter 3: the rock stairs (once their fallen bamboo is cut) lead from the beach up to the shelf.
+  if (gates.stairsOpen && (inStairs(x, z, margin) || inShelf(x, z, margin))) return true;
   if (!gates.pathCleared) return false;
   // Chapter 2: the trail past the bamboo thicket and the grove clearing.
   if (gates.groveOpen && (inGroveTrail(x, z, margin) || inGrove(x, z, margin))) return true;
   if (inRect(x, z, GAP, margin) || inRect(x, z, FOREST, margin) || inRect(x, z, CAVE_NOTCH, margin)) return true;
   if (gates.cliffOpen && (inCliffPath(x, z, margin) || Math.hypot(x - CLIFFTOP.x, z - CLIFFTOP.z) <= CLIFFTOP.r - margin)) return true;
   if (!gates.bridgeBuilt) return false;
-  return inRect(x, z, BRIDGE_DECK, margin) || inPondClearing(x, z, margin);
+  // Chapter 3: the long way, a path from the pond clearing up to the shelf.
+  return inRect(x, z, BRIDGE_DECK, margin) || inPondClearing(x, z, margin) || inClimbPath(x, z, margin) || inShelf(x, z, margin);
 }
 
 function inCliffPath(x: number, z: number, margin: number): boolean {
@@ -268,8 +284,13 @@ export function clampToWalkable(x: number, z: number, r = 0, gates: WorldGates =
       const scale = d > CLIFFTOP.r - r ? (CLIFFTOP.r - r) / d : 1;
       candidates.push({ x: CLIFFTOP.x + dx * scale, z: CLIFFTOP.z + dz * scale });
     }
-    if (gates.bridgeBuilt) candidates.push(clampRect(x, z, r, BRIDGE_DECK), clampPondClearing(x, z, r));
+    if (gates.bridgeBuilt) {
+      candidates.push(clampRect(x, z, r, BRIDGE_DECK), clampPondClearing(x, z, r));
+      for (let i = 1; i < CLIMB_PATH.length; i++) capsule(CLIMB_PATH[i - 1], CLIMB_PATH[i], CLIMB_R);
+    }
   }
+  if (gates.stairsOpen) capsule(STAIRS[0], STAIRS[1], STAIRS_R);
+  if (gates.stairsOpen || (gates.pathCleared && gates.bridgeBuilt)) candidates.push(clampEllipse(x, z, r, SHELF.x, SHELF.z, SHELF.rx, SHELF.rz));
 
   let best = candidates[0];
   let bestD = Infinity;

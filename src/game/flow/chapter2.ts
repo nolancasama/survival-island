@@ -1,4 +1,4 @@
-import { getGame, setGame, toast } from "../store";
+import { getGame, setGame, toast, type CarryKind } from "../store";
 import { rt, floatText } from "../runtime";
 import { ITEMS, type Bag, type ItemId } from "../types";
 import type { PhraseId } from "../logic/english";
@@ -17,6 +17,7 @@ import {
 } from "../world/chapter2";
 import { STATIC_OBSTACLES } from "../world/collision";
 import { buildingObstacles, placeProblem, type PlacedBuilding } from "../world/placement";
+import { pipeObstacles } from "../world/pipeWorld";
 import { ask, say } from "./ask";
 import { refreshQuest, save, showBeacons, showPlaces, updateHint, wait } from "./session";
 import { currentGates, worldPropObstacles } from "./places";
@@ -67,7 +68,7 @@ const newId = () => `b${Date.now().toString(36)}${buildingSeq++}`;
 
 /** Day 6: low tide opens the passage, and Kai sets off for the cove. */
 export async function coveMorning() {
-  await say("kai", "Good morning! Let's make our camp better!", "おはよう！ キャンプを もっと よく しよう！");
+  await say("kai", "Good morning! Remember the boxes we saw? Let's make our camp better!", "おはよう！ みた はこ、 おぼえてる？ キャンプを もっと よく しよう！");
   await say("kai", "Our bags are full. We need a big box.", "かばんが いっぱいだね。 おおきな はこが いるよ。");
   setGame({ coveOpen: true });
   rt.coveOpenT0 = rt.time;
@@ -338,7 +339,13 @@ async function kaiTo(x: number, z: number, faceX: number, faceZ: number) {
   rt.kai.yaw = Math.atan2(faceX - rt.kai.x, faceZ - rt.kai.z);
 }
 
-function startCarry(kind: "chest" | "barrel") {
+/** The chest and the tank are carried by the pair; the barrel alone. */
+export const twoCarry = (kind: CarryKind | null) => kind === "chest" || kind === "tank";
+
+/** The tank has been lifted with Kai this session ("It's too heavy." is asked the first time). */
+let liftedTank = false;
+
+function startCarry(kind: CarryKind) {
   rt.carry.liftT0 = rt.time;
   rt.carry.trail = [{ x: rt.player.x, z: rt.player.z }];
   setGame({ carry: kind, focus: null });
@@ -353,10 +360,11 @@ export async function carry(id: string) {
   const g = getGame();
   if (g.carry) return;
   const building = g.buildings.find((b) => b.id === id);
+  const tank = building?.type === "tank";
   const chest = id === SEA_CHEST.id || building?.type === "storage";
   const at = building ?? (chest ? SEA_CHEST : COVE_BARREL);
   face(at.x, at.z);
-  if (!chest) {
+  if (!chest && !tank) {
     if (!known("carryBarrel")) {
       const said = await ask({ kind: "command", options: ["carryBarrel"], picture: "barrel", cancellable: true, readSentence: true });
       if (!said) return;
@@ -373,18 +381,19 @@ export async function carry(id: string) {
     save();
     return;
   }
-  // The heavy sea chest.
-  if (!known("carryBox")) {
-    const said = await ask({ kind: "command", options: ["carryBox"], picture: "box", cancellable: true, readSentence: true });
+  // The heavy sea chest, or Chapter 3's water tank: Kai takes the other side.
+  const phrase: PhraseId = tank ? "carryTank" : "carryBox";
+  if (!known(phrase)) {
+    const said = await ask({ kind: "command", options: [phrase], picture: tank ? "tank" : "box", cancellable: true, readSentence: true });
     if (!said) return;
   }
   setGame({ mode: "busy", focus: null });
-  const first = !getGame().chestTaken;
+  const first = tank ? !liftedTank : !getGame().chestTaken;
   if (first) {
     rt.carry.strainT0 = rt.time;
     audio.play("full");
     await wait(1100);
-    await ask({ kind: "command", options: ["tooHeavy"], picture: "box", readSentence: !known("tooHeavy") });
+    await ask({ kind: "command", options: ["tooHeavy"], picture: tank ? "tank" : "box", readSentence: !known("tooHeavy") });
   }
   setGame({ mode: "busy" });
   const said = await ask({ kind: "command", options: ["canHelp"], picture: "kai", question: { en: "Ask Kai for help!", ja: "カイに たのもう！", by: "game" }, readSentence: !known("canHelp") });
@@ -398,26 +407,36 @@ export async function carry(id: string) {
   rt.kai.talking = true;
   await say("kai", "Yes, I can! One, two, three!", "いいよ！ いち、 に、 さん！");
   rt.kai.talking = false;
-  if (building) setGame({ buildings: getGame().buildings.filter((b) => b.id !== id) });
-  setGame({ chestTaken: true, kaiStage: "camp" });
-  startCarry("chest");
+  if (building) {
+    if (tank && (building.water ?? 0) >= 1) toast({ en: "You poured out the water to carry it.", ja: "はこぶ まえに みずを すてたよ。", icon: "water", tone: "info" });
+    setGame({ buildings: getGame().buildings.filter((b) => b.id !== id) });
+  }
+  if (tank) {
+    liftedTank = true;
+    setGame({ kaiStage: "camp" });
+  } else {
+    setGame({ chestTaken: true, kaiStage: "camp" });
+  }
+  startCarry(tank ? "tank" : "chest");
   // Kai holds the far end: he starts behind the player and follows their path.
   const back = rt.player.yaw + Math.PI;
   rt.carry.trail = [{ x: rt.player.x + Math.sin(back) * 1.8, z: rt.player.z + Math.cos(back) * 1.8 }, { x: rt.player.x, z: rt.player.z }];
-  if (first) {
+  if (first && !tank) {
     await ask({ kind: "command", options: ["goBack"], picture: "shelter", readSentence: true });
     await say("kai", "OK! Let's take it to our camp.", "うん！ キャンプに もっていこう。");
     showPlaces(g.buildings.filter((b) => b.type === "shelter").map((b) => b.id));
+  } else if (first) {
+    await say("kai", "Let's put it under the pipe!", "パイプの したに おこう！");
   }
   setGame({ mode: "explore" });
   refreshQuest();
   save();
 }
 
-/** Where a carried thing comes down: the chest between the pair, the barrel in front. */
-function putDownSpot(kind: "chest" | "barrel"): { x: number; z: number } {
+/** Where a carried thing comes down: the chest or tank between the pair, the barrel in front. */
+function putDownSpot(kind: CarryKind): { x: number; z: number } {
   const p = rt.player;
-  if (kind === "chest") return { x: (p.x + rt.kai.x) / 2, z: (p.z + rt.kai.z) / 2 };
+  if (twoCarry(kind)) return { x: (p.x + rt.kai.x) / 2, z: (p.z + rt.kai.z) / 2 };
   return { x: p.x + Math.sin(p.yaw) * 0.95, z: p.z + Math.cos(p.yaw) * 0.95 };
 }
 
@@ -427,21 +446,21 @@ export async function putDown() {
   const kind = g.carry;
   if (!kind) return;
   const spot = putDownSpot(kind);
-  const type = kind === "chest" ? "storage" : "barrel";
-  // The chest comes down between the pair, at the player's hands: only the barrel keeps clear of their feet.
-  const keepClear = kind === "chest" ? [] : [{ x: rt.player.x, z: rt.player.z, r: 0.3 }];
-  const problem = placeProblem(type, spot.x, spot.z, [STATIC_OBSTACLES, buildingObstacles(g.buildings), worldPropObstacles()], keepClear, currentGates());
+  const type = kind === "chest" ? "storage" : kind;
+  // The chest and tank come down between the pair, at the player's hands: only the barrel keeps clear of their feet.
+  const keepClear = twoCarry(kind) ? [] : [{ x: rt.player.x, z: rt.player.z, r: 0.3 }];
+  const problem = placeProblem(type, spot.x, spot.z, [STATIC_OBSTACLES, buildingObstacles(g.buildings), pipeObstacles(g.water), worldPropObstacles()], keepClear, currentGates());
   if (problem) {
     audio.play("error");
     toast({ en: problem === "water" ? "Not in the water!" : "Not here. Try another place!", ja: problem === "water" ? "みずの なかは だめ！" : "ここは だめ。 ほかの ばしょで！", tone: "warn" });
     return;
   }
   if (!known("putHere")) {
-    const said = await ask({ kind: "command", options: ["putHere"], picture: kind === "chest" ? "box" : "barrel", cancellable: true, readSentence: true });
+    const said = await ask({ kind: "command", options: ["putHere"], picture: kind === "chest" ? "box" : kind, cancellable: true, readSentence: true });
     if (!said || getGame().carry !== kind) return;
   }
-  const yaw = kind === "chest" ? Math.atan2(rt.kai.x - rt.player.x, rt.kai.z - rt.player.z) + Math.PI / 2 : rt.player.yaw;
-  const b: PlacedBuilding = { id: newId(), type, x: spot.x, z: spot.z, rot: yaw, ...(kind === "barrel" ? { water: 0 } : {}) };
+  const yaw = twoCarry(kind) ? Math.atan2(rt.kai.x - rt.player.x, rt.kai.z - rt.player.z) + Math.PI / 2 : rt.player.yaw;
+  const b: PlacedBuilding = { id: newId(), type, x: spot.x, z: spot.z, rot: yaw, ...(kind !== "chest" ? { water: 0 } : {}) };
   rt.carry.liftT0 = -100;
   rt.carry.trail = [];
   setGame({ carry: null, buildings: [...getGame().buildings, b] });
@@ -485,7 +504,7 @@ async function chestHome() {
 export function dropCarried(at: { x: number; z: number } = { x: rt.player.x, z: rt.player.z }): PlacedBuilding | null {
   const kind = getGame().carry;
   if (!kind) return null;
-  const b: PlacedBuilding = { id: newId(), type: kind === "chest" ? "storage" : "barrel", x: at.x, z: at.z, rot: rt.player.yaw, ...(kind === "barrel" ? { water: 0 } : {}) };
+  const b: PlacedBuilding = { id: newId(), type: kind === "chest" ? "storage" : kind, x: at.x, z: at.z, rot: rt.player.yaw, ...(kind !== "chest" ? { water: 0 } : {}) };
   rt.carry.liftT0 = -100;
   rt.carry.trail = [];
   setGame({ carry: null, buildings: [...getGame().buildings, b] });
@@ -814,7 +833,7 @@ export async function useBarrel(id: string) {
   const nx = b.x + Math.cos(yaw) * 0.4 * sign;
   const nz = b.z - Math.sin(yaw) * 0.4 * sign;
   const others = getGame().buildings.filter((x) => x.id !== id);
-  const problem = placeProblem("barrel", nx, nz, [STATIC_OBSTACLES, buildingObstacles(others), worldPropObstacles()], [{ x: rt.player.x, z: rt.player.z, r: 0.25 }], currentGates());
+  const problem = placeProblem("barrel", nx, nz, [STATIC_OBSTACLES, buildingObstacles(others), pipeObstacles(getGame().water), worldPropObstacles()], [{ x: rt.player.x, z: rt.player.z, r: 0.25 }], currentGates());
   if (problem) {
     audio.play("error");
     toast({ en: "It can't go there.", ja: "そこには うごかせないよ。", tone: "warn" });
@@ -995,7 +1014,7 @@ export function restoreChapterTwo() {
     rt.carry.liftT0 = rt.time - 5;
     const back = rt.player.yaw + Math.PI;
     rt.carry.trail = [{ x: rt.player.x + Math.sin(back) * 1.8, z: rt.player.z + Math.cos(back) * 1.8 }, { x: rt.player.x, z: rt.player.z }];
-    if (g.carry === "chest") {
+    if (twoCarry(g.carry)) {
       rt.kai.x = rt.carry.trail[0].x;
       rt.kai.z = rt.carry.trail[0].z;
     }

@@ -100,7 +100,7 @@ function Hint() {
   const mode = useGame((s) => s.mode);
   const ja = useGame((s) => s.settings.japanese);
   const classroom = useGame((s) => s.settings.classroom);
-  if (!hint || (mode !== "explore" && mode !== "place")) return null;
+  if (!hint || (mode !== "explore" && mode !== "place" && mode !== "pipe")) return null;
   const h = hints(classroom)[hint]?.[touch ? "touch" : "keys"];
   if (!h) return null;
   return (

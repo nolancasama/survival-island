@@ -38,6 +38,12 @@ export const SIGNAL_PAD = { id: "signalPad", x: 22, z: -79, r: 1.3 };
 export const HELICOPTER_PAD = { x: 30, z: -75, y: 25 };
 export const RESCUE_SECONDS = 12;
 export const RESCUE_SHOT = { pos: { x: 43, y: 34, z: -56 }, target: { x: 26, y: 28, z: -77 } };
+/**
+ * Day 5: what Kai points at from the clifftop: over the island's east end
+ * into the next cove, where the wreck's crates, barrel and chest lie, with
+ * more wreckage floating in toward it (scene/Chapter3World.tsx, DRIFT).
+ */
+export const COVE_LOOK_SHOT = { pos: { x: 41, y: 22, z: -14 }, target: { x: 63, y: 0, z: 10 } };
 
 export function isOnClifftop(x: number, z: number): boolean {
   return Math.hypot(x - CLIFFTOP.x, z - CLIFFTOP.z) <= CLIFFTOP.r - 0.35;

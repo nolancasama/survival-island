@@ -50,7 +50,7 @@ async function morning(page: Page, classroom = false) {
   await fast(page, false);
   await hook(page, "startDay", 5, classroom);
   await until(page, "Day 5 title", (s) => s.day === 5 && s.dayTitle === 5);
-  await line(page, "Today we go home!");
+  await line(page, "Good morning! Let's call for help!");
   await line(page, "Let's go to the clifftop. But rocks are on the path.");
   await line(page, "I'll meet you there.");
   await until(page, "Kai leaves camp on the rockfall route", (s) => s.mode === "explore" && !s.line && !s.prompt && !s.kaiRouteEmpty && s.kaiStage === "camp");
@@ -167,41 +167,41 @@ async function lightPad(page: Page) {
   expect(s.prompt?.choices).toEqual(["needHelp", "needWater", "sleep"]);
 }
 
-async function rescue(page: Page, choice: "needHelp" | "needWater") {
+/**
+ * The radio answers once and fades (nobody can hear), then Kai sees the
+ * shipwreck's wood and boxes in the next cove from the clifftop, and the
+ * Chapter 1 card follows. The helicopter rescue is kept for the final chapter.
+ */
+async function radioFails(page: Page, choice: "needHelp" | "needWater") {
   await answer(page, choice);
-  await line(page, choice === "needHelp" ? "We see your smoke! We're coming!" : "Water? OK! We see your smoke. We're coming!");
-  await until(page, "rescue flight starts with input held", (s) => s.rescued && s.rescue.phase === "flight" && s.mode === "busy");
-  const flight = await state(page);
-  expect(flight.prompt).toBeNull();
-  expect(flight.line).toBeNull();
-  expect(flight.worldAnimation.rescueT0).toBeGreaterThanOrEqual(0);
-  await until(page, "helicopter landed before Kai cheer", (s) => s.rescue.phase === "landed" && s.line?.en === "We did it! We're going home!");
-  expect((await state(page)).rescue.elapsed).toBeGreaterThanOrEqual(flight.rescue.duration);
-  await line(page, "We did it! We're going home!");
-  await until(page, "Rescue card displayed", (s) => s.screen === "dayEnd" && s.rescued && s.quest.complete);
-  await expect(page.getByRole("heading", { name: "Rescued!" })).toBeVisible();
-  await expect(page.getByTestId("keep-exploring")).toBeVisible();
-  await expect(page.getByTestId("keep-exploring")).toContainText("Chapter 2");
+  await line(page, choice === "needHelp" ? "Help? … I can't … hear … you …" : "Water? … I can't … hear … you …");
+  await line(page, "Hello? Hello? … Oh no. The radio is too weak.");
+  await line(page, "We need a better radio. Then we can try again.");
+  await until(page, "the camera looks down at the cove", (s) => s.radioTried && s.line?.en === "Look! What's that?");
+  expect((await state(page)).rescued).toBe(false);
+  expect((await state(page)).rescue.phase).toBe("none");
+  await line(page, "Look! What's that?");
+  await line(page, "Wood and boxes from a ship! In the next cove!");
+  await line(page, "Let's make our camp better. Then we can try the radio again.");
+  await until(page, "Chapter 1 card displayed", (s) => s.screen === "dayEnd" && s.radioTried && s.quest.complete);
+  await expect(page.getByRole("heading", { name: /Chapter 1 complete!/ })).toBeVisible();
+  await expect(page.getByTestId("chapter-done")).toContainText("Chapter 1: Survive");
+  await expect(page.getByTestId("next-chapter")).toBeVisible();
+  await expect(page.getByTestId("next-chapter")).toContainText("Chapter 2");
   await expect(page.getByTestId("dayend").getByRole("button")).toHaveCount(1);
-  await expect(page.getByTestId("to-title")).toHaveCount(0);
-  await expect(page.getByTestId("said")).toContainText("I'm hungry.");
-  await expect(page.getByTestId("said")).toContainText("Go in the cave.");
   await expect(page.getByTestId("said")).toContainText("Can you help me?");
   await expect(page.getByTestId("said")).toContainText(choice === "needHelp" ? "I need help." : "I need water.");
   await expect(page.getByTestId("said").locator("li").filter({ hasText: "Can you help me?" })).toContainText("NEW");
   await expect(page.getByTestId("said").locator("li").filter({ hasText: "Make a fire." })).not.toContainText("NEW");
-  if (choice === "needHelp") {
-    await expect(page.getByTestId("said").locator("li").filter({ hasText: "I need help." })).toContainText("NEW");
-  }
   const s = await state(page);
-  await expect(page.getByTestId("said").locator("li")).toHaveCount(s.said.length);
+  await expect(page.getByTestId("said").locator("li")).toHaveCount(s.daySaid.length);
   expect(s.quest.done).toEqual(expect.arrayContaining(["cliff", "wood", "leaves", "signalFire", "clifftop", "signal", "help"]));
   expect(s.quest.done).not.toContain("sleep");
+  expect(s.rescued).toBe(false);
   expect(s.sleptDay).toBe(4);
-  expect(s.isNight).toBe(false);
 }
 
-/** After the Rescue card: Chapter 2 starts at the Day 6 morning (the tide goes out). */
+/** After the Chapter 1 card: Chapter 2 starts at the Day 6 morning (the tide goes out). */
 async function chapterTwo(page: Page) {
   await fast(page, true);
   await until(page, "Chapter 2 Day 6", (s) => s.day === 6 && !s.freePlay && s.chapterTwo.coveOpen && s.step === "cove" && s.mode === "explore" && s.dayTitle === null);
@@ -212,7 +212,7 @@ async function chapterTwo(page: Page) {
   await expect(page.getByTestId("step-cove")).toBeVisible();
 }
 
-test("tapping: Day 5 escape, radio help, Rescue card and Chapter 2", async ({ page }) => {
+test("tapping: Day 5 signal fire, the radio fails, the cove from the clifftop, Chapter 1 card and Chapter 2", async ({ page }) => {
   const errors = await precondition("game boot", () => boot(page));
   await morning(page);
   await rockfall(page, true);
@@ -220,10 +220,30 @@ test("tapping: Day 5 escape, radio help, Rescue card and Chapter 2", async ({ pa
   await climb(page, true);
   await signalFire(page);
   await lightPad(page);
-  await rescue(page, "needHelp");
+  await radioFails(page, "needHelp");
   await fast(page, true);
-  await page.getByTestId("keep-exploring").click();
+  await page.getByTestId("next-chapter").click();
   await chapterTwo(page);
+  await expect(page.getByTestId("line")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("the helicopter rescue is kept for the final chapter: the hook plays it to the Rescued card", async ({ page }) => {
+  const errors = await precondition("game boot", () => boot(page));
+  await hook(page, "setMic", false);
+  await fast(page, false);
+  await hook(page, "startDay", 6);
+  await until(page, "Day 6 morning playing", (s) => s.day === 6 && s.screen === "game");
+  await fast(page, true);
+  await until(page, "Day 6 exploring", (s) => s.mode === "explore" && !s.line && !s.prompt);
+  await hook(page, "goto", 26, -76, 26, -79);
+  await hook(page, "playRescue");
+  await until(page, "rescue flight starts with input held", (s) => s.rescued && s.rescue.phase === "flight" && s.mode === "busy");
+  await until(page, "Kai cheers after the landing", (s) => s.line?.en === "We did it! We're going home!");
+  await page.keyboard.press("KeyE");
+  await until(page, "Rescued card", (s) => s.screen === "dayEnd" && s.rescued);
+  await expect(page.getByRole("heading", { name: "Rescued!" })).toBeVisible();
+  await expect(page.getByTestId("keep-exploring")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -245,7 +265,7 @@ async function savedStage(page: Page, label: string, pred: (s: SiState) => boole
   await reloadContinue(page);
 }
 
-test("Day 5 save stages resume Kai routes, lit fire radio and rescued Chapter 2; water radio answer also rescues", async ({ page }) => {
+test("Day 5 save stages resume Kai routes, the lit fire's radio call and Chapter 2; the water answer also ends Chapter 1", async ({ page }) => {
   const errors = await precondition("game boot", () => boot(page));
   await morning(page);
   // A save from the in-progress walk settles Kai at the end of that route.
@@ -268,14 +288,15 @@ test("Day 5 save stages resume Kai routes, lit fire radio and rescued Chapter 2;
   await lightPad(page);
   // Lighting saves before the radio prompt; reloading here must not replay the fire command.
   await reloadContinue(page);
-  await until(page, "lit-fire save reopens radio question", (s) => s.signalLit && !s.rescued && s.prompt?.question === "Hello? Hello? What do you need?");
+  await until(page, "lit-fire save reopens radio question", (s) => s.signalLit && !s.radioTried && s.prompt?.question === "Hello? Hello? What do you need?");
   expect((await state(page)).bag.signalFire ?? 0).toBe(0);
   expect((await state(page)).cliffOpen && (await state(page)).reachedClifftop).toBe(true);
-  await rescue(page, "needWater");
+  await radioFails(page, "needWater");
   await fast(page, true);
   await reloadContinue(page);
   await chapterTwo(page);
-  expect((await state(page)).rescued).toBe(true);
+  expect((await state(page)).radioTried).toBe(true);
+  expect((await state(page)).rescued).toBe(false);
   expect(errors).toEqual([]);
 });
 

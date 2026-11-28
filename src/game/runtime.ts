@@ -1,6 +1,7 @@
 import type { Vec3 } from "./types";
 import { KAI_HOME, SPAWN } from "./world/island";
 import { START_STATS, type Stats } from "./logic/stats";
+import type { PiecePlan } from "./logic/waterworks";
 
 /**
  * Mutable per-frame state shared by the scene, input and game flow. Kept out
@@ -142,7 +143,24 @@ export const rt = {
   /** The catcher test: when Kai's test started, and which catcher. */
   test: { id: "", t0: -100 },
   /** Live time when Day 8's catcher first caught every stream (the rain stops after a while). */
-  catcherWorkedAt: -1
+  catcherWorkedAt: -1,
+  /** Chapter 3: when the stairs' fallen bamboo was cut (it falls aside). */
+  stairsOpenT0: -1,
+  /**
+   * Chapter 3 laying: the aimed direction (16 steps), the preview plan for
+   * this frame, a direction the test hook can force, and the day "I need more
+   * bamboo." was last asked.
+   */
+  pipe: { dir: 0, plan: null as PiecePlan | null, forceDir: null as number | null, askedBambooDay: 0 },
+  /**
+   * Chapter 3 water: when water started along each wet pipe and how long it
+   * takes to run its length; the flyover that follows the water to the tank.
+   */
+  water: {
+    start: new Map<string, { t: number; dur: number }>(),
+    flyover: null as null | { t0: number; speed: number; total: number; path: Array<{ id: string; x: number; z: number; y: number }> },
+    tankShown: false
+  }
 };
 
 let floaterId = 1;
@@ -214,4 +232,11 @@ export function resetRuntime() {
   rt.steadyT0.clear();
   rt.test = { id: "", t0: -100 };
   rt.catcherWorkedAt = -1;
+  rt.stairsOpenT0 = -1;
+  rt.pipe.plan = null;
+  rt.pipe.forceDir = null;
+  rt.pipe.askedBambooDay = 0;
+  rt.water.start.clear();
+  rt.water.flyover = null;
+  rt.water.tankShown = false;
 }
