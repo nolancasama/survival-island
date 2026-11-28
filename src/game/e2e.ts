@@ -2,7 +2,12 @@ import { freshGameData, getGame, setGame, type GameState } from "./store";
 import { resetRuntime, rt } from "./runtime";
 import { walkKaiRoute } from "./kaiRoute";
 import { seedChoices } from "./flow/ask";
-import { startChapterTwo, syncStats } from "./flow/session";
+import { startChapterThree, startChapterTwo, syncStats } from "./flow/session";
+import { currentFlow, pourArrival } from "./flow/chapter3";
+import { rescue } from "./flow/escape";
+import { CLIMB_PATH, INTAKE_SPOTS, KAI_TANK_SPOT, KAI_UPPER, SHELF, STAIRS, TABLE_ROCK, TANGLE_SPOT } from "./world/chapter3";
+import { INTAKES, pipeCheck, pipeEnv } from "./world/pipeWorld";
+import { addPiece, diagnose, planPiece, type Network } from "./logic/waterworks";
 import { nextDay } from "./flow/days";
 import { currentGates, targetPosition, targetReachable, worldPropObstacles } from "./flow/places";
 import { flowOf } from "./flow/chapter2";
@@ -127,6 +132,7 @@ export function installE2eHook(seed: number) {
         enteredCave: g.enteredCave,
         signalLit: g.signalLit,
         rescued: g.rescued,
+        radioTried: g.radioTried,
         kaiStage: g.kaiStage,
         caveBoxOpened: g.caveBoxOpened,
         reachedClifftop: g.reachedClifftop,
@@ -138,6 +144,24 @@ export function installE2eHook(seed: number) {
           carryTrail: rt.carry.trail.length,
           flows: Object.fromEntries(g.buildings.filter((b) => b.type === "catcher").map((b) => [b.id, flowOf(b)]))
         },
+        chapterThree: (() => {
+          const { env, flow } = currentFlow();
+          const containers = g.buildings.filter((b) => b.type === "bucket" || b.type === "tank");
+          return {
+            reachedUpper: g.reachedUpper, stairsOpen: g.stairsOpen, bucketFilled: g.bucketFilled, tankFilled: g.tankFilled,
+            seen: g.kai.seen ?? null, pipePlan: !!g.kai.pipePlan,
+            water: g.water,
+            pipe: g.pipe,
+            plan: rt.pipe.plan ? { ...rt.pipe.plan } : null,
+            dir: rt.pipe.dir,
+            fills: flow.fills,
+            pours: flow.pours.map((p) => ({ at: p.at, into: p.into, tooLowFor: p.tooLowFor, arrived: rt.time >= pourArrival(p.at) })),
+            overflows: flow.overflows.map((o) => ({ at: o.at, tooHigh: o.tooHigh })),
+            wet: flow.wet.map((w) => w.id),
+            containers: containers.map((b) => ({ id: b.id, type: b.type, x: b.x, z: b.z, water: b.water ?? 0, problem: diagnose(g.water, env, flow, b.id).problem })),
+            flyover: rt.water.flyover !== null
+          };
+        })(),
         light: rt.light,
         lightTarget: rt.lightTarget,
         time: rt.time,
@@ -356,6 +380,74 @@ export function installE2eHook(seed: number) {
       void startChapterTwo();
       return true;
     },
+    /** The title's "Chapter 3" start (Day 9 morning with Chapters 1 and 2 complete). */
+    startChapterThree() {
+      void startChapterThree();
+      return true;
+    },
+    /**
+     * Chapter 3 laying: fix the aimed direction (0–15, 4 = east; null = follow
+     * the player again), so a spec presses the real keys and buttons without steering.
+     */
+    setPipeDir(dir: number | null) {
+      rt.pipe.forceDir = dir;
+      return dir;
+    },
+    /** Let water that is still running along the pipes arrive at once (timed visuals only). */
+    settleWater() {
+      for (const [id, t] of rt.water.start) rt.water.start.set(id, { t: rt.time - t.dur - 0.01, dur: t.dur });
+      return rt.water.start.size;
+    },
+    /** Build a line from an open end with the real placement rules (no materials): [direction, kind, notch] per piece. */
+    buildLine(from: string, steps: Array<[number, "long" | "short", number]>) {
+      const g = getGame();
+      const env = pipeEnv(g.buildings);
+      const check = pipeCheck(currentGates(), g.buildings);
+      let net = g.water;
+      let at = from;
+      const problems: Array<string | null> = [];
+      for (const [dir, kind, notch] of steps) {
+        const plan = planPiece(net, env, check, at, dir, kind, notch);
+        problems.push(plan?.problem ?? "none");
+        if (!plan || plan.problem) break;
+        const added = addPiece(net, plan);
+        net = added.net;
+        at = added.joint;
+      }
+      setGame({ water: net });
+      return { end: at, problems };
+    },
+    setWater(net: Network) {
+      setGame({ water: { joints: net.joints.map((j) => ({ ...j })), pipes: net.pipes.map((p) => ({ ...p })), next: net.next } });
+      return getGame().water.pipes.length;
+    },
+    setChapterThree(next: Partial<Pick<GameState, "reachedUpper" | "stairsOpen" | "bucketFilled" | "tankFilled" | "kaiStage">> & { pipePlan?: boolean }) {
+      const { pipePlan, ...facts } = next;
+      if (facts.stairsOpen && !getGame().stairsOpen) rt.stairsOpenT0 = -1;
+      if (pipePlan !== undefined) setGame({ kai: { ...getGame().kai, pipePlan } });
+      setGame(facts);
+    },
+    /** Kai arrives at the end of the route he is walking (long authored walks). */
+    finishKaiRoute() {
+      const end = rt.kai.route[rt.kai.route.length - 1];
+      if (end) {
+        rt.kai.x = end.x;
+        rt.kai.z = end.z;
+      }
+      rt.kai.route = [];
+      rt.kai.walkTo = null;
+      return { x: rt.kai.x, z: rt.kai.z };
+    },
+    /** A bucket's or tank's water (cups). */
+    setContainerWater(id: string, water: number) {
+      setGame({ buildings: getGame().buildings.map((b) => (b.id === id ? { ...b, water } : b)) });
+      return water;
+    },
+    /** The final chapter's ending (kept from Chapter 1): the helicopter rescue and its card. */
+    playRescue() {
+      void rescue();
+      return true;
+    },
     setWorldFacts(next: Partial<Pick<GameState, "signalLit" | "rescued" | "kaiStage" | "caveBoxOpened">>) {
       const g = getGame();
       if (next.signalLit !== undefined && next.signalLit !== g.signalLit) rt.signalLitT0 = next.signalLit ? rt.time : -1;
@@ -438,7 +530,10 @@ export function installE2eHook(seed: number) {
         nodes: NODES.map((n) => ({ ...n })),
         cove: { ...COVE }, covePassage: COVE_PASSAGE.map((p) => ({ ...p })), coveCrate: { ...COVE_CRATE },
         seaChest: { ...SEA_CHEST }, coveBarrel: { ...COVE_BARREL }, kaiCove: { ...KAI_COVE },
-        grove: { ...GROVE }, groveGate: { ...GROVE_GATE }
+        grove: { ...GROVE }, groveGate: { ...GROVE_GATE },
+        shelf: { ...SHELF }, stairs: STAIRS.map((p) => ({ ...p })), climbPath: CLIMB_PATH.map((p) => ({ ...p })), tangle: { ...TANGLE_SPOT },
+        tableRock: { ...TABLE_ROCK }, kaiUpper: { ...KAI_UPPER }, kaiTank: { ...KAI_TANK_SPOT },
+        intakes: INTAKES.map((i) => ({ ...i, name: INTAKE_SPOTS.find((s) => s.id === i.id)!.name }))
       };
     },
     setMic(on: boolean) {

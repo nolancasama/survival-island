@@ -97,7 +97,8 @@ test("Chapter 2 title start and Day 6: cove, questions, the box, canvas and carr
 
   await until(page, "Day 6 morning, tide out", (s) => s.day === 6 && s.chapterTwo.coveOpen && s.step === "cove" && (s.screen === "game" && s.mode === "explore" && !s.line && !s.prompt));
   let s = await state(page);
-  expect(s.rescued).toBe(true);
+  expect(s.radioTried).toBe(true);
+  expect(s.rescued).toBe(false);
   expect(s.buildings.some((b) => b.type === "shelter" && b.built)).toBe(true);
   expect(s.beacons).toContain("covePassage");
   expect(s.chapterTwo.stackLimit).toBe(10);
@@ -314,16 +315,16 @@ test("a v3 free-play save resumes at the Chapter 2 Day 6 morning; its water beco
   await page.getByTestId("btn-settings").click();
   await page.getByTestId("settings-title").click();
   await precondition("create a v3 free-play fixture", () => page.evaluate(() => {
-    const saved = localStorage.getItem("si.save.v4");
-    if (!saved) throw new Error("v4 source save missing");
+    const saved = localStorage.getItem("si.save.v5");
+    if (!saved) throw new Error("v5 source save missing");
     const old = JSON.parse(saved);
-    for (const field of ["boiled", "boiledDay", "coveOpen", "groveOpen", "reachedCove", "coveBoxOpened", "asked", "chestTaken", "barrelTaken", "carry", "fishDried", "rainCaught", "rainDone"]) delete old[field];
+    for (const field of ["radioTried", "reachedUpper", "stairsOpen", "bucketFilled", "tankFilled", "water", "boiled", "boiledDay", "coveOpen", "groveOpen", "reachedCove", "coveBoxOpened", "asked", "chestTaken", "barrelTaken", "carry", "fishDried", "rainCaught", "rainDone"]) delete old[field];
     Object.assign(old, {
       v: 3, quest: { day: 7, done: [], complete: false }, sleptDay: 6, t: 0.4, rescued: true, signalLit: true,
       cliffOpen: true, reachedClifftop: true, kaiStage: "clifftop", bag: { ...old.bag, water: 2 }
     });
     delete old.bag.boiledWater;
-    localStorage.removeItem("si.save.v4");
+    localStorage.removeItem("si.save.v5");
     localStorage.setItem("si.save.v3", JSON.stringify(old));
   }));
   await page.reload();
@@ -335,10 +336,12 @@ test("a v3 free-play save resumes at the Chapter 2 Day 6 morning; its water beco
   await page.getByTestId("teacher-tap").click();
   await until(page, "Day 6 cove morning after migration", (s) => s.day === 6 && s.chapterTwo.coveOpen && s.step === "cove" && (s.screen === "game" && s.mode === "explore" && !s.line && !s.prompt));
   const s = await state(page);
-  expect(s.rescued).toBe(true);
+  // The old rescue is now the tried radio call (the rescue ends the whole story).
+  expect(s.radioTried).toBe(true);
+  expect(s.rescued).toBe(false);
   expect(s.bag.boiledWater).toBe(2);
   expect(s.bag.water ?? 0).toBe(0);
   expect(s.freePlay).toBe(false);
-  expect(await page.evaluate(() => localStorage.getItem("si.save.v4") !== null)).toBe(true);
+  expect(await page.evaluate(() => localStorage.getItem("si.save.v5") !== null)).toBe(true);
   expect(errors).toEqual([]);
 });

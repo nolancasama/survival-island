@@ -7,8 +7,10 @@ import { CAVE_MOUTH } from "../world/island";
 import { CAVE_BOX, ROCKFALL, SIGNAL_PAD } from "../world/phase3";
 import { canSleepNow } from "./days";
 import { count } from "../logic/inventory";
+import { currentStep } from "../logic/quest";
 import { CAMP_SIGN, COVE_SIGN, GROVE_SIGN } from "../world/chapter2";
 import { askKindOf, canAsk, chapterTwoCandidates } from "./chapter2Focus";
+import { chapterThreeCandidates } from "./chapter3Focus";
 
 /**
  * What the player can use right now: the nearest usable thing within reach,
@@ -98,7 +100,10 @@ function candidates(): Candidate[] {
   }
   const kaiAtRockfall = !g.cliffOpen && Math.hypot(rt.kai.x - ROCKFALL.x, rt.kai.z - ROCKFALL.z) < INTERACT_RANGE + 0.5;
   if (!rt.kai.route.length && !kaiAtRockfall) {
-    out.push({ focus: { id: "kai", kind: "kai", verb: "Talk to", noun: "Kai", icon: "needs" }, x: rt.kai.x, z: rt.kai.z, reach: INTERACT_RANGE + 0.5 });
+    // Chapter 3: Kai tests the water, so he is preferred over the pipe posts around him.
+    const testing = ["pipePlan", "bucket", "pipeCamp", "fillTank"].includes(currentStep(g.quest)?.id ?? "");
+    const bias = (g.quest.day === 9 || g.quest.day === 10) && testing ? 0.8 : 0;
+    out.push({ focus: { id: "kai", kind: "kai", verb: "Talk to", noun: "Kai", icon: "needs" }, x: rt.kai.x, z: rt.kai.z, reach: INTERACT_RANGE + 0.5, bias });
   }
   const hasShelter = g.buildings.some((b) => b.type === "shelter" && b.built);
   for (const b of g.buildings) {
@@ -124,6 +129,7 @@ function candidates(): Candidate[] {
     out.push({ focus: { id: s.id, kind: "sign", verb: "Read", noun: "sign", icon: "sign" }, x: s.x, z: s.z, reach: INTERACT_RANGE });
   }
   out.push(...chapterTwoCandidates());
+  out.push(...chapterThreeCandidates());
   return out;
 }
 

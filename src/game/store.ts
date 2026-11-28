@@ -7,6 +7,7 @@ import type { Stats } from "./logic/stats";
 import { START_STATS } from "./logic/stats";
 import type { PlacedBuilding, PlaceProblem } from "./world/placement";
 import type { IconId } from "../ui/icons";
+import { EMPTY_NETWORK, type Network, type PieceKind, type PieceProblem } from "./logic/waterworks";
 
 export type Screen = "title" | "game" | "dayEnd";
 
@@ -14,8 +15,25 @@ export type Screen = "title" | "game" | "dayEnd";
  * explore: walking around.  ask: an English prompt is open.  talk: a line of
  * dialogue is showing.  craft: the Craft menu.  place: the building preview.
  * busy: a scripted moment (intro, fainting, the celebration, sleeping, the morning).
+ * pipe: Chapter 3 water pipes — laying a new piece (walking aims it) or changing a post.
  */
-export type Mode = "explore" | "ask" | "talk" | "craft" | "place" | "busy";
+export type Mode = "explore" | "ask" | "talk" | "craft" | "place" | "busy" | "pipe";
+
+/** The pipe bar and post panel (Chapter 3). The per-frame preview lives in rt.pipe. */
+export type PipeUi =
+  | {
+      kind: "lay";
+      /** The open end the new piece leaves from (a joint or an intake). */
+      from: string;
+      len: PieceKind;
+      notch: number;
+      problem: PieceProblem | null;
+      slope: "down" | "level" | "up";
+      snap: "container" | "joint" | null;
+      /** Snapped onto a container but the end is under its rim. */
+      underRim: boolean;
+    }
+  | { kind: "edit"; joint: string; notch: number; end: boolean; canTurn: boolean; canAdd: boolean };
 
 export interface Settings {
   /** Speak into the microphone (off = tap the sentences). A teacher setting. */
@@ -76,7 +94,9 @@ export interface Focus {
     | "node" | "crate" | "kai" | "campfire" | "shelter" | "fallenTree" | "sign" | "bridge" | "water" | "fish" | "caveMouth" | "caveBox" | "rockfall" | "signalPad"
     // Chapter 2: asking Kai about salvage, the cove crate, the big things you carry, the
     // bamboo thicket, a frame's open socket, a rain-catcher corner, the catcher test, a rack, a barrel.
-    | "ask" | "coveCrate" | "carry" | "putDown" | "groveGate" | "socket" | "corner" | "test" | "rack" | "barrel";
+    | "ask" | "coveCrate" | "carry" | "putDown" | "groveGate" | "socket" | "corner" | "test" | "rack" | "barrel"
+    // Chapter 3: the fallen bamboo on the stairs, an intake's lip, a post of the pipe, the bucket and the tank.
+    | "tangle" | "intake" | "joint" | "container";
   verb: string;
   noun: string;
   icon: IconId;
@@ -146,6 +166,15 @@ export type HintKey =
   | "catcherBuilt"
   | "catchRain"
   | "boilRain"
+  // Chapter 3 (Days 9–10).
+  | "upper"
+  | "pipePlan"
+  | "tangle"
+  | "bucket"
+  | "pipeCamp"
+  | "fillTank"
+  | "boilTank"
+  | "laying"
   | null;
 
 /** The student's answers to Kai's questions (each answer changes what he says and gives). */
@@ -174,10 +203,21 @@ export interface KaiMemory {
   rackPlan?: boolean;
   /** Chapter 2: Day 8's morning talk finished (the rain-catcher frame given). */
   rainMorning?: boolean;
+  /** Chapter 3: Day 9's morning talk finished (Kai set off for the waterfall). */
+  upperMorning?: boolean;
+  /** Chapter 3: the answer to "What can you see?" on the shelf. */
+  seen?: "waterfall" | "stream" | "rocks";
+  /** Chapter 3: "Let's build a pipe." was said (Kai's bucket is on the table rock). */
+  pipePlan?: boolean;
+  /** Chapter 3: Day 10's morning talk finished (Kai's tank stands at camp). */
+  tankMorning?: boolean;
 }
 
-/** Where Kai is in the story (he walks between these): Day 5's rockfall and clifftop, Day 6's cove. */
-export type KaiStage = "camp" | "rockfall" | "clifftop" | "cove";
+/** Where Kai is in the story (he walks between these): Day 5's rockfall and clifftop, Day 6's cove, Day 9's shelf. */
+export type KaiStage = "camp" | "rockfall" | "clifftop" | "cove" | "upper";
+
+/** What the player carries: the chest or the tank with Kai, or the barrel alone. */
+export type CarryKind = "chest" | "barrel" | "tank";
 
 export interface GameState {
   screen: Screen;
@@ -231,7 +271,9 @@ export interface GameState {
   reachedClifftop: boolean;
   /** The signal fire is on the pad and burning. */
   signalLit: boolean;
-  /** "I need help." was said on the radio: the rescue has happened. */
+  /** Day 5's radio call has ended (it did not get through). */
+  radioTried: boolean;
+  /** The helicopter rescue has happened (kept for the final chapter; never set by the story yet). */
   rescued: boolean;
   kaiStage: KaiStage;
   /** Safe water: times collected water was boiled, and the last day it happened. */
@@ -248,12 +290,21 @@ export interface GameState {
   /** The sea chest / the barrel have left their places in the cove. */
   chestTaken: boolean;
   barrelTaken: boolean;
-  /** What the player is carrying (the chest with Kai, or the barrel alone). */
-  carry: "chest" | "barrel" | null;
+  /** What the player is carrying (the chest or the tank with Kai, or the barrel alone). */
+  carry: CarryKind | null;
   fishDried: number;
   rainCaught: number;
   /** Day 8's rain has stopped. */
   rainDone: boolean;
+  /** Chapter 3 world facts (saved). The player has been up on the Upper Stream on Day 9 or later. */
+  reachedUpper: boolean;
+  /** The fallen bamboo at the top of the rock stairs is cut (a world gate). */
+  stairsOpen: boolean;
+  /** Kai's bucket has had water; the tank at camp has been full. */
+  bucketFilled: boolean;
+  tankFilled: boolean;
+  /** The player's water network: posts and pipes (logic/waterworks.ts). */
+  water: Network;
   /** The player is in the cave interior (transient: a save resumes at the cave mouth). */
   inCave: boolean;
   /** Time through the day, from sunrise (0) to held night (1). */
@@ -268,6 +319,7 @@ export interface GameState {
   line: Line | null;
   craftOpen: boolean;
   placing: { item: ItemId; rot: number; problem: PlaceProblem | null } | null;
+  pipe: PipeUi | null;
   toasts: Toast[];
   hint: HintKey;
   /** The "I need..." button pulses (food is low). */
@@ -336,6 +388,7 @@ export function freshGameData() {
     cliffOpen: false,
     reachedClifftop: false,
     signalLit: false,
+    radioTried: false,
     rescued: false,
     kaiStage: "camp" as KaiStage,
     boiled: 0,
@@ -347,10 +400,15 @@ export function freshGameData() {
     asked: [] as string[],
     chestTaken: false,
     barrelTaken: false,
-    carry: null as "chest" | "barrel" | null,
+    carry: null as CarryKind | null,
     fishDried: 0,
     rainCaught: 0,
     rainDone: false,
+    reachedUpper: false,
+    stairsOpen: false,
+    bucketFilled: false,
+    tankFilled: false,
+    water: EMPTY_NETWORK,
     inCave: false,
     t: 0.05,
     dayTitle: null as number | null,
@@ -374,6 +432,7 @@ export const useGame = create<GameState>(() => ({
   line: null,
   craftOpen: false,
   placing: null,
+  pipe: null,
   toasts: [],
   hint: null,
   needsPulse: false,

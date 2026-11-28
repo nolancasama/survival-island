@@ -1,9 +1,9 @@
 import { useGame, setGame } from "../game/store";
-import { continueGame, newGame, retryStartupMicrophone, startAtDay, startChapterTwo, teacherUseTapping } from "../game/flow/session";
+import { continueGame, newGame, retryStartupMicrophone, startAtDay, startChapterThree, startChapterTwo, teacherUseTapping } from "../game/flow/session";
 import { useEffect, useState } from "react";
 import { nextDay } from "../game/flow/days";
 import { PHRASES } from "../game/logic/english";
-import { dayDef } from "../game/logic/quest";
+import { chapterEndingOn, dayDef, LAST_STORY_DAY } from "../game/logic/quest";
 import { Icon, type IconId } from "./icons";
 import { updateSettings } from "./Settings";
 
@@ -86,7 +86,7 @@ function DebugDays() {
     <div className="debug-days" data-testid="debug-days">
       <span className="debug-days-label">Debug: start at day <small>(replaces the saved game)</small></span>
       <div className="debug-days-buttons">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((day) => (
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((day) => (
           <button key={day} type="button" className="secondary" data-testid={`debug-day-${day}`}
             onClick={() => void (day === 1 ? newGame() : startAtDay(day))}>
             {day}
@@ -121,9 +121,14 @@ export function TitleScreen() {
           <button className={hasSave ? "secondary big" : "primary big"} onClick={() => void newGame()} data-testid="start">
             {hasSave ? "New game" : "Start"} <Ja>{hasSave ? "はじめから" : "はじめる"}</Ja>
           </button>
-          <button className="secondary" onClick={() => void startChapterTwo()} data-testid="chapter-two">
-            Chapter 2 <Ja>だい2しょう から</Ja>
-          </button>
+          <div className="chapter-starts">
+            <button className="secondary" onClick={() => void startChapterTwo()} data-testid="chapter-two">
+              Chapter 2 <Ja>だい2しょう から</Ja>
+            </button>
+            <button className="secondary" onClick={() => void startChapterThree()} data-testid="chapter-three">
+              Chapter 3 <Ja>だい3しょう から</Ja>
+            </button>
+          </div>
         </div>
         <ClassroomMode />
         <DebugDays />
@@ -141,9 +146,12 @@ const DAY_DONE: Record<number, { en: string; ja: string; icon: IconId }> = {
   2: { en: "You made an axe, opened the forest and built a tent.", ja: "おのを つくって、もりを ひらいて、テントを たてたね！", icon: "shelter" },
   3: { en: "You built a bridge, found water and cooked a fish.", ja: "はしを つくって、みずを みつけて、さかなを やいたね！", icon: "grilledFish" },
   4: { en: "You explored the cave and found an old radio.", ja: "どうくつを たんけんして、ふるい ラジオを みつけたね！", icon: "radio" },
+  5: { en: "You called for help. Now let's make our camp better!", ja: "たすけを よんだね。 こんどは キャンプを もっと よく しよう！", icon: "radio" },
   6: { en: "You found the cove and brought a big box to camp.", ja: "いりえを みつけて、おおきな はこを キャンプに はこんだね！", icon: "box" },
   7: { en: "You cut bamboo, built a strong rack and dried a fish.", ja: "たけを きって、じょうぶな ほしだなを つくって、さかなを ほしたね！", icon: "driedFish" },
-  8: { en: "You caught the rain and boiled safe water.", ja: "あまみずを ためて、あんぜんな みずを わかしたね！", icon: "rain" }
+  8: { en: "You caught the rain and boiled safe water.", ja: "あまみずを ためて、あんぜんな みずを わかしたね！", icon: "rain" },
+  9: { en: "You found the waterfall and made your first pipe.", ja: "たきを みつけて、はじめての パイプを つくったね！", icon: "waterfall" },
+  10: { en: "You built a pipe to camp. Water comes every day!", ja: "キャンプまで パイプを つくったね。 まいにち みずが くるよ！", icon: "tank" }
 };
 
 /** "Day 2: Make Camp" -> ["Day 2", "Make Camp"]. */
@@ -160,21 +168,32 @@ export function DayEndScreen() {
   const said = useGame((s) => s.said);
   const rescued = useGame((s) => s.rescued);
   if (screen !== "dayEnd") return null;
-  const rescue = day === 5 && rescued;
+  // The rescue card is the ending of the whole story (kept for the final chapter).
+  const rescue = rescued;
+  const chapter = rescue ? null : chapterEndingOn(day);
   const sentences = rescue ? said : daySaid;
   const done = DAY_DONE[day] ?? { en: "You explored the island.", ja: "しまを たんけんしたね！", icon: "moon" as IconId };
   const next = dayDef(day + 1);
   // "New" only means something next to sentences used before (on Day 1 everything is new).
   const showNew = rescue || daySaid.some((id) => !dayNew.includes(id));
+  const nextChapter = chapter && day < LAST_STORY_DAY ? chapter.n + 1 : null;
+  const button = rescue
+    ? { en: "Keep exploring →", ja: "たんけんを つづける", id: "keep-exploring" }
+    : nextChapter
+      ? { en: `Chapter ${nextChapter} →`, ja: `だい${nextChapter}しょうへ`, id: "next-chapter" }
+      : chapter
+        ? { en: "Keep playing →", ja: "あそびを つづける", id: "next-chapter" }
+        : { en: `Day ${day + 1} →`, ja: `${day + 1}にちめへ`, id: "next-day" };
   return (
-    <div className="dayend ui" data-testid="dayend" data-rescue={rescue || undefined}>
+    <div className="dayend ui" data-testid="dayend" data-rescue={rescue || undefined} data-chapter={chapter?.n}>
       <div className="dayend-card">
         <div className="dayend-badge">
           <Icon id={rescue ? "radio" : done.icon} size={56} />
         </div>
+        {chapter && <p className="dayend-chapter" data-testid="chapter-done">{`Chapter ${chapter.n}: ${chapter.en}`}<Ja>{`だい${chapter.n}しょう ${chapter.ja}`}</Ja></p>}
         <h2>
-          {rescue ? "Rescued!" : `Day ${day} complete!`}
-          <Ja>{rescue ? "たすかった！" : `${day}にちめ クリア！`}</Ja>
+          {rescue ? "Rescued!" : chapter ? `Chapter ${chapter.n} complete!` : `Day ${day} complete!`}
+          <Ja>{rescue ? "たすかった！" : chapter ? `だい${chapter.n}しょう クリア！` : `${day}にちめ クリア！`}</Ja>
         </h2>
         <p className="dayend-sub">
           {rescue ? "You and Kai made it home!" : done.en}
@@ -199,9 +218,9 @@ export function DayEndScreen() {
           </p>
         )}
         <div className="title-buttons">
-          <button className="primary big" onClick={() => void nextDay()} data-testid={rescue ? "keep-exploring" : "next-day"}>
-            {rescue ? "Chapter 2 →" : `Day ${day + 1} →`}
-            <Ja>{rescue ? "だい2しょうへ" : `${day + 1}にちめへ`}</Ja>
+          <button className="primary big" onClick={() => void nextDay()} data-testid={button.id}>
+            {button.en}
+            <Ja>{button.ja}</Ja>
           </button>
         </div>
       </div>

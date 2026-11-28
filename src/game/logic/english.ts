@@ -73,7 +73,18 @@ const W = {
   work: ["work", "works", "working", "walk", "wark", "worked"],
   not: ["doesn't", "dosent", "does", "not", "don't", "dont", "isn't", "no"],
   try: ["try", "tries", "trying", "tried", "tri", "chai", "cry", "again"],
-  boil: ["boil", "boils", "boiled", "boiling", "boy", "bowl", "foil", "oil", "spoil"]
+  boil: ["boil", "boils", "boiled", "boiling", "boy", "bowl", "foil", "oil", "spoil"],
+  // Chapter 3 (Days 9–10).
+  see: ["see", "sea", "she", "si", "seeing", "saw", "look", "looking", "watch"],
+  waterfall: ["waterfall", "waterfalls", "falls", "fall", "fool", "foll", "watafall"],
+  stream: ["stream", "streams", "string", "strim", "scream", "river"],
+  bigRock: ["rocks", "rock", "stones", "stone", "lock", "locks", "big"],
+  pipe: ["pipe", "pipes", "pie", "pipe's", "type", "paip", "bipe", "piping"],
+  turn: ["turn", "turns", "turned", "turning", "tan", "tern", "tarn", "rotate"],
+  connect: ["connect", "connects", "connected", "connecting", "collect", "kinekt", "konekuto", "join", "attach"],
+  tooHigh: ["high", "hi", "hai", "hire", "height", "tall"],
+  full: ["full", "fool", "fur", "fall", "foo", "fuller"],
+  tank: ["tank", "tanks", "thank", "tang", "tunk", "tanku"]
 } as const;
 
 export type PhraseId =
@@ -145,7 +156,17 @@ export type PhraseId =
   | "notWork"
   | "tooLow"
   | "tryAgain"
-  | "boilWater";
+  | "boilWater"
+  | "seeWaterfall"
+  | "seeStream"
+  | "seeRocks"
+  | "buildPipe"
+  | "turnIt"
+  | "connect"
+  | "tooHigh"
+  | "tankFull"
+  | "needBamboo"
+  | "carryTank";
 
 export interface Phrase {
   id: PhraseId;
@@ -255,7 +276,19 @@ export const PHRASES: Record<PhraseId, Phrase> = {
   notWork: { id: "notWork", en: "It doesn't work.", keys: [W.work], forbid: ["low", "flowing"] },
   tooLow: { id: "tooLow", en: "It's too low.", keys: [W.tooLow], forbid: ["flowing", "work"] },
   tryAgain: { id: "tryAgain", en: "Let's try again.", keys: [W.try], distractors: ["goBack", "putHere"] },
-  boilWater: { id: "boilWater", en: "Boil the water.", keys: [W.boil, W.water], distractors: ["drinkWater", "cookFish"] }
+  boilWater: { id: "boilWater", en: "Boil the water.", keys: [W.boil, W.water], distractors: ["drinkWater", "cookFish"] },
+
+  // Chapter 3: the Upper Stream (Days 9–10).
+  seeWaterfall: { id: "seeWaterfall", en: "I see a waterfall.", keys: [W.see, W.waterfall] },
+  seeStream: { id: "seeStream", en: "I see a stream.", keys: [W.see, W.stream] },
+  seeRocks: { id: "seeRocks", en: "I see big rocks.", keys: [W.see, W.bigRock] },
+  buildPipe: { id: "buildPipe", en: "Let's build a pipe.", keys: [W.build, W.pipe], distractors: ["buildRack", "buildBridge"] },
+  turnIt: { id: "turnIt", en: "Turn it.", keys: [W.turn], distractors: ["putHere", "connect"] },
+  connect: { id: "connect", en: "Connect them.", keys: [W.connect], distractors: ["putHere", "turnIt"] },
+  tooHigh: { id: "tooHigh", en: "It's too high.", keys: [W.tooHigh], forbid: ["low", "lower", "flowing", "work"], distractors: ["tooLow", "tooShort"] },
+  tankFull: { id: "tankFull", en: "The tank is full.", keys: [W.full], forbid: ["empty", "not"], distractors: ["flowing", "notWork"] },
+  needBamboo: { id: "needBamboo", en: "I need more bamboo.", keys: [W.need, W.bamboo], distractors: ["needWood", "needBox"] },
+  carryTank: { id: "carryTank", en: "Carry the tank.", keys: [W.carry, W.tank], distractors: ["carryBox", "carryBarrel"] }
 };
 
 export function phrase(id: PhraseId): Phrase {

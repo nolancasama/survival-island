@@ -25,6 +25,7 @@ import {
 } from "./chapter2";
 import { askKindOf, type AskKind } from "./chapter2Focus";
 import { COVE_BARREL, GROVE_GATE, SEA_CHEST } from "../world/chapter2";
+import { cutTangle, openJoint, useContainer } from "./chapter3";
 
 /** What the student says to collect from a node, until it is known (then it is quick). */
 const GATHER: Record<NodeKind, PhraseId> = {
@@ -123,6 +124,14 @@ export async function interact() {
       return useRack(f.id);
     case "barrel":
       return useBarrel(f.id);
+    // Chapter 3.
+    case "tangle":
+      return cutTangle();
+    case "intake":
+    case "joint":
+      return openJoint(f.id);
+    case "container":
+      return useContainer(f.id);
   }
 }
 
@@ -649,10 +658,11 @@ function stepNeeds(): PhraseId[] {
       for (const item of Object.keys(short) as ItemId[]) add(SHORT_NEED[item]);
     }
     if (step.id === "bridge") add("needWood");
-    if (step.id === "water" || step.id === "drink" || step.id === "boil" || step.id === "boilRain") add("needWater");
-    // Chapter 2.
+    if (step.id === "water" || step.id === "drink" || step.id === "boil" || step.id === "boilRain" || step.id === "boilTank") add("needWater");
+    // Chapter 2 and 3.
     if (step.id === "carryBox") add("needBox");
-    if (step.id === "poles") add("needPoles");
+    if (step.id === "poles") add(g.quest.day >= 9 ? "needBamboo" : "needPoles");
+    if (step.id === "pipeCamp" || step.id === "bucket") add("needBamboo");
   }
   return out;
 }
@@ -694,7 +704,7 @@ export async function needs() {
   if (said === "needWater") {
     // A barrel with rain water first; else the pond's water spots, or the gate on the way there.
     const g = getGame();
-    const barrels = g.buildings.filter((b) => b.type === "barrel" && (b.water ?? 0) >= 1).map((b) => b.id);
+    const barrels = g.buildings.filter((b) => (b.type === "barrel" || b.type === "tank" || b.type === "bucket") && (b.water ?? 0) >= 1).map((b) => b.id);
     showPlaces(g.inCave ? ["caveExit"] : barrels.length ? barrels : !g.pathCleared ? [FALLEN_TREE.id] : !g.bridgeBuilt ? [BRIDGE.id] : WATER_SPOTS.map((s) => s.id));
     look("water");
     return;
@@ -707,7 +717,7 @@ export async function needs() {
     look("box");
     return;
   }
-  if (said === "needPoles") {
+  if (said === "needPoles" || said === "needBamboo") {
     const g = getGame();
     if (!g.groveOpen) {
       showPlaces([GROVE_GATE.id]);

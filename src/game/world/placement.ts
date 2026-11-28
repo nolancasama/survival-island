@@ -1,6 +1,7 @@
 import type { BuildingId } from "../types";
 import { BRIDGE, FALLEN_TREE, POND, STREAM, shoreZ } from "./island";
 import { CLOSED_GATES, isWalkable, overlaps, type Obstacles, type WorldGates } from "./collision";
+import { isUpperWater } from "./chapter3";
 
 /**
  * Building placement: a grid-snapped preview in front of the player, checked
@@ -21,7 +22,10 @@ export const FOOTPRINT: Record<BuildingId, number> = {
   // Chapter 2: the drying rack (2 × 1 m), the rain catcher (2.4 m square) and the barrel.
   rack: 1.25,
   catcher: 1.75,
-  barrel: 0.45
+  barrel: 0.45,
+  // Chapter 3: Kai's bucket and the camp's water tank (logic: world/chapter3.ts CONTAINER_SPECS).
+  bucket: 0.32,
+  tank: 0.85
 };
 
 export interface PlacedBuilding {
@@ -102,6 +106,7 @@ export function placeProblem(
   if (z + r > shoreZ(x) - 1.2) return "water";
   if (Math.hypot(x - POND.x, z - POND.z) < POND.r + r + 0.25) return "water";
   if (Math.abs(x - STREAM.x) < STREAM.width * 0.5 + r && z > STREAM.z0 - r && z < STREAM.z1 + r) return "water";
+  if (isUpperWater(x, z, r)) return "water";
 
   // Keep both gates and their approaches unobstructed in every state.
   if (Math.abs(x - FALLEN_TREE.x) < 2.5 + r && Math.abs(z - FALLEN_TREE.z) < 2.2 + r) return "blocked";

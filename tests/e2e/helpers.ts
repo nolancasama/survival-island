@@ -68,17 +68,32 @@ export interface SiState {
   cliffOpen: boolean;
   reachedClifftop: boolean;
   signalLit: boolean;
+  radioTried: boolean;
   rescued: boolean;
-  kaiStage: "camp" | "rockfall" | "clifftop" | "cove";
+  kaiStage: "camp" | "rockfall" | "clifftop" | "cove" | "upper";
   kaiRouteEmpty: boolean;
   fade: number;
   rescue: { phase: "none" | "flight" | "landed"; elapsed: number; duration: number };
   worldAnimation: { caveBoxOpenT0: number; cliffOpenT0: number; signalLitT0: number; rescueT0: number; coveOpenT0: number; groveOpenT0: number; coveBoxOpenT0: number };
   chapterTwo: {
     coveOpen: boolean; groveOpen: boolean; reachedCove: boolean; coveBoxOpened: boolean; asked: string[];
-    chestTaken: boolean; barrelTaken: boolean; carry: "chest" | "barrel" | null; fishDried: number; rainCaught: number;
+    chestTaken: boolean; barrelTaken: boolean; carry: "chest" | "barrel" | "tank" | null; fishDried: number; rainCaught: number;
     rainDone: boolean; boiled: number; boiledDay: number; found: string | null; stackLimit: number; rainK: number; carryTrail: number;
     flows: Record<string, { flat: boolean; efficiency: number; problem: string | null; streams: Array<{ corner: number; caught: boolean }> }>;
+  };
+  chapterThree: {
+    reachedUpper: boolean; stairsOpen: boolean; bucketFilled: boolean; tankFilled: boolean; seen: string | null; pipePlan: boolean;
+    water: { joints: Array<{ id: string; x: number; z: number; notch: number }>; pipes: Array<{ id: string; from: string; to: string; kind: string }>; next: number };
+    pipe: null | { kind: "lay"; from: string; len: string; notch: number; problem: string | null; slope: string; snap: string | null; underRim: boolean }
+      | { kind: "edit"; joint: string; notch: number; end: boolean; canTurn: boolean; canAdd: boolean };
+    plan: null | { from: string; x: number; z: number; y: number; notch: number; snap: { kind: string; id: string } | null; problem: string | null; slope: string };
+    dir: number;
+    fills: Record<string, number>;
+    pours: Array<{ at: string; into: string | null; tooLowFor: string | null; arrived: boolean }>;
+    overflows: Array<{ at: string; tooHigh: string }>;
+    wet: string[];
+    containers: Array<{ id: string; type: string; x: number; z: number; water: number; problem: string }>;
+    flyover: boolean;
   };
 }
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { PALMS, groundY } from "../../game/world/island";
 import { clearForGrove } from "../../game/world/chapter2";
+import { clearForUpper } from "../../game/world/chapter3";
 import { bucketByTile } from "../tiles";
 import {
   bushGeometry, choppableTreeGeometry, createPalmCrowns, jungleTreeGeometry,
@@ -158,14 +159,17 @@ describe("static vegetation tiles", () => {
     const crowns = createPalmCrowns();
     let expected = 0;
     let skipped = 0;
+    let upper = 0;
     trees.forEach((spot, i) => {
       if (clearForGrove(spot.x, spot.z)) return void skipped++;
+      if (clearForUpper(spot.x, spot.z)) return void upper++;
       const h = vegetationHash(i);
       const g = jungleTreeGeometry(h % 5, (h >>> 8) % 3);
       expected += triangles(g);
       g.dispose();
     });
-    bushes.forEach((_, i) => {
+    bushes.forEach((spot, i) => {
+      if (clearForUpper(spot.x, spot.z)) return void upper++;
       const g = bushGeometry(vegetationHash(i) % 3);
       expected += triangles(g);
       g.dispose();
@@ -179,6 +183,9 @@ describe("static vegetation tiles", () => {
     // Only a handful of jungle trees give way to the grove trail.
     expect(skipped).toBeGreaterThan(0);
     expect(skipped).toBeLessThan(12);
+    // The Upper Stream clears the west headland's trees and a few on the tree line and pond rim.
+    expect(upper).toBeGreaterThan(0);
+    expect(upper).toBeLessThan(30);
     for (const g of tiles) {
       expect(g.groups).toHaveLength(0);
       expect(g.boundingSphere!.radius).toBeGreaterThan(0);

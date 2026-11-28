@@ -1,6 +1,7 @@
 import type { NodeKind } from "../types";
 import { cliffGroundY, isCaveInterior, METAL_NODES } from "./phase3";
 import { CHAPTER_TWO_NODES, coveGroundY } from "./chapter2";
+import { UPPER_ANCHORS, upperGroundY } from "./chapter3";
 
 /**
  * The handcrafted island (Phase 1: the beach). +x is east, +z is south toward
@@ -44,7 +45,19 @@ export function groundY(x: number, z: number): number {
   if (isCaveInterior(x, z)) return 0;
   // Chapter 2: east of the old beach the cove's back and east end rise (x >= 50 only).
   if (x >= 50) return coveGroundY(x, z, islandGroundY(x, z));
+  // Chapter 3: the Upper Stream's shelf, stairs and climbing path, west of the beach's walkable edge.
+  if (x < -31.8) return upperGroundY(x, z, islandGroundY(x, z), upperEdges().beach, upperEdges().climb);
   return islandGroundY(x, z);
+}
+
+let edges: { beach: number; climb: number } | null = null;
+/** The unshaped island's heights where the Upper Stream's ramps join it (computed once). */
+function upperEdges() {
+  edges ??= {
+    beach: islandGroundY(UPPER_ANCHORS.beachEdge.x, UPPER_ANCHORS.beachEdge.z),
+    climb: islandGroundY(UPPER_ANCHORS.climbBase.x, UPPER_ANCHORS.climbBase.z)
+  };
+  return edges;
 }
 
 function islandGroundY(x: number, z: number): number {
@@ -182,7 +195,8 @@ export const BOULDERS: Boulder[] = [
   { x: -37, z: 9, r: 2.8, h: 3.2, rot: 1.1 },
   { x: -36, z: 14, r: 2.2, h: 2.2, rot: 2.3 },
   { x: -35.5, z: 18.5, r: 1.8, h: 1.6, rot: 0.7 },
-  { x: -34.5, z: -1, r: 2, h: 2.4, rot: 1.9 },
+  // Moved south-west from (-34.5, -1) in Chapter 3: the foot of the rock stairs comes down here.
+  { x: -37.9, z: 1.9, r: 1.6, h: 2.2, rot: 1.9 },
   // East, beyond the wreck
   { x: 36.5, z: 3, r: 2.5, h: 2.8, rot: 0.4 },
   // Moved north from (37, 8.5) in Chapter 2: it now frames the mouth of the cove passage.

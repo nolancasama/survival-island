@@ -107,9 +107,9 @@ export function farIslandGeometry(): THREE.BufferGeometry {
   ];
   hills.forEach(([x, z, r, h, c], i) => b.add(rockGeometry(r, h, 20 + i, 1), c, [x, -1, z]));
   // The walkable northern terrain now carries the signal tower plateau.
-  // Headlands at both ends of the beach.
+  // Headlands at both ends of the beach. Since Chapter 3 the west headland's
+  // green hill is the Upper Stream's shelf (world/chapter3.ts), shaped in the terrain.
   b.add(rockGeometry(9, 6, 50, 1), "#8f8a7f", [-46, -1, 10]);
-  b.add(rockGeometry(7, 9, 51, 1), "#4f8f4a", [-48, 1.5, -2]);
   // The east headland rock stands further out to sea since Chapter 2, so the
   // tidal passage to Shipwreck Cove runs between it and the green hill.
   b.add(rockGeometry(7, 6, 52, 1), "#8f8a7f", [48.8, -1, 19.6]);

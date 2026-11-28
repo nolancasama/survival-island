@@ -3,12 +3,15 @@ import { rt, resetRuntime } from "../runtime";
 import { evaluate, newlyDone, currentStep, dayDef, readyToSleep, isStoryDay, type Facts } from "../logic/quest";
 import { tickStats, afterFaint, RUN_AGAIN_AT, type Stats } from "../logic/stats";
 import { advanceClock, storyFloor, lightAt, isNight, faintPenalty, CAP, dayStartT } from "../logic/clock";
-import { SAVE_KEY, V3_SAVE_KEY, V2_SAVE_KEY, V1_SAVE_KEY, SAVE_VERSION, loadSaveText, serialize, type SaveData } from "../logic/save";
+import { SAVE_KEY, V4_SAVE_KEY, V3_SAVE_KEY, V2_SAVE_KEY, V1_SAVE_KEY, SAVE_VERSION, loadSaveText, serialize, type SaveData } from "../logic/save";
+import { sanitizeNetwork } from "../logic/waterworks";
+import { INTAKE_IDS } from "../world/pipeWorld";
 import { BASE_STACK, STORAGE_STACK, setStackLimit } from "../logic/inventory";
 import {
   CHAPTER_ONE_PHRASES, CHAPTER_TWO_CAMP, dropCarried, nearCamp, restoreChapterTwo, showChapterTwoTarget, storageAtCamp, tickChapterTwo, weatherFrame
 } from "./chapter2";
 import { catcherBuilt, rackFrameComplete, rackStable } from "../logic/structures";
+import { frameFlyover, pipeAtCamp, restoreChapterThree, showChapterThreeTarget, tickChapterThree } from "./chapter3";
 import { dayStartState, placeAtStartCamp } from "./dayStart";
 import { checkCraft } from "../logic/crafting";
 import { pace, recipeNeeds } from "../logic/pace";
@@ -33,7 +36,7 @@ export const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r
 // ------------------------------------------------------------------ save
 
 function loadStored(): SaveData | null {
-  return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V3_SAVE_KEY), localStorage.getItem(V2_SAVE_KEY), localStorage.getItem(V1_SAVE_KEY));
+  return loadSaveText(localStorage.getItem(SAVE_KEY), localStorage.getItem(V4_SAVE_KEY), localStorage.getItem(V3_SAVE_KEY), localStorage.getItem(V2_SAVE_KEY), localStorage.getItem(V1_SAVE_KEY));
 }
 
 export function hasSaved(): boolean {
@@ -96,7 +99,13 @@ export function save() {
     carry: g.carry,
     fishDried: g.fishDried,
     rainCaught: g.rainCaught,
-    rainDone: g.rainDone
+    rainDone: g.rainDone,
+    radioTried: g.radioTried,
+    reachedUpper: g.reachedUpper,
+    stairsOpen: g.stairsOpen,
+    bucketFilled: g.bucketFilled,
+    tankFilled: g.tankFilled,
+    water: g.water
   };
   try {
     localStorage.setItem(SAVE_KEY, serialize(data));
@@ -169,7 +178,7 @@ function startAudio() {
 }
 
 function enterGame() {
-  setGame({ screen: "game", focus: null, prompt: null, line: null, craftOpen: false, placing: null, selected: null, toasts: [], dayTitle: null, sleeping: false });
+  setGame({ screen: "game", focus: null, prompt: null, line: null, craftOpen: false, placing: null, pipe: null, selected: null, toasts: [], dayTitle: null, sleeping: false });
 }
 
 /** Start button (a user gesture: audio and the mic prompt are allowed here). */
@@ -240,6 +249,12 @@ export async function continueGame() {
     fishDried: data.fishDried,
     rainCaught: data.rainCaught,
     rainDone: data.rainDone,
+    radioTried: data.radioTried,
+    reachedUpper: data.reachedUpper,
+    stairsOpen: data.stairsOpen,
+    bucketFilled: data.bucketFilled,
+    tankFilled: data.tankFilled,
+    water: sanitizeNetwork(data.water, INTAKE_IDS),
     t: data.t,
     stats: roundStats(data.stats),
     fade: 0,
@@ -263,28 +278,30 @@ export async function continueGame() {
   if (data.quest.day > 1 || readyToSleep(data.quest)) placeKaiAtCamp();
   if (data.quest.day === 5 && (data.kai.escapeMorning || data.kaiStage !== "camp" || data.cliffOpen)) restoreEscapeKai();
   restoreChapterTwo();
+  restoreChapterThree();
   enterGame();
   refreshQuest();
   setGame({ mode: "busy" });
   await prepareMic();
   // A day that ended with sleep (the card was showing) goes straight on to the next morning.
-  if (data.sleptDay >= data.quest.day || (data.quest.day === 5 && data.rescued)) {
+  if (data.sleptDay >= data.quest.day || (data.quest.day === 5 && data.radioTried)) {
     setGame({ mode: "busy" });
     void nextDay();
     return;
   }
   // Keep controls paused while an unfinished morning waits for microphone preparation.
   const k = getGame().kai;
-  const chapterTwoMorning = (data.quest.day === 6 && !k.coveMorning) || (data.quest.day === 7 && !k.groveMorning) || (data.quest.day === 8 && !k.rainMorning);
+  const chapterTwoMorning = (data.quest.day === 6 && !k.coveMorning) || (data.quest.day === 7 && !k.groveMorning) || (data.quest.day === 8 && !k.rainMorning)
+    || (data.quest.day === 9 && !k.upperMorning) || (data.quest.day === 10 && !k.tankMorning);
   const needsMorning = (data.quest.day === 4 && (k.canTorch === undefined || !getGame().unlocked.includes("torch")))
     || (data.quest.day === 5 && !data.kai.escapeMorning && data.kaiStage === "camp" && !data.cliffOpen)
     || chapterTwoMorning;
-  if (needsMorning || (data.quest.day === 5 && data.signalLit && !data.rescued)) setGame({ mode: "busy" });
+  if (needsMorning || (data.quest.day === 5 && data.signalLit && !data.radioTried)) setGame({ mode: "busy" });
   if (needsMorning) {
     if (chapterTwoMorning) await resumeMorning(data.quest.day);
     else if (data.quest.day === 5) await resumeDayFiveMorning();
     else await resumeDayFourMorning();
-  } else if (data.quest.day === 5 && data.signalLit && !data.rescued) {
+  } else if (data.quest.day === 5 && data.signalLit && !data.radioTried) {
     await radioCall();
   } else {
     setGame({ mode: "explore" });
@@ -328,7 +345,7 @@ export async function startChapterTwo() {
     cliffOpen: true,
     reachedClifftop: true,
     signalLit: true,
-    rescued: true,
+    radioTried: true,
     kaiStage: "camp",
     t: dayStartT(6),
     hint: null,
@@ -345,8 +362,17 @@ export async function startChapterTwo() {
   placeKaiAtCamp();
   refreshQuest();
   await prepareMic();
-  // The rescue day is complete: the next morning is Day 6.
+  // Chapter 1 is complete: the next morning is Day 6.
   await nextDay();
+}
+
+/**
+ * Title: "Chapter 3" (a teacher start). Day 9 begins with Chapters 1 and 2
+ * complete: the camp has its storage box, drying rack, rain catcher and
+ * barrel (the same set-up as the debug day picker). It replaces the saved game.
+ */
+export async function startChapterThree() {
+  await startAtDay(9);
 }
 
 /**
@@ -359,6 +385,7 @@ export async function startAtDay(n: number) {
   resetRuntime();
   startAudio();
   setGame({ ...freshGameData(), ...dayStartState(n), hint: null, needsPulse: false, craftPulse: false, fade: 1, mode: "busy" });
+  restoreChapterThree();
   placeAtStartCamp();
   enterGame();
   placeKaiAtCamp();
@@ -372,7 +399,7 @@ export function toTitle() {
   tts.cancel();
   audio.stopFire();
   audio.stopRotor();
-  setGame({ screen: "title", settingsOpen: false, mode: "busy", prompt: null, line: null, craftOpen: false, placing: null, hasSave: hasSaved(), toasts: [], dayTitle: null, sleeping: false });
+  setGame({ screen: "title", settingsOpen: false, mode: "busy", prompt: null, line: null, craftOpen: false, placing: null, pipe: null, hasSave: hasSaved(), toasts: [], dayTitle: null, sleeping: false });
 }
 
 // ------------------------------------------------------------------ intro
@@ -449,7 +476,8 @@ export function showStepTarget(): boolean {
   const g = getGame();
   const step = currentStep(g.quest);
   if (!step) return false;
-  // Chapter 2 steps have their own targets (Days 6–8).
+  // Chapter 2 and 3 steps have their own targets (Days 6–10).
+  if (g.quest.day >= 9 && step.id !== "sleep") return showChapterThreeTarget();
   if (g.quest.day >= 6 && step.id !== "sleep") return showChapterTwoTarget();
   if (step.id === "boil") {
     const fires = g.buildings.filter((b) => b.type === "campfire");
@@ -580,6 +608,7 @@ export function facts(): Facts {
     cliffOpen: g.cliffOpen,
     reachedClifftop: g.reachedClifftop,
     signalLit: g.signalLit,
+    radioTried: g.radioTried,
     rescued: g.rescued,
     classroom: g.settings.classroom,
     boiled: g.boiled,
@@ -596,7 +625,13 @@ export function facts(): Facts {
     barrelAtCamp: g.buildings.some((b) => b.type === "barrel" && nearCamp(b.x, b.z, g.buildings)),
     catcherPlaced: g.buildings.some((b) => b.type === "catcher"),
     catcherBuilt: g.buildings.some((b) => b.type === "catcher" && catcherBuilt(b.parts ?? [])),
-    rainCaught: g.rainCaught
+    rainCaught: g.rainCaught,
+    reachedUpper: g.reachedUpper,
+    pipePlan: !!g.kai.pipePlan,
+    stairsOpen: g.stairsOpen,
+    bucketFilled: g.bucketFilled,
+    pipeAtCamp: pipeAtCamp(),
+    tankFilled: g.tankFilled
   };
 }
 
@@ -640,6 +675,7 @@ export function updateHint() {
   const step = currentStep(g.quest);
   if (rt.walked < 4 && g.mode === "explore") hint = "move";
   else if (g.mode === "place") hint = null; // the place bar explains itself
+  else if (g.mode === "pipe") hint = g.pipe?.kind === "lay" ? "laying" : null;
   else if (g.carry) hint = "carrying";
   else if (step) {
     switch (step.id) {
@@ -716,6 +752,13 @@ export function updateHint() {
       case "catcherBuilt":
       case "catchRain":
       case "boilRain":
+      case "upper":
+      case "pipePlan":
+      case "tangle":
+      case "bucket":
+      case "pipeCamp":
+      case "fillTank":
+      case "boilTank":
         hint = step.id;
         break;
       case "cliff":
@@ -767,7 +810,8 @@ export function tick(dt: number) {
   rt.light += (rt.lightTarget - rt.light) * Math.min(1, dt * 0.4);
   audio.setDaylight(rt.light);
   weatherFrame(dt);
-  const live = g.screen === "game" && (g.mode === "explore" || g.mode === "place") && !g.settingsOpen;
+  frameFlyover();
+  const live = g.screen === "game" && (g.mode === "explore" || g.mode === "place" || g.mode === "pipe") && !g.settingsOpen;
   if (!live) return;
   rt.simTime += dt;
   rt.stepIdleSeconds += dt;
@@ -777,6 +821,7 @@ export function tick(dt: number) {
   checkCaveExit();
   checkEscapeArrivals();
   tickChapterTwo(dt);
+  tickChapterThree(dt);
   const hintDelay = gamePace.automaticHintDelay;
   if (hintDelay !== null && rt.stepIdleSeconds >= hintDelay && rt.simTime - rt.lastAutomaticHintAt >= hintDelay
     && g.mode === "explore" && !g.prompt && !g.line && !g.craftOpen && !g.placing && !g.sleeping && getGame().mode === "explore") {
@@ -851,7 +896,7 @@ export function syncStats() {
 // ------------------------------------------------------------------ faint
 
 async function faint() {
-  setGame({ mode: "busy", focus: null });
+  setGame({ mode: "busy", focus: null, pipe: null });
   // Whatever was being carried comes down where the player fell.
   if (dropCarried()) save();
   audio.play("faint");

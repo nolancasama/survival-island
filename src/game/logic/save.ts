@@ -7,20 +7,22 @@ import type { Stats } from "./stats";
 import type { PlacedBuilding } from "../world/placement";
 import { RECIPES } from "./crafting";
 import { dayStartT } from "./clock";
+import type { Network } from "./waterworks";
 
 /**
  * Save data for resume (localStorage). Versioned: anything that does not
- * validate is discarded whole, never half-loaded. Valid older saves (v3, v2,
- * v1) are migrated forward one version at a time.
+ * validate is discarded whole, never half-loaded. Valid older saves (v4, v3,
+ * v2, v1) are migrated forward one version at a time.
  */
 
-export const SAVE_KEY = "si.save.v4";
+export const SAVE_KEY = "si.save.v5";
 /** Previous save keys used for migration. */
+export const V4_SAVE_KEY = "si.save.v4";
 export const V3_SAVE_KEY = "si.save.v3";
 export const V2_SAVE_KEY = "si.save.v2";
 export const V1_SAVE_KEY = "si.save.v1";
 /** Current save schema version. */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /** Kai's answers and story flags so far (choices change what he says later). */
 export interface KaiSave {
@@ -41,12 +43,17 @@ export interface KaiSave {
   rackPlan?: boolean;
   /** Chapter 2: Day 8's morning talk finished (the catcher frame given). */
   rainMorning?: boolean;
+  /** Chapter 3: Day 9's morning talk finished; the answer to "What can you see?"; the pipe plan; Day 10's morning. */
+  upperMorning?: boolean;
+  seen?: "waterfall" | "stream" | "rocks";
+  pipePlan?: boolean;
+  tankMorning?: boolean;
 }
 
-export type KaiStageSave = "camp" | "rockfall" | "clifftop" | "cove";
+export type KaiStageSave = "camp" | "rockfall" | "clifftop" | "cove" | "upper";
 
 export interface SaveData {
-  v: 4;
+  v: 5;
   savedAt: number;
   quest: QuestState;
   bag: Bag;
@@ -108,16 +115,28 @@ export interface SaveData {
   chestTaken: boolean;
   barrelTaken: boolean;
   /** What the player was carrying (restored on resume). */
-  carry: "chest" | "barrel" | null;
+  carry: "chest" | "barrel" | "tank" | null;
   /** Fish ever hung on a rack. */
   fishDried: number;
   /** Cups caught while every stream fell into the barrel. */
   rainCaught: number;
-  /** Day 8's rain has stopped. */
+ /** Day 8's rain has stopped. */
   rainDone: boolean;
+  // ---- v5: the moved rescue and Chapter 3 (Days 9–10)
+  /** Day 5's radio call has ended (it did not get through). */
+  radioTried: boolean;
+  /** World facts: up on the Upper Stream, the stairs' fallen bamboo cut, the bucket and the tank filled. */
+  reachedUpper: boolean;
+  stairsOpen: boolean;
+  bucketFilled: boolean;
+  tankFilled: boolean;
+  /** The water network the player built. */
+  water: Network;
 }
 
-type V3 = Omit<SaveData, "v" | "kaiStage" | "boiled" | "boiledDay" | "coveOpen" | "groveOpen" | "reachedCove" | "coveBoxOpened" | "asked" | "chestTaken" | "barrelTaken" | "carry" | "fishDried" | "rainCaught" | "rainDone">
+type V4 = Omit<SaveData, "v" | "kaiStage" | "carry" | "radioTried" | "reachedUpper" | "stairsOpen" | "bucketFilled" | "tankFilled" | "water">
+  & { v: 4; kaiStage: "camp" | "rockfall" | "clifftop" | "cove"; carry: "chest" | "barrel" | null };
+type V3 = Omit<V4, "v" | "kaiStage" | "boiled" | "boiledDay" | "coveOpen" | "groveOpen" | "reachedCove" | "coveBoxOpened" | "asked" | "chestTaken" | "barrelTaken" | "carry" | "fishDried" | "rainCaught" | "rainDone">
   & { v: 3; kaiStage: "camp" | "rockfall" | "clifftop" };
 type V2 = Omit<V3, "v" | "enteredCave" | "caveBoxOpened" | "cliffOpen" | "reachedClifftop" | "signalLit" | "rescued" | "kaiStage"> & { v: 2; kai: { need?: "water" | "food" | "wood"; canFire?: boolean; canAxe?: boolean; want?: "water" | "fish" } };
 type V1 = Omit<V2, "v" | "t" | "pathCleared" | "bridgeBuilt" | "gotWater" | "drank" | "caught" | "cooked" | "sleptDay"> & { v: 1; kai: { need?: "water" | "food" | "wood"; canFire?: boolean } };
@@ -126,7 +145,8 @@ const STEP_IDS: StepId[] = [
   "eat", "kai", "wood", "stone", "craft", "place", "light", "sleep", "axe", "path", "leaves", "shelter", "build", "bridge", "container", "water",
   "drink", "rod", "fish", "cook", "torch", "cave", "metal", "radio", "showKai", "cliff", "signalFire", "clifftop", "signal", "help",
   "boil", "cove", "askKai", "coveBox", "canvas", "carryBox", "grove", "poles", "rackSite", "rackFrame", "rackStrong", "dryFish",
-  "barrel", "catcherSite", "catcherBuilt", "catchRain", "boilRain"
+  "barrel", "catcherSite", "catcherBuilt", "catchRain", "boilRain",
+  "upper", "pipePlan", "tangle", "bucket", "pipeCamp", "fillTank", "boilTank"
 ];
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -157,7 +177,11 @@ function validPhaseTwo(raw: Record<string, unknown>): boolean {
   if (raw.dayNew !== undefined && !validPhrases(raw.dayNew)) return false;
   return true;
 }
-function validKai(k: Record<string, unknown>, chapterTwo: boolean): boolean {
+function validKai(k: Record<string, unknown>, chapterTwo: boolean, chapterThree = false): boolean {
+  if (chapterThree) {
+    if (k.seen !== undefined && !["waterfall", "stream", "rocks"].includes(k.seen as string)) return false;
+    if (!["upperMorning", "pipePlan", "tankMorning"].every((key) => k[key] === undefined || typeof k[key] === "boolean")) return false;
+  }
   if ((k.need !== undefined && !["water", "food", "wood"].includes(k.need as string)) || (k.canFire !== undefined && typeof k.canFire !== "boolean") || (k.canAxe !== undefined && typeof k.canAxe !== "boolean") || (k.want !== undefined && !["water", "fish"].includes(k.want as string)) || (k.canTorch !== undefined && typeof k.canTorch !== "boolean") || (k.have !== undefined && !["radio", "metal"].includes(k.have as string))) return false;
   if (k.escapeMorning !== undefined && typeof k.escapeMorning !== "boolean") return false;
   if (!chapterTwo) return true;
@@ -166,14 +190,32 @@ function validKai(k: Record<string, unknown>, chapterTwo: boolean): boolean {
 }
 const PHASE_THREE = ["enteredCave", "caveBoxOpened", "cliffOpen", "reachedClifftop", "signalLit", "rescued"];
 
-/** Validate a version 4 save. */
+/** Chapter 2 fields shared by v4 and v5. */
+function validChapterTwo(raw: Record<string, unknown>): boolean {
+  if (!["coveOpen", "groveOpen", "reachedCove", "coveBoxOpened", "chestTaken", "barrelTaken", "rainDone"].every(key => isBool(raw[key]))) return false;
+  if (!["boiled", "boiledDay", "fishDried", "rainCaught"].every(key => isNum(raw[key]) && (raw[key] as number) >= 0)) return false;
+  return strList(raw.asked);
+}
+/** A saved water network: posts with notches, pipes between ids. References are repaired on load. */
+function validNetwork(v: unknown): v is Network {
+  if (!isObj(v) || !isNum(v.next) || !Array.isArray(v.joints) || !Array.isArray(v.pipes)) return false;
+  return v.joints.every((j) => isObj(j) && typeof j.id === "string" && isNum(j.x) && isNum(j.z) && isNum(j.notch))
+    && v.pipes.every((p) => isObj(p) && typeof p.id === "string" && typeof p.from === "string" && typeof p.to === "string" && (p.kind === "long" || p.kind === "short"));
+}
+
+/** Validate a version 5 save. */
 export function validateSave(raw: unknown): SaveData | null {
+  if (!isObj(raw) || raw.v !== 5 || !validBase(raw) || !validPhaseTwo(raw) || !validKai(raw.kai as Record<string, unknown>, true, true)) return null;
+  if (!PHASE_THREE.every(key => isBool(raw[key])) || !["camp", "rockfall", "clifftop", "cove", "upper"].includes(raw.kaiStage as string)) return null;
+  if (!validChapterTwo(raw) || !(raw.carry === null || raw.carry === "chest" || raw.carry === "barrel" || raw.carry === "tank")) return null;
+  if (!["radioTried", "reachedUpper", "stairsOpen", "bucketFilled", "tankFilled"].every(key => isBool(raw[key])) || !validNetwork(raw.water)) return null;
+  return raw as unknown as SaveData;
+}
+function validateV4(raw: unknown): V4 | null {
   if (!isObj(raw) || raw.v !== 4 || !validBase(raw) || !validPhaseTwo(raw) || !validKai(raw.kai as Record<string, unknown>, true)) return null;
   if (!PHASE_THREE.every(key => isBool(raw[key])) || !["camp", "rockfall", "clifftop", "cove"].includes(raw.kaiStage as string)) return null;
-  if (!["coveOpen", "groveOpen", "reachedCove", "coveBoxOpened", "chestTaken", "barrelTaken", "rainDone"].every(key => isBool(raw[key]))) return null;
-  if (!["boiled", "boiledDay", "fishDried", "rainCaught"].every(key => isNum(raw[key]) && (raw[key] as number) >= 0)) return null;
-  if (!strList(raw.asked) || !(raw.carry === null || raw.carry === "chest" || raw.carry === "barrel")) return null;
-  return raw as unknown as SaveData;
+  if (!validChapterTwo(raw) || !(raw.carry === null || raw.carry === "chest" || raw.carry === "barrel")) return null;
+  return raw as unknown as V4;
 }
 function validateV3(raw: unknown): V3 | null {
   if (!isObj(raw) || raw.v !== 3 || !validBase(raw) || !validPhaseTwo(raw) || !validKai(raw.kai as Record<string, unknown>, false)) return null;
@@ -213,6 +255,9 @@ export function migrateV2(raw: unknown): SaveData | null {
 export function migrateV3(raw: unknown): SaveData | null {
   const old = validateV3(raw);
   if (!old) return null;
+  return migrateV4(migrateV3ToV4(old));
+}
+function migrateV3ToV4(old: V3): V4 {
   const bag: Bag = { ...old.bag };
   const oldWater = bag.water ?? 0;
   if (oldWater > 0) {
@@ -222,7 +267,7 @@ export function migrateV3(raw: unknown): SaveData | null {
   const freePlay = old.quest.day >= 6;
   return {
     ...old,
-    v: 4,
+    v: 4 as const,
     bag,
     kai: { ...old.kai },
     quest: freePlay ? { day: 6, done: [], complete: false } : old.quest,
@@ -244,6 +289,33 @@ export function migrateV3(raw: unknown): SaveData | null {
     rainDone: false
   };
 }
+/**
+ * Convert a valid Chapter 2 save. The rescue now ends the whole story, so a
+ * save that had been rescued keeps the radio call as tried (and is not rescued
+ * any more). A free-play save (Day 9 or later, from before Chapter 3) resumes
+ * at the Day 9 morning with everything it had.
+ */
+export function migrateV4(raw: unknown): SaveData | null {
+  const old = validateV4(raw);
+  if (!old) return null;
+  const freePlay = old.quest.day >= 9;
+  return {
+    ...old,
+    v: 5,
+    kai: { ...old.kai },
+    quest: freePlay ? { day: 9, done: [], complete: false } : old.quest,
+    t: freePlay ? dayStartT(9) : old.t,
+    sleptDay: freePlay ? 8 : old.sleptDay,
+    kaiStage: freePlay ? "camp" : old.kaiStage,
+    radioTried: old.rescued,
+    rescued: false,
+    reachedUpper: false,
+    stairsOpen: false,
+    bucketFilled: false,
+    tankFilled: false,
+    water: { joints: [], pipes: [], next: 1 }
+  };
+}
 /** Serialize current save data. */
 export const serialize = (data: SaveData) => JSON.stringify(data);
 
@@ -257,11 +329,11 @@ export function parseSave(text: string | null): SaveData | null {
   }
 }
 
-/** Load v4, then safely migrate v3, v2 and v1 (each argument is that key's stored text). */
-export function loadSaveText(v4Text: string | null, v3Text?: string | null, v2Text?: string | null, v1Text?: string | null): SaveData | null {
-  const v4 = parseSave(v4Text);
-  if (v4) return v4;
-  for (const [text, migrate] of [[v3Text, migrateV3], [v2Text, migrateV2], [v1Text, migrateV1]] as const) {
+/** Load v5, then safely migrate v4, v3, v2 and v1 (each argument is that key's stored text). */
+export function loadSaveText(v5Text: string | null, v4Text?: string | null, v3Text?: string | null, v2Text?: string | null, v1Text?: string | null): SaveData | null {
+  const v5 = parseSave(v5Text);
+  if (v5) return v5;
+  for (const [text, migrate] of [[v4Text, migrateV4], [v3Text, migrateV3], [v2Text, migrateV2], [v1Text, migrateV1]] as const) {
     try {
       const migrated = migrate(JSON.parse(text ?? ""));
       if (migrated) return migrated;

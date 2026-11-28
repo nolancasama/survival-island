@@ -11,6 +11,7 @@ import { refreshQuest, save, showBeacons, showPlaces, showStepTarget } from "./s
 import { sendKaiAhead } from "./escape";
 import { sleepPlace } from "./days";
 import { coveMorning, groveMorning, helpChapterTwo, rainMorning } from "./chapter2";
+import { freePlayMorning, talkChapterThree, tankMorning, upperMorning } from "./chapter3";
 import { audio } from "../../audio/audio";
 
 /**
@@ -69,6 +70,7 @@ export async function talkToKai() {
     else if (g.quest.day === 4) await helpDayFour();
     else if (g.quest.day === 5) await helpDayFive();
     else if (g.quest.day >= 6 && g.quest.day <= 8) await helpChapterTwo(g.quest.day);
+    else if (g.quest.day === 9 || g.quest.day === 10) await talkChapterThree(g.quest.day);
     else await whatDoYouNeed();
   } finally {
     endConversation();
@@ -89,7 +91,9 @@ export async function morningTalk(day: number) {
     else if (day === 6) await coveMorning();
     else if (day === 7) await groveMorning();
     else if (day === 8) await rainMorning();
-    else if (day > 8) await say("kai", "Good morning! When it rains, our barrel gets water.", "おはよう！ あめが ふると、 たるに みずが たまるよ。");
+    else if (day === 9) await upperMorning();
+    else if (day === 10) await tankMorning();
+    else if (day > 10) await freePlayMorning();
     else await say("kai", "Good morning! Let's explore the island!", "おはよう！ しまを たんけんしよう！");
   } finally {
     endConversation();
@@ -118,7 +122,7 @@ async function bedtime() {
 export async function dayThreeThanks() {
   const g = getGame();
   if (g.quest.day === 4) {
-    await say("kai", "Tomorrow we go home!", "あしたは いえに かえろう！");
+    await say("kai", "Tomorrow, let's call for help!", "あしたは たすけを よぼう！");
     return;
   }
   // Chapter 2 evenings look back at the day's improvement.
@@ -132,6 +136,14 @@ export async function dayThreeThanks() {
   }
   if (g.quest.day === 8) {
     await say("kai", "Rain water at our camp! We did it!", "キャンプで あまみずが ためられた！ やったね！");
+    return;
+  }
+  if (g.quest.day === 9) {
+    await say("kai", "Water flows down a pipe! Tomorrow, a long pipe to our camp!", "みずは パイプを ながれるね！ あしたは キャンプまで ながい パイプ！");
+    return;
+  }
+  if (g.quest.day === 10) {
+    await say("kai", "Water at our camp, every day! We did it!", "まいにち キャンプに みずが くる！ やったね！");
     return;
   }
   if (g.quest.day !== 3) return;
@@ -262,7 +274,7 @@ async function dayFourMorning() {
 }
 
 async function dayFiveMorning() {
-  await say("kai", "Today we go home!", "きょうは いえに かえろう！");
+  await say("kai", "Good morning! Let's call for help!", "おはよう！ たすけを よぼう！");
   await say("kai", "Let's go to the clifftop. But rocks are on the path.", "がけの うえへ いこう。 でも みちに いわが あるんだ。");
   await say("kai", "I'll meet you there.", "そこで あおうね。");
   setGame({ kai: { ...getGame().kai, escapeMorning: true } });

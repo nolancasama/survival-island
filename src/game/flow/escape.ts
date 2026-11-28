@@ -1,7 +1,7 @@
 import { getGame, setGame, toast } from "../store";
 import { rt } from "../runtime";
 import { count, removeAll } from "../logic/inventory";
-import { KAI_ROUTES, RESCUE_SECONDS, RESCUE_SHOT, ROCKFALL, isOnClifftop } from "../world/phase3";
+import { COVE_LOOK_SHOT, KAI_ROUTES, RESCUE_SECONDS, RESCUE_SHOT, ROCKFALL, isOnClifftop } from "../world/phase3";
 import { walkKaiRoute } from "../kaiRoute";
 import { ask, fastMode, say } from "./ask";
 import { refreshQuest, save, showPlaces, updateHint, wait } from "./session";
@@ -26,7 +26,7 @@ export function restoreEscapeKai() {
 /** Observe arrival facts during live play; each is sticky and saved immediately. */
 export function checkEscapeArrivals() {
   const g = getGame();
-  if (g.quest.day !== 5 || g.rescued) return;
+  if (g.quest.day !== 5 || g.radioTried) return;
   const destination = g.cliffOpen ? "clifftop" : "rockfall";
   if (g.kai.escapeMorning && !rt.kai.route.length && g.kaiStage !== destination) {
     setGame({ kaiStage: destination });
@@ -84,7 +84,7 @@ export async function useSignalPad() {
   const g = getGame();
   if (!g.cliffOpen || g.quest.day < 5) return;
   if (g.signalLit) {
-    if (!g.rescued) await radioCall();
+    if (!g.radioTried) await radioCall();
     return;
   }
   if (count(g.bag, "signalFire") === 0) {
@@ -106,9 +106,14 @@ export async function useSignalPad() {
   await radioCall();
 }
 
-/** The radio accepts every offered answer, with a different reassuring reply. */
+/**
+ * The radio answers once, then fades out: the old radio is too weak for
+ * anyone to hear. Every offered answer is accepted. Then, from the clifftop,
+ * Kai sees the shipwreck's wood and boxes in the next cove, and Chapter 1 ends.
+ * (The helicopter rescue is kept for the final chapter: see rescue().)
+ */
 export async function radioCall() {
-  if (getGame().rescued) return;
+  if (getGame().radioTried) return;
   setGame({ mode: "busy", focus: null });
   audio.play("radioStatic");
   await wait(700);
@@ -120,20 +125,39 @@ export async function radioCall() {
     readQuestion: true
   });
   setGame({ mode: "busy" });
-  if (answer === "needWater") {
-    await say("radio", "Water? OK! We see your smoke. We're coming!", "みず？ わかった！ けむりが みえるよ。 いま いくよ！");
-  } else if (answer === "sleep") {
-    await say("radio", "Don't sleep yet! We see your smoke. We're coming!", "まだ ねないで！ けむりが みえるよ。 いま いくよ！");
-  } else {
-    await say("radio", "We see your smoke! We're coming!", "けむりが みえるよ！ いま いくよ！");
-  }
-  setGame({ rescued: true, mode: "busy", focus: null });
+  audio.play("radioStatic");
+  const heard = answer === "needWater" ? "Water?" : answer === "sleep" ? "Sleep?" : "Help?";
+  await say("radio", `${heard} … I can't … hear … you …`, "…よく きこえない…");
+  await wait(900);
+  await say("kai", "Hello? Hello? … Oh no. The radio is too weak.", "もしもし？ もしもし？ …ああ。 ラジオが よわすぎるんだ。");
+  await say("kai", "We need a better radio. Then we can try again.", "もっと いい ラジオが いるね。 そうしたら また ためそう。");
+  setGame({ radioTried: true });
   refreshQuest();
-  await rescue();
+  save();
+  await seeTheCove();
 }
 
-/** Hold the authored landing shot for the entire flight, with no input prompts. */
-async function rescue() {
+/** From the clifftop: the shipwreck's wood and boxes in the next cove. Then the Chapter 1 card. */
+async function seeTheCove() {
+  rt.camera.mode = "shot";
+  rt.camera.shot = COVE_LOOK_SHOT;
+  await wait(1400);
+  await say("kai", "Look! What's that?", "みて！ あれは なに？");
+  await say("kai", "Wood and boxes from a ship! In the next cove!", "ふねの 木や はこだ！ となりの いりえに あるよ！");
+  await say("kai", "Let's make our camp better. Then we can try the radio again.", "キャンプを もっと よく しよう。 それから また ラジオを ためそう。");
+  rt.camera.mode = "follow";
+  rt.camera.shot = null;
+  setGame({ screen: "dayEnd", mode: "busy", focus: null, hint: null });
+  save();
+}
+
+/**
+ * The final chapter's ending, kept from Chapter 1: the helicopter flies in,
+ * lands on the plateau and the rescue card follows. The story does not reach
+ * it yet; the test hook plays it so it keeps working.
+ */
+export async function rescue() {
+  setGame({ rescued: true, mode: "busy", focus: null, prompt: null, line: null });
   rt.rescueT0 = rt.time;
   rt.camera.mode = "shot";
   rt.camera.shot = RESCUE_SHOT;

@@ -1,5 +1,293 @@
 # Design Decisions
 
+## 2026-11-28 — Narrative correction and Chapter 3 (Milestone 4) design
+
+The user supplied a brief: move the rescue to the end of the story, and build
+Milestone 4 (Upper Stream and Water Distribution). They asked Claude to accept,
+reject or modify it at its discretion and to build it directly ("no router for
+now"). This section is the frozen design; changes made while building are
+recorded at its end.
+
+### Review of the brief
+
+Accepted: the failed radio call on Day 5 with the clifftop discovery of the
+shipwreck debris; chapters as separate lessons; an Upper Stream region with a
+waterfall; modular bamboo pipes with supports, heights, routes and a tank;
+a deterministic flow model with visible failures; the English list; Kai as a
+helper who never solves it; a model that can later branch, use valves, and
+drive wheels; save migration, debug entry, tests and visual checks.
+
+Modified:
+
+1. **Chapter 3 "Running Water" is two days (9 and 10).** Day 9 is
+   discover-and-experiment (Stages A–B), Day 10 is build-and-connect
+   (Stages C–E). Free play starts on Day 11. Two days give a natural lesson
+   break and a sleep between the experiment and the big build.
+2. **Day 5 ends on the clifftop with the chapter card, not with Sleep.** The
+   walk back from the clifftop is about 90 m; making the class walk it would
+   push Chapter 1 past its one-lesson target. The night passes on the card,
+   and Day 6 begins at camp as every morning does.
+3. **The Upper Stream is in the west, above the beach's west headland.** It is
+   the only place where high ground can sit close to camp (the beach is flat and
+   the forest rises slowly). It is also the physics lesson: the old lowland
+   stream runs in a ditch lower than camp, so its water can never flow to camp.
+   Water from the shelf, 3–4 m higher, can.
+4. **The shortcut opens on Day 9, not after the project.** The pipe has to be
+   built down the rock stairs between the shelf and the beach, so the stairs
+   must be open while building. It is still earned: the first visit is the long
+   way round (forest, bridge, pond, a climbing path), and the stairs are found
+   at the top, blocked by fallen bamboo, and cut open from above. Rejected:
+   opening them after the project, which forces a 100 m detour in the middle
+   of the construction.
+5. **No separate corner pieces, connectors or lashings to collect.** Every
+   piece is a split bamboo channel with its own post and rope lashing. A long
+   piece (4 m) costs one bamboo pole, a short piece (2 m) one short pole (a
+   pole is cut in two, as on Day 7). Where the direction changes, the joint is
+   drawn as a bamboo elbow by itself. The brief's own rule is that the challenge
+   is the engineering, not the gathering; corner direction is already chosen by
+   aiming, so a corner item would add inventory without adding a decision.
+   Dismantling returns the pole.
+6. **"Adjustable support frames" are the posts' five lashing notches**
+   (0.3, 0.7, 1.1, 1.5 and 1.9 m above the ground), the same idea as the rain
+   catcher's corners.
+7. **Edits are buttons; English is used at decisions, judgements, tests and
+   requests.** Speech is never needed to raise a post or put a piece. The
+   student speaks at the plan ("Let's build a pipe."), the first put, turn and
+   connection, a piece that cannot reach ("It's too short." / "It's too long."),
+   the test ("How is it?"), discoveries, requests ("Can you help me?", "I need
+   more bamboo.") and the full tank. Every edit button carries its English word.
+8. **"Move it to the left." stays "Move it left."** (already taught on Day 8,
+   with speech keys). "It's too high." is new. In the test, "It doesn't work."
+   is accepted for every failure; "It's too high." and "It's too low." are
+   praised when they are the real problem.
+
+Added:
+
+- **"What can you see?" → "I see a waterfall." / "I see a stream." / "I see
+  big rocks."** at the discovery (no wrong answer, a Grade 5 pattern).
+- **Kai's bucket experiment (Stage B) stays in the world** as a second,
+  small container on the shelf.
+- **The tank is carried with Kai** ("Carry the tank." → "It's too heavy." →
+  "Can you help me?"), the Day 6 co-carry used a third time.
+- **A Chapter 3 teacher start** on the title, and chapter cards at the ends of
+  Days 5, 8 and 10.
+- **Pipes also fill the rain barrel** if a pipe end pours into it.
+
+Rejected or deferred: branching, valves and waterwheels in the UI (the model
+supports branches; the UI only builds from open ends); posts off walkable
+ground; rain filling the tank; fluid physics.
+
+### Day 5: the radio does not reach anyone
+
+- Morning: "Good morning! Let's call for help!" / "Let's go to the clifftop.
+  But rocks are on the path." / "I'll meet you there." Day 4's evening line
+  becomes "Tomorrow, let's call for help!".
+- Steps unchanged up to "Light the signal fire". "Call for help" is done when
+  the radio call ends (new fact `radioTried`). The call: "Hello? Hello? What do
+  you need?" → "I need help." (all three answers still accepted) → "…help? …I
+  can't… hear… you…" with static, then silence. Kai: "Hello? Hello? … The radio
+  is too weak." / "We need a better radio. Then we can try again."
+- The discovery: "Look! What's that?" — an authored shot from the clifftop down
+  to Shipwreck Cove (hull, mast and crates). "Wood and boxes from a ship!" /
+  "Let's make our camp better. Then we can try the radio again." Then the
+  **Chapter 1 card** (badge: radio; "You called for help. Now make your camp
+  better!"; button "Chapter 2 →", test id `next-chapter`).
+- Day 6 Kai: "Remember the boxes we saw? Let's make our camp better!" leads
+  into the existing cove morning.
+- **The rescue is kept for the final chapter.** `rescue()`, the helicopter,
+  the landing shot, the rotor and rescue music and the `rescued` fact stay. The
+  story never reaches them yet; a test hook (`playRescue`) runs the finale so a
+  test keeps it working.
+
+### Chapters and lessons
+
+| Chapter | Days | Lesson |
+| --- | --- | --- |
+| 1 Survive | 1–5 | ends with the failed radio and the cove seen from the clifftop |
+| 2 A Better Camp | 6–8 | storage box, drying rack, rain catcher |
+| 3 Running Water | 9–10 | Upper Stream, bucket test, pipe to camp, tank |
+| later | 11+ | free play now; later chapters add survivors, settlement, engineering, and finally the rescue |
+
+Each chapter is one lesson, about 30–35 minutes of play in classroom mode. The
+title has teacher starts for Chapters 2 and 3, each beginning with the earlier
+chapters complete (the same set-up as the debug day picker, which goes to 11).
+
+### The Upper Stream (world)
+
+- **The shelf:** a rocky terrace about 20 × 10 m, centred near (−50, −6.5),
+  about 4 m above the beach, between the pond clearing (north, lower) and the
+  beach's west headland (south). Its stream runs east from an **upper pool**
+  under the **high waterfall** (from a cliff at x −60, top about 11 m, seen from
+  the beach as the region's landmark) to the **lower falls** at the shelf's east
+  edge, which drop into a plunge pool that drains into the old lowland stream.
+  Stepping stones cross the stream at one ford. Moss, ferns, a bamboo clump,
+  standing rocks and a flat table rock for the bucket.
+- **Two intakes:** rock lips where part of the stream spills over a stone, one
+  on the north bank near the upper pool (higher) and one on the south bank near
+  the stairs (lower). A first pipe starts under a lip. Two intakes and any route
+  between rocks give several valid layouts.
+- **Ways in:** the long way, a path climbing from the pond clearing's south-west
+  side to the shelf's west end (open whenever the bridge is built); and the
+  **rock stairs** from the shelf's south-east corner down to the beach's west
+  end, blocked at the top by fallen bamboo until Day 9 ("Cut the bamboo.",
+  +4 poles, gate `stairsOpen`).
+- **Rules:** ground only changes where nothing could stand before (west of the
+  beach's walkable edge, outside the pond clearing); a headland boulder moves
+  out of the stairs' foot. Stream and pools are obstacles; posts cannot stand in
+  water, but a pipe can span it.
+
+### The water network (model, `logic/waterworks.ts`)
+
+- A **network** is joints and pipes. A joint is a post at (x, z) with a notch,
+  or one of the two fixed intakes. A pipe runs from one joint to another and
+  is long (4 m) or short (2 m) in its materials; its real length can be fitted
+  when it snaps. Data supports several pipes leaving a joint (branches).
+- **Height** of a joint: the ground plus its notch height; an intake's water
+  height is fixed by its lip.
+- **Flow** (pure, deterministic): water enters at an intake that has a pipe,
+  and runs along each pipe whose far joint is no more than 5 cm above its near
+  joint. A pipe that climbs stops the water: it **overflows at the near joint**,
+  and the far post is the one that is too high. At a joint with no pipe leaving,
+  the water **pours** 0.35 m beyond the end. A pour is caught by a container
+  (bucket, tank or barrel) when it lands inside its mouth and the end is above
+  its rim; inside the mouth but below the rim is "too low"; otherwise it falls
+  on the ground. Pipes cut off from an intake stay dry.
+- **Diagnosis** for the test, in order: too high (a climbing pipe), too low,
+  missed (lands beside the container), too short (the end stops before a
+  container ahead of it), a gap (the end pours next to a dry piece: "Connect
+  them!"), far away, no pipe. Each gives Kai's hint and lights the joint.
+- **Placing:** a preview piece leaves the open end and points where the student
+  walks (16 directions, from the end toward a spot ahead of the player, as the
+  building preview works). Its new post starts at the previous post's notch.
+  It **snaps** to a container (the pour lands in the mouth, the post stays
+  outside it: "Connect them.") or onto a dry joint nearby. It cannot be put if
+  the new post would stand in water, a rock, a building or off the path, or if
+  the channel would cut into the ground. When short fails but long fits, Put
+  asks "It's too short." and switches; the reverse asks "It's too long.". The
+  preview shows a down / level / up arrow, but an uphill piece can still be put
+  (the water will show the problem).
+- **Changing:** E at a post opens its panel: higher, lower, turn left / right
+  (the last piece of a line), take off (returns the pole), add a pipe (at an
+  open end). Taking a middle piece off leaves a dry gap. Every change is checked
+  the same way as putting.
+- **Water you can see:** water runs along each wet pipe from the intake at
+  about 3 m/s, pours as a falling stream, overflows at a stopped joint, and
+  splashes where it lands. Containers fill only once the water has arrived.
+  An intake gives one cup a second, shared between its lines. Bucket holds 3,
+  tank 12, barrel 12. A full container overflows.
+
+### Day 9: The Waterfall
+
+Morning: "Good morning! Our barrel is almost empty. Rain doesn't come every
+day." / a look at the high waterfall / "Look! A waterfall! The water up there
+never stops." / "There is a path near the pond. I'll meet you there." Kai walks
+to the shelf. Steps:
+
+1. **Go to the waterfall** (first time on the shelf on Day 9 or later).
+2. **Talk to Kai.** "What can you see?" → "I see a waterfall." / "…a stream." /
+   "…big rocks." Kai: "Water flows down. Always down! And our camp is down
+   there." → "What do you want to make?" → **"Let's build a pipe."** Kai puts
+   his bucket on the table rock: "First, let's try. Make a pipe to my bucket!"
+3. **Cut the bamboo** at the top of the stairs: +4 poles, the stairs open, and a
+   short look down them ("A way to the beach!").
+4. **Fill the bucket.** The table rock is higher than the ground at the upper
+   intake, so a post left at the default height climbs ("It's too high."), and
+   too low misses the rim. When it fills: "Look! It works!" → **"The water is
+   flowing."** Kai walks home down the stairs.
+5. **Sleep.**
+
+### Day 10: Water for Camp
+
+Morning: "Good morning! I made a big water tank!" (it stands at Kai's camp) /
+"Let's bring water from the waterfall to our tank!" / "We need bamboo poles.
+Get six poles." Steps:
+
+1. **Get bamboo poles** (6; the grove trip is the backtracking).
+2. **Bring the water to camp:** a pipe pours within camp reach (15 m of the
+   tent, a campfire, the storage box or Kai's lean-to).
+3. **Fill the tank.** The pipe pours into the tank at camp. Either extend the
+   pipe to the tank, or carry the tank to the pipe with Kai, then "Move it
+   left/right" to line it up. Talking to Kai is the test ("How is it?"). When the
+   water first reaches the tank, the camera follows the water from the shelf
+   down to the tank and the student says **"The water is flowing."**; when it is
+   full, **"The tank is full."** Kai: "We did it! Water at our camp, every day!"
+4. **Boil the water** (from the tank: "Get some water.", then boil it).
+5. **Sleep.** The Chapter 3 card, then free play.
+
+Free play: the network keeps working every day; the tank refills by itself;
+its water must still be boiled.
+
+### English added in Chapter 3
+
+New: "I see a waterfall.", "I see a stream.", "I see big rocks.", "Let's build
+a pipe.", "Turn it.", "Connect them.", "It's too high.", "The tank is full.",
+"I need more bamboo.", "Carry the tank.". Back on purpose: "Cut the bamboo.",
+"Put it here.", "It's too short.", "It's too long.", "The water is flowing.",
+"It doesn't work.", "It's too low.", "Let's try again.", "Can you help me?",
+"It's too heavy.", "Move it left.", "Move it right.", "Get some water.", "Boil
+the water.". Kai's new question "What can you see?" is target English. Edit
+buttons are labelled higher, lower, long, short, turn, take off.
+
+### Saves (v5)
+
+`si.save.v5`. New: `radioTried`, `reachedUpper`, `stairsOpen`, `tankFilled`,
+the network (`water`: joints, pipes, next id), building types `bucket` and
+`tank` (with `water`), `carry: "tank"`, Kai stage `upper`, Kai memory
+`upperMorning`, `seen`, `pipePlan`, `tankMorning`. A v4 save that had been
+rescued gets `radioTried` (and `rescued` is cleared: the rescue is now the
+ending). A v4 save in free play (Day 9 or later) resumes at the Day 9 morning.
+
+### Budgets and tests
+
+Same budget (120 draw calls, 200k triangles in the worst view). The region's
+static scenery is a few merged meshes drawn within 85 m of the camera, plus one
+cheap far mesh for the waterfall. The pipe network is one merged mesh rebuilt
+when it changes; water, pours and splashes are instanced. Unit tests: the flow
+model (several valid layouts, climbing, gaps, too low, misses, snaps, branches),
+walkability and ground of the new region, quest steps, the v5 migration. E2E: a
+Day 5 spec for the new ending and Chapter 2 transition, a tapping playthrough of
+Days 9–10 including a failure and a repair, save and resume mid-build, the
+title's Chapter 3 start, and the rescue hook. The screenshot script gains the
+Upper Stream views.
+
+### Changes made while building (2026-11-28)
+
+- **The Day 5 discovery shot looks into the cove over the island's east
+  end**, not from the clifftop straight at it: the cove is hidden behind its
+  own north cliffs from there. The camera cuts to a point above the east
+  headland (`COVE_LOOK_SHOT`), which shows the hull, mast, crates, chest and
+  barrel on the cove's sand, and a small raft of wreckage floats at the cove's
+  mouth during Chapter 1 only (`DRIFT`, drawn until the tide opens the passage).
+- **The west headland's old green hill was removed** (`farIslandGeometry`):
+  it stood exactly where the shelf now is and covered it.
+- **The tank is wide and knee-high (rim 0.8 m, radius 0.8 m), and Kai leaves
+  it at (−24.5, 1.6)**, 8.6 m from his lean-to. The beach rises about 0.4 m
+  toward camp, so a line left at the middle notch climbs onto the beach (the
+  unit tests pin this). Two ways work: keep the stairs' posts high and run the
+  pipe to the tank, or carry the tank with Kai to the stairs' end of camp,
+  where the middle notch is enough.
+- **Put plans the piece again from the current state** instead of using the
+  preview's last frame. On a slow frame, a quick T/X/Z or a second E after a
+  put used a stale plan and stacked pieces on one spot (found by the e2e run).
+- **Turning rotates exactly one step (22.5°)** from where the piece points,
+  so turning right and back left returns a piece fitted to a container to the
+  same place (snapping it to the 16-direction grid lost the fit).
+- **Kai waits a step west of the table rock (−51.8, −10.0)** and is preferred
+  over nearby posts (0.8 m focus bias) only while a Chapter 3 step needs his
+  test or plan; otherwise the posts around the bucket won the focus, and at
+  bedtime he would have beaten the tent.
+- **Rocks round the shelf sit on the cliff faces** with their tops under the
+  rim; the first version walled the shelf in.
+- **Chapter 3 detail is culled by distance** (scenery, pipes, water, the
+  fallen bamboo beyond 90 m; containers beyond 70 m), and only the high
+  waterfall has a far version. Measured on the GPU path (Apple M-series,
+  `channel: "chromium"`, 1024×768) calls / triangles: clifftop 118 / 180k (124
+  before culling), camp at night 106 / 175k, the shelf with a full network
+  96 / 121k, the stairs' foot 57 / 76k, the beach's west end 50 / 71k. All
+  moving water is one instanced mesh (hexagonal prisms).
+- **E2E specs assert story lines with `fast=0`**: in fast mode lines advance
+  by themselves after 30 ms.
+
 ## 2026-11-23 — Debug day picker
 
 - **A hidden "Debug: start at day" row on the title screen, shown only with

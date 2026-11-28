@@ -33,6 +33,6 @@ describe("Phase 2 survival", () => {
 describe("v1 migration", () => {
   it("loads a valid v1 into current defaults, including completed Day 1 at night", () => {
     const old = { v: 1, savedAt: 1, quest: { day: 1, done: ["eat", "kai", "wood", "stone", "craft", "place", "light"], complete: true }, bag: {}, stats: { hp: 1, stamina: 2, food: 3 }, known: [], unlocked: [], crafted: [], buildings: [], taken: {}, crateOpened: false, metKai: false, ate: 0, kai: {}, player: { x: 0, z: 0, yaw: 0 }, light: .5, said: [] };
-    const got = loadSaveText(null, null, null, JSON.stringify(old)); expect(got?.v).toBe(4); expect(got?.t).toBe(1); expect(got?.quest.done).not.toContain("sleep"); expect(loadSaveText(JSON.stringify({ v: 99 }), JSON.stringify({}))).toBeNull();
+    const got = loadSaveText(null, null, null, null, JSON.stringify(old)); expect(got?.v).toBe(5); expect(got?.t).toBe(1); expect(got?.quest.done).not.toContain("sleep"); expect(loadSaveText(JSON.stringify({ v: 99 }), JSON.stringify({}))).toBeNull();
   });
 });

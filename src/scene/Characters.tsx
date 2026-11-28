@@ -11,6 +11,8 @@ import { buildingObstacles } from "../game/world/placement";
 import { canRun } from "../game/logic/stats";
 import { findFocus } from "../game/flow/focus";
 import { currentGates, worldPropObstacles } from "../game/flow/places";
+import { twoCarry } from "../game/flow/chapter2";
+import { pipeObstacles } from "../game/world/pipeWorld";
 import { audio } from "../audio/audio";
 import { tts } from "../audio/tts";
 import { smoothMat, shadowMaterial } from "./materials";
@@ -257,7 +259,7 @@ export function Player() {
     const p = rt.player;
     const g = getGame();
     const canMove =
-      g.screen === "game" && (g.mode === "explore" || g.mode === "place") && !g.settingsOpen && rt.time >= p.frozenUntil && p.lying < 0.05;
+      g.screen === "game" && (g.mode === "explore" || g.mode === "place" || (g.mode === "pipe" && g.pipe?.kind === "lay")) && !g.settingsOpen && rt.time >= p.frozenUntil && p.lying < 0.05;
 
     let mx = 0;
     let my = 0;
@@ -296,7 +298,7 @@ export function Player() {
       kaiObstacle.circles[0].x = rt.kai.x;
       kaiObstacle.circles[0].z = rt.kai.z;
       // Kai holds the other end of the chest, so he is not in the way.
-      const obstacles = [STATIC_OBSTACLES, buildingObstacles(g.buildings), worldPropObstacles(), ...(g.carry === "chest" ? [] : [kaiObstacle])];
+      const obstacles = [STATIC_OBSTACLES, buildingObstacles(g.buildings), pipeObstacles(g.water), worldPropObstacles(), ...(twoCarry(g.carry) ? [] : [kaiObstacle])];
       const gates = currentGates();
       const steps = Math.max(1, Math.ceil((speed * dt) / 0.1));
       const ox = p.x;
@@ -379,7 +381,7 @@ export function Player() {
     if (g.inCave) armRx = -1.15;
     if (carrying) {
       // The barrel is held in front; leading the chest, the hands reach back to its end.
-      armLx = armRx = g.carry === "chest" ? 0.45 : -1.25;
+      armLx = armRx = twoCarry(g.carry) ? 0.45 : -1.25;
       bend = 0.12;
       bodyY *= 0.6;
     } else if (rt.time - rt.carry.strainT0 < 1.1) {
@@ -522,7 +524,7 @@ export function Kai() {
     const p = rt.player;
     const g = getGame();
     let moving = 0;
-    const coCarry = g.carry === "chest" && !g.inCave;
+    const coCarry = twoCarry(g.carry) && !g.inCave;
     if (coCarry && rt.carry.trail.length) {
       // Kai holds the far end: 1.8 m back along the player's path.
       const at = trailBack(rt.carry.trail, p.x, p.z, 1.8);

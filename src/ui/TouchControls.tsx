@@ -82,7 +82,8 @@ export function TouchControls() {
   const mode = useGame((s) => s.mode);
   const focus = useGame((s) => s.focus);
   if (!touch || screen !== "game") return null;
-  const walking = mode === "explore" || mode === "place";
+  const layingPipe = useGame((s) => s.pipe?.kind === "lay");
+  const walking = mode === "explore" || mode === "place" || (mode === "pipe" && layingPipe);
   return (
     <>
       {walking && <Joystick />}

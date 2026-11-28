@@ -51,13 +51,14 @@ Each script logs its renderer. Desktop FPS is not a Chromebook benchmark.
 | `tests/e2e/day2.spec.ts` | Day 2 crafting, axe/forest gates, leaves, tent, sleep and evening resume | `src/game/flow/`, `src/game/logic/`, `src/game/world/`, `src/ui/` |
 | `tests/e2e/day3.spec.ts` | Bridge, cup/water, fishing/cooking, refusals, beacons, night saves and Day 4 morning | `src/game/flow/`, `src/game/logic/`, `src/game/world/`, `src/ui/` |
 | `tests/e2e/day4.spec.ts` | Cave/torch branches, metal/radio, cave resume and v2 save migration | `src/game/flow/`, `src/game/logic/`, `src/game/world/phase3.ts`, `src/ui/` |
-| `tests/e2e/day5.spec.ts` | Escape, Kai routes, signal fire, radio answers, rescue, Day 6 and classroom costs | `src/game/flow/escape.ts`, `src/game/logic/`, `src/game/world/phase3.ts`, `src/scene/`, `src/ui/` |
+| `tests/e2e/day5.spec.ts` | Escape, Kai routes, signal fire, the radio that fails, the cove shot, the Chapter 1 card, Day 6, classroom costs; the kept helicopter rescue via the `playRescue` hook | `src/game/flow/escape.ts`, `src/game/logic/`, `src/game/world/phase3.ts`, `src/scene/`, `src/ui/` |
 | `tests/e2e/classroom.spec.ts` | Classroom costs, Settings toggle, live idle hints and normal-pace exclusion | `src/game/logic/pace.ts`, `src/game/flow/`, `src/game/store.ts`, `src/ui/` |
-| `tests/e2e/animation.spec.ts` | Normal-time intro/faint/sleep pose switches covered by fade; sleeping overlay | `src/game/flow/transition.ts`, `src/game/flow/`, `src/scene/`, `src/ui/` |
+| `tests/e2e/animation.spec.ts` | Normal-time intro/faint/sleep pose switches covered by fade; sleeping overlay (free play from Day 11) | `src/game/flow/transition.ts`, `src/game/flow/`, `src/scene/`, `src/ui/` |
 | `tests/e2e/terminology.spec.ts` | Tent/cup craft prompts, inventory and resume across speech/tap and normal/classroom | `src/game/logic/`, `src/game/flow/`, `src/ui/`, `src/audio/` |
 | `tests/e2e/world-movement.spec.ts` | Bridge banks/deck and closed crossing; keyboard cave exit at two camera yaws | `src/game/world/surface.ts`, `src/game/world/island.ts`, `src/game/flow/cave.ts`, `src/game/runtime.ts`, `src/scene/` |
 | `tests/e2e/chapter2.spec.ts` | Chapter 2 Days 6–8: cove, chest carrying, thicket/bamboo rack, rain barrel and boiling; v3 save resumes into Chapter 2 | `src/game/flow/`, `src/game/logic/`, `src/game/world/`, `src/game/store.ts`, `src/scene/`, `src/ui/` |
-| `tests/e2e/debug.spec.ts` | Hidden `?debug=1` day picker: hidden by default, a day button starts that morning | title/debug UI in `src/ui/`, `src/game/flow/` |
+| `tests/e2e/chapter3.spec.ts` | Chapter 3 Days 9–10: title start, the Upper Stream, the plan by speech, the stairs, a too-high test pipe fixed through Kai's test; Day 10 laid with keys/buttons, save/resume mid-build, the tank fills, boil, the Chapter 3 card; free-play gap/reconnect, turning, carrying the tank with Kai | `src/game/flow/chapter3*.ts`, `src/game/logic/waterworks.ts`, `src/game/world/chapter3.ts`, `src/game/world/pipeWorld.ts`, `src/scene/Chapter3World.tsx`, `src/ui/PipeBar.tsx`; the co-carry in `src/game/flow/chapter2.ts` |
+| `tests/e2e/debug.spec.ts` | Hidden `?debug=1` day picker (Days 1–11): hidden by default, a day button starts that morning | title/debug UI in `src/ui/`, `src/game/flow/dayStart.ts` |
 | `tests/e2e/microphone.spec.ts` | Missing-microphone teacher warning, retry resumes speaking, teacher options start closed | `src/audio/`, `src/ui/`, `src/game/flow/` |
 | `tests/support/kit.selftest.mjs` | Lock serialization, stale recovery, waiting timeout, nesting, unavailable directory and server identity | `tests/support/test-lock.mjs`, `tests/support/server-identity.ts` |
 
@@ -85,5 +86,9 @@ Existing gameplay state is available through `window.__si.state()` with
 
 Wait on semantic readiness state. Preserve timed-mechanic waits with a comment.
 Desktop FPS is a GTX 1080 benchmark; Chromebook performance is unmeasured.
+`scripts/shots-ch3.mjs` (Upper Stream views and draw-call worst cases) follows the
+same renderer rule and needs its own preview: `npx vite --port 5287`, then
+`node scripts/shots-ch3.mjs http://localhost:5287/`. Chapter 3 pure logic has unit
+tests (`src/game/logic/waterworks.test.ts`, `src/game/world/chapter3.test.ts`).
 Never update snapshots/evidence to make tests pass. Stop after required checks
 pass. Leave no preview servers or browsers running.

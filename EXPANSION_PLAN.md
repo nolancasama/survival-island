@@ -5,10 +5,35 @@ This file holds the long-term expansion direction supplied on 2026-11-23
 Milestones 0–3 (Part A).
 
 **What is built and what is proposed.** Milestones 1–3 are implemented as
-**Chapter 2: A Better Camp** (Days 6–8). Everything in Part B from Milestone 4
-on is proposed direction only. What is actually built and verified is listed in
+**Chapter 2: A Better Camp** (Days 6–8) and Milestone 4 as **Chapter 3:
+Running Water** (Days 9–10). Everything in Part B from Milestone 5 on is
+proposed direction only. What is actually built and verified is listed in
 `CURRENT_STATE.md`, and the decisions behind it are in `DESIGN_DECISIONS.md`
-("2026-11-23 — Chapter 2 (Milestones 1–3) design").
+("2026-11-23 — Chapter 2 (Milestones 1–3) design" and "2026-11-28 — Narrative
+correction and Chapter 3 (Milestone 4) design").
+
+## The corrected story (2026-11-28)
+
+The Day 5 helicopter rescue contradicted the expanded story, so it was moved
+to the end. Day 5 now ends with a radio call that does not get through, and
+from the clifftop the survivors see shipwreck debris in the next cove; Kai
+suggests making the camp better while they wait for another chance. The rescue
+code (helicopter, landing shot, music, the `rescued` fact) is kept for the
+final chapter.
+
+| Stage (Part B §10) | Chapters | Status |
+| --- | --- | --- |
+| 1 Survive | Chapter 1, Days 1–5 (ends with the failed radio and the cove seen from the clifftop) | built |
+| 2 Build a Home | Chapter 2, Days 6–8 (box, rack, rain catcher); Chapter 3, Days 9–10 (Upper Stream, pipes, tank) | built |
+| 2 Build a Home (cont.) | Better housing (Milestone 5) | proposed |
+| 3 Discover Other Survivors | Milestone 6 onward | proposed |
+| 4–5 Village and Ingenious Settlement | Milestones 7–11 | proposed |
+| 6 Rescue | Milestone 12: restore the radio, signals, the helicopter rescue (already built, waiting) | proposed |
+
+Each chapter is one classroom lesson (about 30–35 minutes of play in
+classroom mode); the title has teacher starts for Chapters 2 and 3. The
+superseded A1/A2 notes below ("Chapter 2 after the rescue") are kept as the
+record of the earlier decision.
 
 ---
 
@@ -708,7 +733,7 @@ Focus on:
 
 The following are planned directions, not implementation-ready specifications.
 
-**Milestone 4 — Upper Stream and Water Distribution**
+**Milestone 4 — Upper Stream and Water Distribution** *(built as Chapter 3, Days 9–10; see DESIGN_DECISIONS.md 2026-11-28)*
 
 Explore the waterfall and upstream area. Introduce bamboo channels, elevation differences and a simple gravity-fed water network.
 
