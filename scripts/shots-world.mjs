@@ -4,21 +4,60 @@ import { chromium } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawn } from "node:child_process";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const base = process.argv[2] ?? "http://127.0.0.1:5287/";
+const base = process.argv[2] ?? "http://127.0.0.1:4174/";
 const [vw, vh] = (process.argv[3] ?? "1024x768").split("x").map(Number);
-const outDir = path.join(root, ".tmp", "shots", "world");
+const swiftshader = process.env.CB_SWIFTSHADER === "1";
+const outDir = path.join(root, ".tmp", swiftshader ? "shots-swiftshader" : "shots", "world");
 fs.mkdirSync(outDir, { recursive: true });
 
 const stubsSrc = fs.readFileSync(path.join(root, "tests", "e2e", "stubs.ts"), "utf8");
 const stubs = stubsSrc.slice(stubsSrc.indexOf("`") + 1, stubsSrc.lastIndexOf("`"));
 
-const browser = await chromium.launch({
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"]
+let server;
+let browser;
+const stop = async () => {
+  try { await browser?.close(); } finally {
+    if (server?.pid && server.exitCode === null && server.signalCode === null) {
+      const exited = new Promise((resolve) => server.once("exit", resolve));
+      server.kill();
+      await exited;
+    }
+  }
+};
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.once(signal, () => { void stop().finally(() => process.exit(1)); });
+}
+try {
+if (!process.argv[2]) {
+  server = spawn(process.execPath, [path.join(root, "node_modules", "vite", "bin", "vite.js"), "preview", "--host", "127.0.0.1", "--port", "4174", "--strictPort"], { cwd: root, stdio: ["ignore", "pipe", "inherit"] });
+  let output = "";
+  server.stdout.on("data", (chunk) => { process.stdout.write(chunk); output += chunk.toString(); });
+  let serverError;
+  server.once("error", (error) => { serverError = error; });
+  const deadline = Date.now() + 60_000;
+  while (true) {
+    if (serverError) throw serverError;
+    if (server.exitCode !== null || server.signalCode !== null) throw new Error("Preview server exited before becoming ready");
+    try { if (output.includes("Local:") && (await fetch(base)).ok) break; } catch { /* Wait for the preview to listen. */ }
+    if (Date.now() >= deadline) throw new Error("Preview server did not become ready");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+}
+browser = await chromium.launch({
+  channel: "chromium",
+  args: [...(swiftshader ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] : []), "--autoplay-policy=no-user-gesture-required"]
 });
 const context = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
 const page = await context.newPage();
+const renderer = await page.evaluate(() => {
+  const gl = document.createElement("canvas").getContext("webgl2") ?? document.createElement("canvas").getContext("webgl");
+  const ext = gl?.getExtension("WEBGL_debug_renderer_info");
+  return gl && ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : "not available";
+});
+console.log(`[WebGL UNMASKED_RENDERER] ${renderer}`);
 const logs = [];
 page.on("console", (m) => {
   if (m.type() === "error" || m.type() === "warning") logs.push(`[${m.type()}] ${m.text()}`);
@@ -357,4 +396,6 @@ for (const [name, x, z] of [["flat", 10.5, 13], ["slope", 7, -48.4]]) {
 }
 
 console.log(logs.length ? logs.join("\n") : "no console errors");
-await browser.close();
+} finally {
+  await stop();
+}
